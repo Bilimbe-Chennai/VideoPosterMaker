@@ -563,7 +563,7 @@ router.post("/videophoto", async (req, res) => {
         whatsappstatus,
       });
       await media.save();
-       const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`;
+       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 
       // ✅ Safely delete all other temporary files
@@ -763,7 +763,7 @@ router.post(
       });
 
       await media.save();
-     const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
+     const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 
       const tempFiles = [tempGifPath];
@@ -916,7 +916,7 @@ router.post("/videovideo", async (req, res) => {
       });
 
       await media.save();
-      const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
+      const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 
       const tempFiles = [tempAudioPath];
@@ -1037,7 +1037,7 @@ router.post("/videovideo", async (req, res) => {
 
 //       await media.save();
 
-//       const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
+//       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
 //       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 
 //       res.status(201).json({ success: true, media, qrCode: qrCodeData });
@@ -1273,7 +1273,7 @@ router.post("/videovideo", async (req, res) => {
 
 //       await media.save();
 //       // Create a download URL for the posterVideoId
-//       const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`;
+//       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`;
 //       // Generate QR code as base64
 //       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 //       // Send response with media and QR code

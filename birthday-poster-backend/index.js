@@ -13,7 +13,7 @@ const allowedOrigins = [
   "http://localhost:5000",
   "https://bilimbe-bday-poster-frontend.onrender.com",
   "https://bilimbe-bday-poster-backend.onrender.com",
-  "http://app.bilimbebrandactivations.com"
+  "https://app.bilimbebrandactivations.com"
 ];
 app.use(
   cors({
@@ -31,8 +31,8 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ limit: '200mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/upload', uploadRoutes);
 
