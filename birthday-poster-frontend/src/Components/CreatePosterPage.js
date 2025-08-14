@@ -156,7 +156,7 @@ function CreatePosterPage() {
   };
 
   const shareOnWhatsApp = async () => {
-    const downloadUrl = `http://localhost:5000/api/upload/file/${media?.posterVideoId}?download=true`; // replace with your download link
+    const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`; // replace with your download link
 
     if (!phoneNumber.trim()) {
       alert("Please enter a WhatsApp number.");
@@ -910,7 +910,7 @@ function CreatePosterPage() {
                       <Box sx={{ position: "relative" }}>
                         {/* <CardMedia
                           component="img"
-                          image={mediaType === "videovideo"?`http://localhost:5000/api/upload/file/${media?.posterVideoId}`:`http://localhost:5000/api/upload/file/${media?.photoId}`}
+                          image={mediaType === "videovideo"?`http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`:`http://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
                           alt="Poster Preview"
                           sx={{
                             width: "100%",
@@ -927,7 +927,7 @@ function CreatePosterPage() {
                         >
                           <video
                             controls
-                            //poster={`http://localhost:5000/api/upload/file/${media?.photoId}`}
+                            //poster={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
                             style={{
                               width: "100%",
                               height: "100%",
@@ -938,8 +938,8 @@ function CreatePosterPage() {
                             <source
                               src={
                                 mediaType === "videophoto"
-                                  ? `http://localhost:5000/api/upload/file/${media?.mergedVideoId}`
-                                  : `http://localhost:5000/api/upload/file/${media?.posterVideoId}`
+                                  ? `http://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
+                                  : `http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
                               }
                               type="video/mp4"
                             />
@@ -993,8 +993,8 @@ function CreatePosterPage() {
                               variant="contained"
                               href={
                                 mediaType === "videophoto"
-                                  ? `http://localhost:5000/api/upload/file/${media?.mergedVideoId}?download=true`
-                                  : `http://localhost:5000/api/upload/file/${media?.posterVideoId}?download=true`
+                                  ? `http://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
+                                  : `http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
                               }
                               download="final-video.mp4"
                               sx={{
@@ -1027,7 +1027,7 @@ function CreatePosterPage() {
                             {mediaType === "videophoto" && (
                               <Button
                                 variant="contained"
-                                href={`http://localhost:5000/api/upload/file/${media?.posterId}?download=true`}
+                                href={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
                                 download="final-video.mp4"
                                 sx={{
                                   background:

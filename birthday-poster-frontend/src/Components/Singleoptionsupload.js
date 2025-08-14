@@ -241,7 +241,7 @@ function Singleoptionsupload() {
                   <Card sx={{ borderRadius: 2, mb: 2 }}>
                     <CardMedia 
                       component="img"
-                      image={`http://localhost:5000/api/upload/file/${media?.photoId}`}
+                      image={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
                       alt="Poster"
                       sx={{ maxHeight: 240, objectFit: 'contain' }}
                     />
@@ -251,7 +251,7 @@ function Singleoptionsupload() {
                           variant="outlined"
                           color='error'
                           startIcon={<Download />}
-                          href={`http://localhost:5000/api/upload/file/${media?.posterId}?download=true`}
+                          href={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
                           download="poster.png"
                           fullWidth
                         >
@@ -261,7 +261,7 @@ function Singleoptionsupload() {
                           variant="outlined"
                           color='error'
                           startIcon={<Download />}
-                          href={`http://localhost:5000/api/upload/file/${media?.posterVideoId}?download=true`}
+                          href={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`}
                           download="final-video.mp4"
                           fullWidth
                         >

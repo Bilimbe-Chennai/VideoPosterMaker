@@ -12,7 +12,8 @@ const allowedOrigins = [
   "http://localhost:3001", 
   "http://localhost:5000",
   "https://bilimbe-bday-poster-frontend.onrender.com",
-  "https://bilimbe-bday-poster-backend.onrender.com"
+  "https://bilimbe-bday-poster-backend.onrender.com",
+  "http://app.bilimbebrandactivations.com"
 ];
 app.use(
   cors({
@@ -35,4 +36,4 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/upload', uploadRoutes);
 
-app.listen(5000, () => console.log('Server running on http://localhost:5000'));
+app.listen(process.env.PORT, () => console.log('Server running on http://localhost:5000'));

@@ -139,7 +139,7 @@
 // //                 >
 // //                   <CardMedia
 // //                     component="img"
-// //                     image={`http://localhost:5000/api/upload/file/${media.photoId}`}
+// //                     image={`http://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
 // //                     alt={media.name}
 // //                     sx={{
 // //                       height: 150,
@@ -165,7 +165,7 @@
 // //                         variant="outlined"
 // //                         color="error"
 // //                         startIcon={<Download />}
-// //                         href={`http://localhost:5000/api/upload/file/${media.posterId}`}
+// //                         href={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterId}`}
 // //                         download="poster.png"
 // //                         fullWidth
 // //                         size="small"
@@ -176,7 +176,7 @@
 // //                         variant="outlined"
 // //                         color="error"
 // //                         startIcon={<Download />}
-// //                         href={`http://localhost:5000/api/upload/file/${media.posterVideoId}`}
+// //                         href={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`}
 // //                         download="final-video.mp4"
 // //                         fullWidth
 // //                         size="small"
@@ -326,7 +326,7 @@
 //                 >
 //                   <CardMedia
 //                     component="img"
-//                     image={`http://localhost:5000/api/upload/file/${media.photoId}`}
+//                     image={`http://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
 //                     alt={media.name}
 //                     sx={{
 //                       height: 150,
@@ -355,7 +355,7 @@
 //                         variant="outlined"
 //                         color="error"
 //                         startIcon={<Download />}
-//                         href={`http://localhost:5000/api/upload/file/${media.posterId}`}
+//                         href={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterId}`}
 //                         download="poster.png"
 //                         fullWidth
 //                         size="small"
@@ -366,7 +366,7 @@
 //                         variant="outlined"
 //                         color="error"
 //                         startIcon={<Download />}
-//                         href={`http://localhost:5000/api/upload/file/${media.posterVideoId}`}
+//                         href={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`}
 //                         download="final-video.mp4"
 //                         fullWidth
 //                         size="small"
@@ -453,7 +453,7 @@ const [showModal, setShowModal] = useState(false);
     setPhoneNumber("");
   };
    const shareOnWhatsApp = async () => {
-    const downloadUrl = `http://localhost:5000/api/upload/file/${media?.posterVideoId}?download=true`; // replace with your download link
+    const downloadUrl = `http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`; // replace with your download link
 
     if (!phoneNumber.trim()) {
       alert("Please enter a WhatsApp number.");
@@ -713,7 +713,7 @@ const [showModal, setShowModal] = useState(false);
                   >
                     {/* <CardMedia
                       component="img"
-                      image={`http://localhost:5000/api/upload/file/${media.photoId}`}
+                      image={`http://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
                       alt={media.name}
                       sx={{
                         height: 150, 
@@ -734,7 +734,7 @@ const [showModal, setShowModal] = useState(false);
                       <>
                         <CardMedia
                           component="img"
-                          image={`http://localhost:5000/api/upload/file/${media.posterVideoId}`}
+                          image={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`}
                           alt={media.name}
                           sx={{
                             height: 150,
@@ -783,7 +783,7 @@ const [showModal, setShowModal] = useState(false);
                       // Regular image for other types
                       <CardMedia
                         component="img"
-                        image={`http://localhost:5000/api/upload/file/${media.photoId}`}
+                        image={`http://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
                         alt={media.name}
                         sx={{
                           height: 150,
@@ -855,7 +855,7 @@ const [showModal, setShowModal] = useState(false);
                             variant="outlined"
                             size="small"
                             startIcon={<Download />}
-                            href={`http://localhost:5000/api/upload/file/${media.posterId}`}
+                            href={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterId}`}
                             sx={{
                               borderRadius: 2,
                               borderColor: getTypeDetails(media.type).color,
@@ -875,8 +875,8 @@ const [showModal, setShowModal] = useState(false);
                           startIcon={<Download />}
                           href={
                             media?.type === "videophoto"
-                              ? `http://localhost:5000/api/upload/file/${media.mergedVideoId}`
-                              : `http://localhost:5000/api/upload/file/${media.posterVideoId}`
+                              ? `http://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}`
+                              : `http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`
                           }
                           sx={{
                             borderRadius: 2,

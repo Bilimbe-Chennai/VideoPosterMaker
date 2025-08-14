@@ -381,7 +381,7 @@
 //                   <Card sx={{ borderRadius: 2, mb: 2 }}>
 //                     {mediaType === 'videogif' && media?.posterVideoId && (
 //                       <video
-//                         src={`http://localhost:5000/api/upload/file/${media.posterVideoId}`}
+//                         src={`http://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`}
 //                         width="100%"
 //                         controls
 //                         style={{ borderRadius: '8px 8px 0 0' }}
@@ -389,7 +389,7 @@
 //                     )}
 //                     <CardMedia
 //                       component="img"
-//                       image={`http://localhost:5000/api/upload/file/${media?.photoId}`}
+//                       image={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
 //                       alt="Poster"
 //                       sx={{ maxHeight: 240, objectFit: 'contain' }}
 //                     />
@@ -400,7 +400,7 @@
 //                             variant="outlined"
 //                             color='error'
 //                             startIcon={<Download />}
-//                             href={`http://localhost:5000/api/upload/file/${media?.posterId}?download=true`}
+//                             href={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
 //                             download="poster.png"
 //                             fullWidth
 //                           >
@@ -412,7 +412,7 @@
 //                             variant="outlined"
 //                             color='error'
 //                             startIcon={<Download />}
-//                             href={`http://localhost:5000/api/upload/file/${media?.posterVideoId}?download=true`}
+//                             href={`http://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`}
 //                             download="final-video.mp4"
 //                             fullWidth
 //                           >
