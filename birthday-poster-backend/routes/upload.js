@@ -3,6 +3,7 @@ const { createCanvas, loadImage } = require("canvas");
 const ffmpeg = require("fluent-ffmpeg");
 const { GridFSBucket, ObjectId } = require("mongodb");
 const mongoose = require("mongoose");
+const axios = require("axios");
 const Media = require("../models/Media");
 const { Readable } = require("stream");
 const path = require("path");
@@ -30,41 +31,79 @@ async function uploadToGridFS(filename, buffer, contentType) {
   });
 }
 //whatsapp share function
-const token = process.env.WHATSAPP_CHATMYBOT_API_TOKEN;
 router.post("/share", async (req, res) => {
   try {
     const toNumber = req.body.mobile;
     const _id = req.body._id;
     const linksend = req.body.link;
-    if (!toNumber || !linksend) {
+    const token = process.env.CHATMYBOT_TOKEN;
+    if (!toNumber || !linksend || !_id) {
       return res
         .status(400)
-        .json({ error: "Phone number and link are required" });
+        .json({ error: "Phone, link, and _id are required" });
     }
-    const response = await fetch(`https://api.chatmybot.com/sendMessage`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+      return res.status(400).json({ error: "Invalid media ID" });
+    }
+    if (!token) {
+      return res.status(500).json({ error: "ChatMyBot token not configured" });
+    }
+    const payload = [
+      {
+        to: toNumber,
+        type: "template",
+        template: {
+          id: process.env.WHATSAPP_TEMPLATE_ID,
+          language: {
+            code: "en",
+          },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  text: linksend,
+                },
+              ],
+            },
+          ],
+        },
       },
-      body: JSON.stringify({
-        phone: toNumber, // e.g. "919876543210"
-        message: linksend, // The link to send
-      }),
-    });
-    const data = await response.json();
-    if (data) {
-      console.log(data);
-      const dataGet = await Media.findByIdAndUpdate(
-        _id,
-        { whatsappstatus: "yes" },
-        { new: true }
-      );
-      res.json({ success: true, dataGet });
+    ];
+    // console.log("payload",payload)
+    // Send to ChatMyBot API
+    const response = await axios.post(
+      `https://wa.chatmybot.in/gateway/wabuissness/v1/message/batchapi`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          accessToken: token,
+        },
+      }
+    );
+    // console.log("ChatMyBot response:", response.data);
+    if (response.status !== 200) {
+      return res.status(response.status).json({
+        error: "Failed to send message via ChatMyBot",
+        details: data,
+      });
     }
+    //Update media status if API call succeeded
+    const updatedMedia = await Media.findByIdAndUpdate(
+      _id,
+      { whatsappstatus: "yes" },
+      { new: true }
+    );
+
+    return res.json({ success: true, data: updatedMedia });
   } catch (err) {
-    console.error("Error fetching media items:", err);
-    res.status(500).json({ error: "Server error while fetching media items" });
+    console.error("Server error in /share:", err.response?.data || err.message);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: err.response?.data || err.message,
+    });
   }
 });
 // Generate birthday message using AI
@@ -151,7 +190,7 @@ router.get("/file/:id", async (req, res) => {
 router.get("/all", async (req, res) => {
   try {
     const mediaItems = await Media.find().sort({ createdAt: -1 }); // Get all items, newest first
-    res.json(mediaItems);
+    res.json(mediaItems.reverse());
   } catch (err) {
     console.error("Error fetching media items:", err);
     res.status(500).json({ error: "Server error while fetching media items" });
@@ -184,7 +223,7 @@ function splitBuffer(buffer, separator) {
   parts.push(buffer.slice(start));
   return parts;
 }
-// video and photo merge for birthday 
+// video and photo merge for birthday
 router.post("/videophoto", async (req, res) => {
   try {
     const contentType = req.headers["content-type"];
@@ -563,7 +602,7 @@ router.post("/videophoto", async (req, res) => {
         whatsappstatus,
       });
       await media.save();
-       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`;
+      const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 
       // ✅ Safely delete all other temporary files
@@ -573,19 +612,17 @@ router.post("/videophoto", async (req, res) => {
           fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
         }
       }
-     res.status(201).json({ success: true, media, qrCode: qrCodeData });
+      res.status(201).json({ success: true, media, qrCode: qrCodeData });
     });
   } catch (error) {
     console.error("Upload error:", error);
     res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 });
-// photo and gif merge for muthoot 
-router.post(
-  "/photogif",
-  async (req, res) => {
-    try {
-       const contentType = req.headers["content-type"];
+// photo and gif merge for muthoot
+router.post("/photogif", async (req, res) => {
+  try {
+    const contentType = req.headers["content-type"];
     if (!contentType || !contentType.includes("multipart/form-data")) {
       return res.status(400).json({ error: "Invalid content type" });
     }
@@ -631,7 +668,7 @@ router.post(
         return res.status(400).json({ error: "Missing audio or video" });
       }
       // 1. Upload photo and gif to GridFS
-       // 2. Upload original photo and video to GridFS
+      // 2. Upload original photo and video to GridFS
       const photoId = await uploadToGridFS(
         `photogif-${Date.now()}.png`,
         photoBuffer,
@@ -763,7 +800,7 @@ router.post(
       });
 
       await media.save();
-     const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
+      const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
 
       const tempFiles = [tempGifPath];
@@ -774,12 +811,11 @@ router.post(
       }
       res.status(201).json({ success: true, media, qrCode: qrCodeData });
     });
-    } catch (error) {
-      console.error("Upload error:", error);
-      res.status(500).json({ success: false, error: "Internal Server Error" });
-    }
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
-);
+});
 const getStreamInfo = (filePath) => {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
@@ -874,8 +910,8 @@ router.post("/videovideo", async (req, res) => {
           .inputOptions(["-stream_loop -1"]) // This now applies to the most recent input
           .complexFilter([
             // Scale both videos
-            "[0:v]scale=720:1080,fps=30,setsar=1[v0]",
-            "[1:v]scale=720:1080,fps=30,setsar=1[v1]",
+            "[0:v]scale=1080:1920,fps=30,setsar=1[v0]",
+            "[1:v]scale=1080:1920,fps=30,setsar=1[v1]",
             // Concatenate only video streams (no audio)
             "[v0][v1]concat=n=2:v=1:a=0[v]",
           ])

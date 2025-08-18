@@ -19,6 +19,13 @@ import {
   Avatar,
   IconButton,
   Fade,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  ThemeProvider,
+  createTheme,
+  Alert,
 } from "@mui/material";
 import {
   Movie,
@@ -39,7 +46,8 @@ import {
   LinearScale,
   List,
 } from "@mui/icons-material";
-import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import CloseIcon from "@mui/icons-material/Close";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import AudiotrackIcon from "@mui/icons-material/Audiotrack";
 import useAxios from "../useAxios";
 import { styled } from "@mui/material/styles";
@@ -87,16 +95,27 @@ const FileUploadBox = styled(Box)(({ theme }) => ({
     backgroundColor: "#fff",
   },
 }));
-
+// Create red theme
+const redTheme = createTheme({
+  palette: {
+    primary: {
+      main: "#d32f2f", // Deep red
+    },
+    secondary: {
+      main: "#f44336", // Lighter red
+    },
+  },
+});
 function CreatePosterPage() {
   const axiosData = useAxios();
   const [qrCode, setQrCode] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [mediaType, setMediaType] = useState("photogif");
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    date: "",
+    date: new Date().toISOString().split("T")[0],
     type: "",
     photo: null,
     gif: null,
@@ -113,6 +132,7 @@ function CreatePosterPage() {
     video2: "",
     audio: "",
   });
+  const [loading, setLoading] = useState(true);
   const [media, setMedia] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -144,7 +164,7 @@ function CreatePosterPage() {
     setMediaType(e.target.value);
     setFormData({
       name: "",
-      date: "",
+      date: new Date().toISOString().split("T")[0],
       type: "",
       photo: null,
       gif: null,
@@ -169,20 +189,29 @@ function CreatePosterPage() {
       message
     )}`;
     try {
-      const res = await axiosData.post("upload/share", {
-         method: "POST",
-        headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    _id:media._id,
-    mobile: formattedNumber, // user-entered number
-    link: downloadUrl,
-  }),
-      });
+      setLoading(true);
+      const res = await axiosData.post(
+        "upload/share",
+        {
+          mobile: formattedNumber,
+          _id: media._id,
+          link: downloadUrl,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      if (res) {
+        setLoading(false);
+        closeModal();
+        setSuccess(true);
+      }
     } catch (err) {
+      setLoading(false);
       console.error("Share error:", err);
+      closeModal();
     }
     //window.open(whatsappUrl, "_blank");
-    closeModal();
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -632,7 +661,7 @@ function CreatePosterPage() {
                 </Grid>
                 {/* NEW: Audio Upload (only if mediaType is video) */}
                 {mediaType === "videovideo" && (
-                  <Grid item xs={12} md={6} sx={{ mb: 1,ml:1.5 }}>
+                  <Grid item xs={12} md={6} sx={{ mb: 1, ml: 1.5 }}>
                     <FileUploadBox sx={{ width: 200 }}>
                       <input
                         id="upload-audio"
@@ -718,7 +747,9 @@ function CreatePosterPage() {
                     !formData.name ||
                     !formData.date ||
                     (mediaType === "videovideo" &&
-                      (!formData.video1 || !formData.video2 ||!formData.audio)) ||
+                      (!formData.video1 ||
+                        !formData.video2 ||
+                        !formData.audio)) ||
                     (mediaType === "photogif" &&
                       (!formData.photo || !formData.gif)) ||
                     (mediaType === "videophoto" &&
@@ -988,41 +1019,50 @@ function CreatePosterPage() {
                       >
                         <Grid container spacing={2}>
                           <Grid item xs={6} md={3}>
-                            <Box sx={{display:"flex",flexDirection:"row",justifyContent:"space-evenly"}}>
-                            <Button
-                              variant="contained"
-                              href={
-                                mediaType === "videophoto"
-                                  ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
-                                  : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
-                              }
-                              download="final-video.mp4"
+                            <Box
                               sx={{
-                                background:
-                                  "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
-                                color: "white",
-                                borderRadius: "8px",
-                                py: 1.5,
-                                fontWeight: 600,
-                                boxShadow: "none",
-                                "&:hover": {
-                                  boxShadow:
-                                    "0 4px 15px rgba(183, 28, 28, 0.4)",
-                                },
-                                width: "100%",
+                                display: "flex",
+                                flexDirection: "row",
+                                justifyContent: "space-evenly",
                               }}
-                              startIcon={<Download />}
                             >
-                              Download Video
-                            </Button>
-                            <div style={{ margin: "10px" }}>
-                              <IconButton
-                                onClick={openModal}
-                                style={{ color:"white",backgroundColor:"green"}}
+                              <Button
+                                variant="contained"
+                                href={
+                                  mediaType === "videophoto"
+                                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
+                                    : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
+                                }
+                                download="final-video.mp4"
+                                sx={{
+                                  background:
+                                    "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
+                                  color: "white",
+                                  borderRadius: "8px",
+                                  py: 1.5,
+                                  fontWeight: 600,
+                                  boxShadow: "none",
+                                  "&:hover": {
+                                    boxShadow:
+                                      "0 4px 15px rgba(183, 28, 28, 0.4)",
+                                  },
+                                  width: "100%",
+                                }}
+                                startIcon={<Download />}
                               >
-                              <WhatsAppIcon/>
-                              </IconButton>
-                            </div>
+                                Download Video
+                              </Button>
+                              <div style={{ margin: "10px" }}>
+                                <IconButton
+                                  onClick={openModal}
+                                  style={{
+                                    color: "white",
+                                    backgroundColor: "green",
+                                  }}
+                                >
+                                  <WhatsAppIcon />
+                                </IconButton>
+                              </div>
                             </Box>
                             {mediaType === "videophoto" && (
                               <Button
@@ -1050,7 +1090,14 @@ function CreatePosterPage() {
                               </Button>
                             )}
                             {qrCode && (
-                              <img src={qrCode} alt="Download QR Code" />
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <img src={qrCode} alt="Download QR Code" />
+                              </div>
                             )}
                           </Grid>
                         </Grid>
@@ -1065,7 +1112,7 @@ function CreatePosterPage() {
       </Container>
 
       {/* Modal */}
-      {showModal && (
+      {/* {showModal && (
         <div
           style={{
             position: "fixed",
@@ -1130,6 +1177,144 @@ function CreatePosterPage() {
             </div>
           </div>
         </div>
+      )} */}
+      {showModal && (
+        <ThemeProvider theme={redTheme}>
+          <Dialog
+            open={showModal}
+            onClose={closeModal}
+            PaperProps={{
+              sx: {
+                borderRadius: "12px",
+                width: "350px",
+                padding: "16px",
+              },
+            }}
+          >
+            <DialogTitle
+              sx={{
+                color: "primary.main",
+                fontWeight: "bold",
+                textAlign: "center",
+                padding: "16px 16px 8px",
+              }}
+            >
+              Enter WhatsApp Number
+            </DialogTitle>
+
+            <DialogContent sx={{ padding: "8px 16px" }}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="e.g. 919876543210"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                sx={{
+                  marginTop: "8px",
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "8px",
+                  },
+                }}
+              />
+            </DialogContent>
+
+            <DialogActions sx={{ justifyContent: "center", padding: "16px" }}>
+              <Button
+                onClick={closeModal}
+                variant="outlined"
+                sx={{
+                  color: "text.primary",
+                  borderColor: "text.secondary",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  marginRight: "16px",
+                  "&:hover": {
+                    borderColor: "text.primary",
+                  },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={shareOnWhatsApp}
+                variant="contained"
+                color="primary"
+                sx={{
+                  borderRadius: "8px",
+                  padding: "8px 24px",
+                  fontWeight: "bold",
+                  boxShadow: "none",
+                  "&:hover": {
+                    backgroundColor: "primary.dark",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                {loading ? 'Sending...' : 'Share'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </ThemeProvider>
+      )}
+      {success && (
+        <ThemeProvider theme={redTheme}>
+          <Dialog
+            open={success}
+            PaperProps={{
+              sx: {
+                borderRadius: "12px",
+                width: "350px",
+                padding: "16px",
+              },
+            }}
+          >
+            <DialogTitle
+              sx={{
+                color: "#2e7d32",
+                fontWeight: "bold",
+                textAlign: "center",
+                p: 2,
+              }}
+            >
+              Message Sent!
+            </DialogTitle>
+            <DialogContent sx={{ p: 2 }}>
+              <Alert
+                severity="success"
+                action={
+                  <IconButton
+                    aria-label="close"
+                    color="inherit"
+                    size="small"
+                    onClick={() => {
+                      setSuccess(false);
+                    }}
+                  >
+                    <CloseIcon fontSize="inherit" />
+                  </IconButton>
+                }
+              >
+                Your video download link has been successfully sent to{" "}
+                {phoneNumber}
+              </Alert>
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: "center", p: 2 }}>
+              <Button
+                onClick={() => {
+                  setSuccess(false);
+                }}
+                variant="contained"
+                sx={{
+                  borderRadius: "8px",
+                  backgroundColor: "#2e7d32",
+                  "&:hover": { backgroundColor: "#1b5e20" },
+                }}
+              >
+                Close
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </ThemeProvider>
       )}
     </Box>
   );
