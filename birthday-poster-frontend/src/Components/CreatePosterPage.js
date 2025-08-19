@@ -672,7 +672,7 @@ function CreatePosterPage() {
                         id="upload-audio"
                         type="file"
                         name="audio"
-                        accept="audio/*"
+                        accept="audio/*,.mp3,.m4a,.aac,.wav"
                         hidden
                         onChange={handleChange}
                       />
