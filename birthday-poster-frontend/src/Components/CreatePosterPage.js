@@ -171,7 +171,12 @@ function CreatePosterPage() {
       video: null,
       audio: null,
     });
-    setFileNames({ photo: "", gif: "", video: "", audio: "" });
+    setFileNames({  photo: "",
+    gif: "",
+    video: "",
+    video1: "",
+    video2: "",
+    audio: "", });
     setMedia(null);
   };
 
@@ -484,7 +489,7 @@ function CreatePosterPage() {
                     color: "#D32F2F",
                   }}
                 >
-                  Create New Poster
+                  Create New Video
                 </Typography>
               </Box>
               <Divider
@@ -604,7 +609,7 @@ function CreatePosterPage() {
                   }}
                 />
 
-                <TextField
+                {/* <TextField
                   name="date"
                   label={
                     <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -645,7 +650,7 @@ function CreatePosterPage() {
                       },
                     },
                   }}
-                />
+                /> */}
 
                 <Grid
                   container
@@ -823,7 +828,7 @@ function CreatePosterPage() {
                       color: "#D32F2F",
                     }}
                   >
-                    Output Poster
+                    Output Video
                   </Typography>
                 </Box>
                 <Button
@@ -1089,14 +1094,14 @@ function CreatePosterPage() {
                                 Download Poster
                               </Button>
                             )}
-                            {qrCode && (
+                            {media?.qrCode && (
                               <div
                                 style={{
                                   display: "flex",
                                   justifyContent: "center",
                                 }}
                               >
-                                <img src={qrCode} alt="Download QR Code" />
+                                <img src={media?.qrCode} alt="Download QR Code" />
                               </div>
                             )}
                           </Grid>

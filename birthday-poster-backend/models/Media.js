@@ -14,7 +14,8 @@ const MediaSchema = new mongoose.Schema({
   mergedVideoId: mongoose.Schema.Types.ObjectId,
   gifId: mongoose.Schema.Types.ObjectId,
   audioId: mongoose.Schema.Types.ObjectId,
-  whatsappstatus:String
+  whatsappstatus:String,
+   qrCode: { type: String },
 });
 
 module.exports = mongoose.model('medias', MediaSchema);

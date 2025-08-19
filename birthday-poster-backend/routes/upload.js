@@ -601,10 +601,11 @@ router.post("/videophoto", async (req, res) => {
         mergedVideoId,
         whatsappstatus,
       });
-      await media.save();
+
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
-
+      media.qrCode = qrCodeData;
+      await media.save();
       // ✅ Safely delete all other temporary files
       const tempFiles = [tempOriginalVideo];
       for (const file of tempFiles) {
@@ -612,7 +613,7 @@ router.post("/videophoto", async (req, res) => {
           fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
         }
       }
-      res.status(201).json({ success: true, media, qrCode: qrCodeData });
+      res.status(201).json({ success: true, media});
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -798,18 +799,17 @@ router.post("/photogif", async (req, res) => {
         posterVideoId,
         whatsappstatus,
       });
-
-      await media.save();
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
-
+      media.qrCode = qrCodeData;
+      await media.save();
       const tempFiles = [tempGifPath];
       for (const file of tempFiles) {
         if (file) {
           fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
         }
       }
-      res.status(201).json({ success: true, media, qrCode: qrCodeData });
+      res.status(201).json({ success: true, media });
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -951,17 +951,17 @@ router.post("/videovideo", async (req, res) => {
         whatsappstatus,
       });
 
-      await media.save();
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
-
+      media.qrCode = qrCodeData;
+      await media.save();
       const tempFiles = [tempAudioPath];
       for (const file of tempFiles) {
         if (file) {
           fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
         }
       }
-      res.status(201).json({ success: true, media, qrCode: qrCodeData });
+      res.status(201).json({ success: true, media });
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -1071,12 +1071,12 @@ router.post("/videovideo", async (req, res) => {
 //         posterVideoId: new mongoose.Types.ObjectId(posterVideoId),
 //       });
 
-//       await media.save();
 
 //       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
 //       const qrCodeData = await QRCode.toDataURL(downloadUrl);
-
-//       res.status(201).json({ success: true, media, qrCode: qrCodeData });
+//  media.qrCode = qrCodeData;
+//       await media.save();
+//       res.status(201).json({ success: true, media });
 //     } catch (error) {
 //       console.error("Upload error:", error);
 //       res.status(500).json({ success: false, error: "Internal Server Error" });
@@ -1307,16 +1307,16 @@ router.post("/videovideo", async (req, res) => {
 //           : posterVideoId,
 //       });
 
-//       await media.save();
 //       // Create a download URL for the posterVideoId
 //       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`;
 //       // Generate QR code as base64
 //       const qrCodeData = await QRCode.toDataURL(downloadUrl);
+//  media.qrCode = qrCodeData;
+//       await media.save();
 //       // Send response with media and QR code
 //       res.status(201).json({
 //         success: true,
 //         media,
-//         qrCode: qrCodeData, // This is a base64 string you can directly display in frontend
 //       });
 //       // res.json({ success: true, media });
 //     } catch (error) {

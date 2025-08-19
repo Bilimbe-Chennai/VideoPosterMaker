@@ -595,10 +595,10 @@ export default function ViewAllPoster() {
                 letterSpacing: -0.5,
               }}
             >
-              All Generated Posters
+              All Generated Videos
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
-              Browse and manage all your created posters
+              Browse and manage all your created videos
             </Typography>
           </motion.div>
 
@@ -638,7 +638,7 @@ export default function ViewAllPoster() {
           <TextField
             fullWidth
             variant="outlined"
-            placeholder="Search posters..."
+            placeholder="Search videos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{
@@ -767,7 +767,7 @@ export default function ViewAllPoster() {
                       {media?.type === "videovideo" ? (
                         // Video poster with play icon overlay
                         <>
-                          <CardMedia
+                          {/* <CardMedia
                             component="img"
                             image={`https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`}
                             alt={media.name}
@@ -784,8 +784,28 @@ export default function ViewAllPoster() {
                                 transform: "scale(1.1)",
                               },
                             }}
-                          />
-                          <Box
+                          /> */}
+                          <video
+                            controls
+                            //poster={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                              backgroundColor: "#a91111ff",
+                            }}
+                          >
+                            <source
+                              src={
+                                media?.type === "videophoto"
+                                  ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
+                                  : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
+                              }
+                              type="video/mp4"
+                            />
+                            Your browser does not support the video tag.
+                          </video>
+                          {/* <Box
                             sx={{
                               position: "absolute",
                               top: 0,
@@ -812,7 +832,7 @@ export default function ViewAllPoster() {
                                 },
                               }}
                             />
-                          </Box>
+                          </Box> */}
                         </>
                       ) : (
                         // Regular image for other types
@@ -887,10 +907,10 @@ export default function ViewAllPoster() {
                           display: "flex",
                           justifyContent: "space-evenly",
                           alignItems: "center",
-                          mt: "auto",
+                          m: "auto",
                         }}
                       >
-                        <Stack direction="row" spacing={2}>
+                        <Stack direction="row" spacing={1}>
                           {media?.posterId && (
                             <div
                               style={{
@@ -959,7 +979,7 @@ export default function ViewAllPoster() {
                             media.whatsappstatus === "no") && (
                             <div
                               style={{
-                                margin: "10px",
+                                margin: "5px",
                                 display: "flex",
                                 justifyContent: "center",
                               }}
@@ -978,8 +998,18 @@ export default function ViewAllPoster() {
                               </IconButton>
                             </div>
                           )}
-                        </Stack>
+                        </Stack>                         
                       </Box>
+                      {media?.qrCode && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <img src={media?.qrCode} alt="Download QR Code" />
+                              </div>
+                            )}
                     </CardContent>
                   </Card>
                 </Grow>
