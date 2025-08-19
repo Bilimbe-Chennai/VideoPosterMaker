@@ -726,10 +726,10 @@ export default function ViewAllPoster() {
                     sx={{
                       height: "100%",
                       display: "flex",
-                      flexDirection: "column",
+                      flexDirection: "row",
                       borderRadius: 3,
                       //overflow: 'hidden',
-                      width: 270,
+                      //width: 270,
                       transition: "all 0.3s ease",
                       boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
                       "&:hover": {
@@ -742,7 +742,7 @@ export default function ViewAllPoster() {
                     <Box
                       sx={{
                         position: "relative",
-                        height: 150,
+                        height: 370,
                         overflow: "hidden",
                       }}
                     >
@@ -841,9 +841,9 @@ export default function ViewAllPoster() {
                           image={`https://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
                           alt={media.name}
                           sx={{
-                            height: 150,
+                            height: 370,
                             // width: 274,
-                            maxWidth: "100%",
+                            //maxWidth: "100%",
                             backgroundColor: "#a91111ff",
                             objectFit: "contain",
                             margin: "0 auto",
