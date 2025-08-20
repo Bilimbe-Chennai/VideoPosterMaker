@@ -429,6 +429,7 @@ import { Link } from "react-router-dom";
 import useAxios from "../useAxios";
 import { motion } from "framer-motion";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import VideoPlayerWithQR from "./VideoPlayerWithQR ";
 // Create red theme
 const redTheme = createTheme({
   palette: {
@@ -562,7 +563,7 @@ export default function ViewAllPoster() {
   return (
     <Box
       sx={{
-        p: 2,
+         p: 0.5,
         height: "100%",
         borderRadius: 3,
         backgroundColor: "rgba(255, 61, 61, 0.05)",
@@ -570,7 +571,7 @@ export default function ViewAllPoster() {
     >
       <Container maxWidth="lg" sx={{ mt: 3 }}>
         {/* Header Section */}
-        <Box
+        {/* <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
@@ -624,10 +625,10 @@ export default function ViewAllPoster() {
               Create New
             </Button>
           </motion.div>
-        </Box>
+        </Box> */}
 
         {/* Search and Filter Section */}
-        <Box
+        {/* <Box
           sx={{
             display: "flex",
             gap: 2,
@@ -670,7 +671,7 @@ export default function ViewAllPoster() {
               <MenuItem value="videophoto">Video + Photo</MenuItem>
             </Select>
           </FormControl>
-        </Box>
+        </Box> */}
 
         {/* Content Section */}
         {loading ? (
@@ -713,12 +714,14 @@ export default function ViewAllPoster() {
                 : "Create your first poster to get started"}
             </Typography>
           </Box>
-        ) : (
+        ) : (<Box>
+         <VideoPlayerWithQR videos={filteredMedia}/>
           <Grid
             container
             spacing={2}
-            sx={{ display: "flex", justifyContent: "space-evenly" }}
+            sx={{ display: "flex",marginTop:5, justifyContent: "space-evenly" }}
           >
+           
             {filteredMedia.map((media, index) => (
               <Grid item xs={12} sm={6} md={4} key={media._id}>
                 <Grow in timeout={(index + 1) * 200}>
@@ -1016,6 +1019,7 @@ export default function ViewAllPoster() {
               </Grid>
             ))}
           </Grid>
+          </Box>
         )}
       </Container>
       {/* Modal */}

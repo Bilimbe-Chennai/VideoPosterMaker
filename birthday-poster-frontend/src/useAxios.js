@@ -2,8 +2,8 @@ import axios from "axios";
 
 const getAxiosInstance = () => {
   const getAxios = axios.create({
-  baseURL: "http://localhost:5000/api/",
- //baseURL:"https://api.bilimbebrandactivations.com/api/"
+  //baseURL: "http://localhost:5000/api/",
+ baseURL:"https://api.bilimbebrandactivations.com/api/"
   });
   return getAxios;
 };
