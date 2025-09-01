@@ -13,6 +13,7 @@ const router = express.Router();
 const { getConnection } = require("../InitDB");
 const OpenAI = require("openai");
 require("dotenv").config();
+const archiver = require("archiver");
 const QRCode = require("qrcode");
 const fetch = require("node-fetch");
 // OpenAI setup
@@ -163,15 +164,32 @@ router.get("/file/:id", async (req, res) => {
     const downloadStream = bucket.openDownloadStream(fileId);
 
     // Set headers (optional but helpful)
-    downloadStream.on("file", (file) => {
-      res.setHeader(
-        "Content-Type",
-        file.contentType || "application/octet-stream"
-      );
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${file.filename}"`
-      );
+    // downloadStream.on("file", (file) => {
+    //   res.setHeader(
+    //     "Content-Type",
+    //     file.contentType || "application/octet-stream"
+    //   );
+    //   res.setHeader(
+    //     "Content-Disposition",
+    //     `attachment; filename="${file.filename}"`
+    //   );
+    // });
+ downloadStream.on("file", (file) => {
+      res.setHeader("Content-Type", file.contentType || "video/mp4");
+
+      if (req.query.download === "true") {
+        // Force download (Windows behavior you already have)
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${file.filename}"`
+        );
+      } else {
+        // Allow inline playback (needed for iOS Safari <video>)
+        res.setHeader(
+          "Content-Disposition",
+          `inline; filename="${file.filename}"`
+        );
+      }
     });
 
     // Error handling for stream
@@ -186,6 +204,85 @@ router.get("/file/:id", async (req, res) => {
     res.status(404).send("File not found");
   }
 });
+//download all files with name filter function
+// router.get("/download-all", async (req, res) => {
+//   try {
+//     const bucket = getGridFSBucket();
+//  // Find document by name
+//     // const doc = await Media.find({ name:"Idfc" });
+//     // if (!doc) {
+//     //   return res.status(404).send("No video found with that name");
+//     // }
+
+//     // Collect file IDs (ignore null/undefined)
+//     const fileIds = [doc.video1Id, doc.video2Id, doc.posterVideoId].filter(Boolean);
+//     if (!fileIds.length) {
+//       return res.status(404).send("No videos found for this record");
+//     }
+//     // Set headers for ZIP download
+//     res.setHeader("Content-Type", "application/zip");
+//     res.setHeader("Content-Disposition", 'attachment; filename="all_files.zip"');
+
+//     const archive = archiver("zip", { zlib: { level: 9 } });
+//     archive.pipe(res);
+
+//     // // Fetch all files from GridFS
+//     // const files = await bucket.find({}).toArray();
+
+//     // files.forEach((file) => {
+//     //   // Stream each file with its original name
+//     //   const stream = bucket.openDownloadStream(file._id);
+//     //   archive.append(stream, { name: file.filename });
+//     // });
+// // Add each GridFS file to the zip
+//     for (const [index, fileId] of fileIds.entries()) {
+//       const fileIdObj = new mongoose.Types.ObjectId(fileId);
+
+//       const files = await bucket.find({ _id: fileIdObj }).toArray();
+//       if (!files.length) continue;
+
+//       const file = files[0];
+//       const stream = bucket.openDownloadStream(fileIdObj);
+
+//       // Keep original filename if available, otherwise fallback
+//       archive.append(stream, { name: file.filename });
+//     }
+//     archive.finalize();
+//   } catch (err) {
+//     console.error("Error creating zip:", err);
+//     res.status(500).send("Error downloading files");
+//   }
+// });
+router.get("/download-all", async (req, res) => {
+  try {
+    const bucket = getGridFSBucket();
+
+    // Set headers for ZIP download
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", 'attachment; filename="merged_videos.zip"');
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(res);
+
+    // Find files where filename includes "merged"
+    const files = await bucket.find({ filename: /merged/}).toArray();
+
+    if (!files.length) {
+      return res.status(404).send("No merged videos found");
+    }
+
+    files.forEach((file) => {
+      const stream = bucket.openDownloadStream(file._id);
+      archive.append(stream, { name: file.filename }); // keep original name
+    });
+
+    archive.finalize();
+  } catch (err) {
+    console.error("Error creating zip:", err);
+    res.status(500).send("Error downloading merged videos");
+  }
+});
+
 // GET all media items
 router.get("/all", async (req, res) => {
   try {

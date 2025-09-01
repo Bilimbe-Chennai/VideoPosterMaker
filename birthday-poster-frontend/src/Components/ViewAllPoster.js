@@ -430,6 +430,7 @@ import useAxios from "../useAxios";
 import { motion } from "framer-motion";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import VideoPlayerWithQR from "./VideoPlayerWithQR ";
+import { CloudDownload } from "@mui/icons-material";
 // Create red theme
 const redTheme = createTheme({
   palette: {
@@ -563,7 +564,7 @@ export default function ViewAllPoster() {
   return (
     <Box
       sx={{
-         p: 0.5,
+        p: 0.5,
         height: "100%",
         borderRadius: 3,
         backgroundColor: "rgba(255, 61, 61, 0.05)",
@@ -714,42 +715,61 @@ export default function ViewAllPoster() {
                 : "Create your first poster to get started"}
             </Typography>
           </Box>
-        ) : (<Box>
-         <VideoPlayerWithQR videos={filteredMedia}/>
-          <Grid
-            container
-            spacing={2}
-            sx={{ display: "flex",marginTop:5, justifyContent: "space-evenly" }}
-          >
-           
-            {filteredMedia.map((media, index) => (
-              <Grid item xs={12} sm={6} md={4} key={media._id}>
-                <Grow in timeout={(index + 1) * 200}>
-                  <Card
-                    sx={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "row",
-                      borderRadius: 3,
-                      //overflow: 'hidden',
-                      //width: 270,
-                      transition: "all 0.3s ease",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-                      "&:hover": {
-                        transform: "translateY(-8px)",
-                        boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
-                      },
-                    }}
-                  >
-                    {/* Card Header with Type Tag */}
-                    <Box
+        ) : (
+          <Box>
+            <VideoPlayerWithQR videos={filteredMedia} />
+            <Box
+              sx={{ alignItems: "center", textAlign: "center", marginTop: 5 }}
+            >
+              <Button
+                variant="contained"
+                color="error"
+                href={`https://api.bilimbebrandactivations.com/api/upload/download-all`}
+                startIcon={<CloudDownload />}
+                size="large"
+                sx={{  background: 'linear-gradient(135deg, #ca4848ff 0%, #940808ff 100%)',}}
+              >
+                Download All
+              </Button>
+            </Box>
+
+            <Grid
+              container
+              spacing={2}
+              sx={{
+                display: "flex",
+                marginTop: 5,
+                justifyContent: "space-evenly",
+              }}
+            >
+              {filteredMedia.map((media, index) => (
+                <Grid item xs={12} sm={6} md={4} key={media._id}>
+                  <Grow in timeout={(index + 1) * 200}>
+                    <Card
                       sx={{
-                        position: "relative",
-                        height: 370,
-                        overflow: "hidden",
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "row",
+                        borderRadius: 3,
+                        //overflow: 'hidden',
+                        //width: 270,
+                        transition: "all 0.3s ease",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                        "&:hover": {
+                          transform: "translateY(-8px)",
+                          boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
+                        },
                       }}
                     >
-                      {/* <CardMedia
+                      {/* Card Header with Type Tag */}
+                      <Box
+                        sx={{
+                          position: "relative",
+                          height: 370,
+                          overflow: "hidden",
+                        }}
+                      >
+                        {/* <CardMedia
                       component="img"
                       image={`https://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
                       alt={media.name}
@@ -767,10 +787,10 @@ export default function ViewAllPoster() {
                         }
                       }}
                     /> */}
-                      {media?.type === "videovideo" ? (
-                        // Video poster with play icon overlay
-                        <>
-                          {/* <CardMedia
+                        {media?.type === "videovideo" ? (
+                          // Video poster with play icon overlay
+                          <>
+                            {/* <CardMedia
                             component="img"
                             image={`https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`}
                             alt={media.name}
@@ -788,27 +808,27 @@ export default function ViewAllPoster() {
                               },
                             }}
                           /> */}
-                          <video
-                            controls
-                            //poster={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "contain",
-                              backgroundColor: "#a91111ff",
-                            }}
-                          >
-                            <source
-                              src={
-                                media?.type === "videophoto"
-                                  ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
-                                  : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
-                              }
-                              type="video/mp4"
-                            />
-                            Your browser does not support the video tag.
-                          </video>
-                          {/* <Box
+                            <video
+                              controls
+                              //poster={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                                backgroundColor: "#a91111ff",
+                              }}
+                            >
+                              <source
+                                src={
+                                  media?.type === "videophoto"
+                                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
+                                    : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
+                                }
+                                type="video/mp4"
+                              />
+                              Your browser does not support the video tag.
+                            </video>
+                            {/* <Box
                             sx={{
                               position: "absolute",
                               top: 0,
@@ -836,85 +856,113 @@ export default function ViewAllPoster() {
                               }}
                             />
                           </Box> */}
-                        </>
-                      ) : (
-                        // Regular image for other types
-                        <CardMedia
-                          component="img"
-                          image={`https://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
-                          alt={media.name}
+                          </>
+                        ) : (
+                          // Regular image for other types
+                          <CardMedia
+                            component="img"
+                            image={`https://api.bilimbebrandactivations.com/api/upload/file/${media.photoId}`}
+                            alt={media.name}
+                            sx={{
+                              height: 370,
+                              // width: 274,
+                              //maxWidth: "100%",
+                              backgroundColor: "#a91111ff",
+                              objectFit: "contain",
+                              margin: "0 auto",
+                              display: "block",
+                              transition: "transform 0.5s ease",
+                              "&:hover": {
+                                transform: "scale(1.1)",
+                              },
+                            }}
+                          />
+                        )}
+                        <Chip
+                          label={getTypeDetails(media.type).display}
+                          size="small"
+                          icon={getTypeDetails(media.type).icon}
                           sx={{
-                            height: 370,
-                            // width: 274,
-                            //maxWidth: "100%",
-                            backgroundColor: "#a91111ff",
-                            objectFit: "contain",
-                            margin: "0 auto",
-                            display: "block",
-                            transition: "transform 0.5s ease",
-                            "&:hover": {
-                              transform: "scale(1.1)",
-                            },
+                            position: "absolute",
+                            top: 12,
+                            right: 12,
+                            backgroundColor: getTypeDetails(media.type).bgColor,
+                            color: "#fff",
+                            backdropFilter: "blur(4px)",
+                            fontWeight: 600,
+                            border: `1px solid ${
+                              getTypeDetails(media.type).color
+                            }`,
                           }}
+                          color="#fff"
                         />
-                      )}
-                      <Chip
-                        label={getTypeDetails(media.type).display}
-                        size="small"
-                        icon={getTypeDetails(media.type).icon}
-                        sx={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          backgroundColor: getTypeDetails(media.type).bgColor,
-                          color: "#fff",
-                          backdropFilter: "blur(4px)",
-                          fontWeight: 600,
-                          border: `1px solid ${
-                            getTypeDetails(media.type).color
-                          }`,
-                        }}
-                        color="#fff"
-                      />
-                    </Box>
+                      </Box>
 
-                    {/* Card Content */}
-                    <CardContent
-                      sx={{
-                        flexGrow: 1,
-                        p: 1,
-                        background: "white",
-                        textAlign: "center",
-                      }}
-                    >
-                      <Typography variant="h6" fontWeight={700}>
-                        {media.name}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="black"
-                        sx={{ mb: 1 }}
-                      >
-                        {new Date(media.date).toLocaleDateString()}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 2 }}
-                      >
-                        {getTypeDetails(media.type).description}
-                      </Typography>
-
-                      <Box
+                      {/* Card Content */}
+                      <CardContent
                         sx={{
-                          display: "flex",
-                          justifyContent: "space-evenly",
-                          alignItems: "center",
-                          m: "auto",
+                          flexGrow: 1,
+                          p: 1,
+                          background: "white",
+                          textAlign: "center",
                         }}
                       >
-                        <Stack direction="row" spacing={1}>
-                          {media?.posterId && (
+                        <Typography variant="h6" fontWeight={700}>
+                          {media.name}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="black"
+                          sx={{ mb: 1 }}
+                        >
+                          {new Date(media.date).toLocaleDateString()}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mb: 2 }}
+                        >
+                          {getTypeDetails(media.type).description}
+                        </Typography>
+
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-evenly",
+                            alignItems: "center",
+                            m: "auto",
+                          }}
+                        >
+                          <Stack direction="row" spacing={1}>
+                            {media?.posterId && (
+                              <div
+                                style={{
+                                  margin: "10px",
+                                  display: "flex",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<Download />}
+                                  href={`https://api.bilimbebrandactivations.com/api/upload/file/${media.posterId}`}
+                                  sx={{
+                                    borderRadius: 2,
+                                    borderColor: getTypeDetails(media.type)
+                                      .color,
+                                    color: getTypeDetails(media.type).color,
+                                    "&:hover": {
+                                      backgroundColor: getTypeDetails(
+                                        media.type
+                                      ).bgColor,
+                                    },
+                                  }}
+                                >
+                                  Poster
+                                </Button>
+                              </div>
+                            )}
                             <div
                               style={{
                                 margin: "10px",
@@ -922,103 +970,77 @@ export default function ViewAllPoster() {
                                 justifyContent: "center",
                               }}
                             >
+                              {" "}
                               <Button
-                                variant="outlined"
+                                variant="contained"
                                 size="small"
                                 startIcon={<Download />}
-                                href={`https://api.bilimbebrandactivations.com/api/upload/file/${media.posterId}`}
+                                href={
+                                  media?.type === "videophoto"
+                                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`
+                                    : `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`
+                                }
                                 sx={{
                                   borderRadius: 2,
-                                  borderColor: getTypeDetails(media.type).color,
-                                  color: getTypeDetails(media.type).color,
+                                  background: `linear-gradient(45deg, ${
+                                    getTypeDetails(media.type).color
+                                  } 0%, ${
+                                    getTypeDetails(media.type).color
+                                  }80 100%)`,
+                                  boxShadow: `0 2px 8px ${
+                                    getTypeDetails(media.type).color
+                                  }40`,
                                   "&:hover": {
-                                    backgroundColor: getTypeDetails(media.type)
-                                      .bgColor,
+                                    boxShadow: `0 4px 12px ${
+                                      getTypeDetails(media.type).color
+                                    }60`,
                                   },
                                 }}
                               >
-                                Poster
+                                Video
                               </Button>
                             </div>
-                          )}
-                          <div
-                            style={{
-                              margin: "10px",
-                              display: "flex",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {" "}
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<Download />}
-                              href={
-                                media?.type === "videophoto"
-                                  ? `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}`
-                                  : `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}`
-                              }
-                              sx={{
-                                borderRadius: 2,
-                                background: `linear-gradient(45deg, ${
-                                  getTypeDetails(media.type).color
-                                } 0%, ${
-                                  getTypeDetails(media.type).color
-                                }80 100%)`,
-                                boxShadow: `0 2px 8px ${
-                                  getTypeDetails(media.type).color
-                                }40`,
-                                "&:hover": {
-                                  boxShadow: `0 4px 12px ${
-                                    getTypeDetails(media.type).color
-                                  }60`,
-                                },
-                              }}
-                            >
-                              Video
-                            </Button>
-                          </div>
-                          {(media.whatsappstatus === "pending" ||
-                            media.whatsappstatus === "no") && (
-                            <div
-                              style={{
-                                margin: "5px",
-                                display: "flex",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <IconButton
-                                onClick={() => {
-                                  setMedia(media);
-                                  openModal();
-                                }}
-                                style={{
-                                  color: "white",
-                                  backgroundColor: "green",
-                                }}
-                              >
-                                <WhatsAppIcon />
-                              </IconButton>
-                            </div>
-                          )}
-                        </Stack>                         
-                      </Box>
-                      {media?.qrCode && (
+                            {(media.whatsappstatus === "pending" ||
+                              media.whatsappstatus === "no") && (
                               <div
                                 style={{
+                                  margin: "5px",
                                   display: "flex",
                                   justifyContent: "center",
                                 }}
                               >
-                                <img src={media?.qrCode} alt="Download QR Code" />
+                                <IconButton
+                                  onClick={() => {
+                                    setMedia(media);
+                                    openModal();
+                                  }}
+                                  style={{
+                                    color: "white",
+                                    backgroundColor: "green",
+                                  }}
+                                >
+                                  <WhatsAppIcon />
+                                </IconButton>
                               </div>
                             )}
-                    </CardContent>
-                  </Card>
-                </Grow>
-              </Grid>
-            ))}
-          </Grid>
+                          </Stack>
+                        </Box>
+                        {media?.qrCode && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <img src={media?.qrCode} alt="Download QR Code" />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grow>
+                </Grid>
+              ))}
+            </Grid>
           </Box>
         )}
       </Container>
@@ -1161,7 +1183,7 @@ export default function ViewAllPoster() {
                   },
                 }}
               >
-               {loading ? 'Sending...' : 'Share'}
+                {loading ? "Sending..." : "Share"}
               </Button>
             </DialogActions>
           </Dialog>

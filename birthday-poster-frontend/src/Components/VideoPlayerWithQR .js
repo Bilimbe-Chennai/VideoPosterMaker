@@ -4,7 +4,7 @@ import { Box, Card, CardMedia, CardContent } from "@mui/material";
 const VideoPlayerWithQR = ({ videos }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const videoRef = useRef(null);
-
+//const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const handleEnded = () => {
     if (currentIndex < videos.length - 1) {
       setCurrentIndex((prev) => prev + 1);
@@ -36,7 +36,10 @@ const VideoPlayerWithQR = ({ videos }) => {
           src={`https://api.bilimbebrandactivations.com/api/upload/file/${currentVideoId}?download=true`}
           controls
           autoPlay
-          //muted   
+          //muted  
+         // playsInline    
+         // webkit-playsinline="true"
+         // muted={isIOS}   // 👈 only muted on iOS
           onEnded={handleEnded}
           sx={{
             borderRadius: 3,
