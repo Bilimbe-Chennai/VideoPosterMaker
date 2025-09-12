@@ -113,6 +113,8 @@ function CreatePosterPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [mediaType, setMediaType] = useState("photogif");
   const [success, setSuccess] = useState(false);
+  const [faceSwap, setFaceSwap] = useState(false);
+  const [mergingOption, setMergingOption] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     date: new Date().toISOString().split("T")[0],
@@ -123,6 +125,11 @@ function CreatePosterPage() {
     video1: null,
     video2: null,
     audio: null,
+    //samplevideo: null,
+    boyvideo: null,
+    girlvideo: null,
+    childboyvideo: null,
+    childgirlvideo: null,
   });
   const [fileNames, setFileNames] = useState({
     photo: "",
@@ -131,6 +138,11 @@ function CreatePosterPage() {
     video1: "",
     video2: "",
     audio: "",
+    //samplevideo: "",
+    boyvideo: "",
+    girlvideo: "",
+    childboyvideo: "",
+    childgirlvideo: "",
   });
   const [loading, setLoading] = useState(true);
   const [media, setMedia] = useState(null);
@@ -171,12 +183,19 @@ function CreatePosterPage() {
       video: null,
       audio: null,
     });
-    setFileNames({  photo: "",
-    gif: "",
-    video: "",
-    video1: "",
-    video2: "",
-    audio: "", });
+    setFileNames({
+      photo: "",
+      gif: "",
+      video: "",
+      video1: "",
+      video2: "",
+      audio: "",
+      //samplevideo: "",
+      boyvideo: "",
+      girlvideo: "",
+      childboyvideo: "",
+      childgirlvideo: "",
+    });
     setMedia(null);
   };
 
@@ -227,9 +246,16 @@ function CreatePosterPage() {
       Object.entries(formData).forEach(([key, val]) => {
         if (val) uploadData.append(key, val);
       });
+      uploadData.append("faceSwap", faceSwap);
+      uploadData.append("videosMergeOption", mergingOption);
       // Append the mediaType to the form data
       uploadData.append("type", mediaType);
-      const endpoint = `upload/${mediaType}`;
+      let endpoint;
+      if (mediaType === "videovideo") {
+        endpoint = `admin/settings`;
+      } else {
+        endpoint = `upload/${mediaType}`;
+      }
       const res = await axiosData.post(endpoint, uploadData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -264,12 +290,54 @@ function CreatePosterPage() {
           label: "Upload First Video",
           icon: <Videocam />,
           accept: "video/*",
+          disabled: !mergingOption || (mergingOption && faceSwap),
         },
         {
           name: "video2",
           label: "Upload Second Video",
           icon: <Videocam />,
           accept: "video/*",
+          disabled: !mergingOption,
+        },
+        {
+          name: "boyvideo",
+          label: "Upload Boy Video",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "girlvideo",
+          label: "Upload Girl Video",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childboyvideo",
+          label: "Upload Child Boy Video",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childgirlvideo",
+          label: "Upload Child Girl Video",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        // {
+        //   name: "samplevideo",
+        //   label: "Upload Sample Video",
+        //   icon: <Videocam />,
+        //   accept: "video/*",
+        // },
+        {
+          name: "audio",
+          label: "Upload Audio",
+          icon: <AudiotrackIcon />,
+          accept: "audio/*,.mp3,.m4a,.aac,.wav",
         },
       ],
       photogif: [
@@ -302,87 +370,95 @@ function CreatePosterPage() {
       ],
     };
 
-    return uploadOptions[mediaType].map((input) => (
-      <Grid item xs={12} md={6} key={input.name}>
-        <FileUploadBox sx={{ width: 200 }}>
-          <input
-            type="file"
-            name={input.name}
-            id={input.name}
-            hidden
-            onChange={handleChange}
-            accept={input.accept}
-          />
-          <label
-            htmlFor={input.name}
-            style={{ width: "50%", cursor: "pointer" }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-              }}
-            >
-              <Avatar
-                sx={{
-                  bgcolor: "rgba(211, 47, 47, 0.2)",
-                  color: "#b92828",
-                  width: 25,
-                  height: 25,
-                  mb: 0.5,
-                  p: 0.4,
-                }}
+    return uploadOptions[mediaType].map(
+      (input) =>
+        !input.disabled && (
+          <Grid item xs={12} md={6} key={input.name}>
+            <FileUploadBox sx={{ width: 205 }}>
+              <input
+                type="file"
+                name={input.name}
+                id={input.name}
+                hidden
+                onChange={handleChange}
+                accept={input.accept}
+              />
+              <label
+                htmlFor={input.name}
+                style={{ width: "50%", cursor: "pointer" }}
               >
-                {input.icon}
-              </Avatar>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                {input.label}
-              </Typography>
-              <Typography variant="caption">
-                {input.accept.includes("video")
-                  ? "MP4, MOV, AVI"
-                  : input.accept.includes("gif")
-                  ? "GIF format"
-                  : "JPG, PNG"}
-              </Typography>
-            </Box>
-          </label>
-          {fileNames[input.name] && (
-            <Fade in={true}>
-              <Chip
-                label={fileNames[input.name]}
-                onDelete={() => handleRemoveFile(input.name)}
-                deleteIcon={<Close />}
-                sx={{
-                  mt: 2,
-                  backgroundColor: "rgba(211, 47, 47, 0.2)",
-                  color: "#b92828",
-                  border: "1px solid rgba(211, 47, 47, 0.5)",
-                  borderRadius: "8px",
-                  height: "auto",
-                  py: 0.5,
-                }}
-                avatar={
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
                   <Avatar
                     sx={{
-                      bgcolor: "rgba(225, 116, 116, 0.3)",
+                      bgcolor: "rgba(211, 47, 47, 0.2)",
                       color: "#b92828",
-                      "& .MuiSvgIcon-root": {
-                        // This targets the icon specifically
-                        color: "#b92828", // Ensures the icon inherits the color
-                      },
+                      width: 25,
+                      height: 25,
+                      mb: 0.5,
+                      p: 0.4,
                     }}
                   >
                     {input.icon}
                   </Avatar>
-                }
-              />
-            </Fade>
-          )}
-        </FileUploadBox>
-      </Grid>
-    ));
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, mb: 0.5 }}
+                  >
+                    {input.label}
+                  </Typography>
+                  <Typography variant="caption">
+                    {input.accept.includes("video")
+                      ? "MP4, MOV, AVI"
+                      : input.accept.includes("gif")
+                      ? "GIF format"
+                      : input.accept.includes("audio")
+                      ? "(MP3)"
+                      : "JPG, PNG"}
+                  </Typography>
+                </Box>
+              </label>
+              {fileNames[input.name] && (
+                <Fade in={true}>
+                  <Chip
+                    label={fileNames[input.name]}
+                    onDelete={() => handleRemoveFile(input.name)}
+                    deleteIcon={<Close />}
+                    sx={{
+                      mt: 2,
+                      backgroundColor: "rgba(211, 47, 47, 0.2)",
+                      color: "#b92828",
+                      border: "1px solid rgba(211, 47, 47, 0.5)",
+                      borderRadius: "8px",
+                      height: "auto",
+                      py: 0.5,
+                    }}
+                    avatar={
+                      <Avatar
+                        sx={{
+                          bgcolor: "rgba(225, 116, 116, 0.3)",
+                          color: "#b92828",
+                          "& .MuiSvgIcon-root": {
+                            // This targets the icon specifically
+                            color: "#b92828", // Ensures the icon inherits the color
+                          },
+                        }}
+                      >
+                        {input.icon}
+                      </Avatar>
+                    }
+                  />
+                </Fade>
+              )}
+            </FileUploadBox>
+          </Grid>
+        )
+    );
   };
 
   return (
@@ -608,7 +684,60 @@ function CreatePosterPage() {
                     },
                   }}
                 />
-
+                {mediaType === "videovideo" && (
+                  <Box
+                    sx={{
+                      mb: 1,
+                      fontSize: 16,
+                      fontWeight: 800,
+                      color: "#D32F2F",
+                    }}
+                  >
+                    {" "}
+                    <label
+                      style={{
+                        display: "flex",
+                        textAlign: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={faceSwap}
+                        style={{ height: 20, width: 20, color: "#D32F2F" }}
+                        onChange={(e) => setFaceSwap(e.target.checked)}
+                      />
+                      Enable Face Swap
+                    </label>
+                  </Box>
+                )}
+                {mediaType === "videovideo" && (
+                  <Box
+                    sx={{
+                      mb: 1,
+                      fontSize: 16,
+                      fontWeight: 800,
+                      color: "#D32F2F",
+                    }}
+                  >
+                    {" "}
+                    <label
+                      style={{
+                        display: "flex",
+                        textAlign: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={mergingOption}
+                        style={{ height: 20, width: 20, color: "#D32F2F" }}
+                        onChange={(e) => setMergingOption(e.target.checked)}
+                      />
+                      Enable Merging Option
+                    </label>
+                  </Box>
+                )}
                 {/* <TextField
                   name="date"
                   label={
@@ -665,7 +794,7 @@ function CreatePosterPage() {
                   {renderFileUploads()}
                 </Grid>
                 {/* NEW: Audio Upload (only if mediaType is video) */}
-                {mediaType === "videovideo" && (
+                {/* {mediaType === "videovideo" && (
                   <Grid item xs={12} md={6} sx={{ mb: 1, ml: 1.5 }}>
                     <FileUploadBox sx={{ width: 200 }}>
                       <input
@@ -743,7 +872,7 @@ function CreatePosterPage() {
                       )}
                     </FileUploadBox>
                   </Grid>
-                )}
+                )} */}
                 <GradientButton
                   sx={{ mb: 1 }}
                   type="submit"
@@ -751,10 +880,15 @@ function CreatePosterPage() {
                     uploading ||
                     !formData.name ||
                     !formData.date ||
-                    (mediaType === "videovideo" &&
-                      (!formData.video1 ||
-                        !formData.video2 ||
-                        !formData.audio)) ||
+                    ((mediaType === "videovideo" &&
+                      !faceSwap && mergingOption)&&
+                      (!formData.video1 ||!formData.video2|| !formData.audio)) ||
+                      ((mediaType === "videovideo" &&
+                      faceSwap && !mergingOption)&&
+                      (!formData.boyvideo ||!formData.girlvideo ||!formData.childboyvideo ||!formData.childgirlvideo || !formData.audio)) ||
+                      ((mediaType === "videovideo" &&
+                      faceSwap && mergingOption)&&
+                      (!formData.video2 || !formData.boyvideo ||!formData.girlvideo ||!formData.childboyvideo ||!formData.childgirlvideo || !formData.audio)) ||
                     (mediaType === "photogif" &&
                       (!formData.photo || !formData.gif)) ||
                     (mediaType === "videophoto" &&
@@ -1101,7 +1235,10 @@ function CreatePosterPage() {
                                   justifyContent: "center",
                                 }}
                               >
-                                <img src={media?.qrCode} alt="Download QR Code" />
+                                <img
+                                  src={media?.qrCode}
+                                  alt="Download QR Code"
+                                />
                               </div>
                             )}
                           </Grid>
@@ -1255,7 +1392,7 @@ function CreatePosterPage() {
                   },
                 }}
               >
-                {loading ? 'Sending...' : 'Share'}
+                {loading ? "Sending..." : "Share"}
               </Button>
             </DialogActions>
           </Dialog>

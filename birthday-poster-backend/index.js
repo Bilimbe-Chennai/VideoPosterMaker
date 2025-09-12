@@ -2,8 +2,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const uploadRoutes = require('./routes/upload');
+const adminRoutes = require('./routes/admin');
+const clientRoutes = require('./routes/client');
 const initDb = require("./InitDB");
 const path = require('path');
+const os = require("os");
 const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json({ limit: "50mb" })); // increase payload limit
@@ -34,6 +37,9 @@ app.use(
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/temp", express.static(path.join(os.tmpdir())));
 app.use('/api/upload', uploadRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/client', clientRoutes);
 
 app.listen(process.env.PORT, () => console.log('Server running on http://localhost:5000'));
