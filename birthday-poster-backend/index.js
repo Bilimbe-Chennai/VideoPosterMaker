@@ -13,10 +13,11 @@ app.use(bodyParser.json({ limit: "50mb" })); // increase payload limit
 const allowedOrigins = [
    "http://localhost:3000", 
   "http://localhost:3001", 
-  "http://localhost:5000",
+  "http://localhost:7000",
   "https://bilimbe-bday-poster-frontend.onrender.com",
   "https://bilimbe-bday-poster-backend.onrender.com",
-  "https://app.bilimbebrandactivations.com"
+  "https://app.bilimbebrandactivations.com",
+  "https://api.bilimbebrandactivations.com"
 ];
 app.use(
   cors({
@@ -42,4 +43,4 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
 
-app.listen(process.env.PORT, () => console.log('Server running on http://localhost:5000'));
+app.listen(process.env.PORT, () => console.log('Server running on http://localhost:7000'));
