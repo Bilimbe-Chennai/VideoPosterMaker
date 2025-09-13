@@ -92,7 +92,7 @@ router.post("/settings", async (req, res) => {
         }
       });
 
-      if (!video1Buffer || !audioBuffer) {
+      if (!audioBuffer) {
         return res.status(400).json({ error: "Missing audio or video" });
       }
       // 2. Upload original photo and video to GridFS
