@@ -13,6 +13,7 @@ import {
   useMediaQuery,
 Typography,
   Alert,
+  Autocomplete
 } from "@mui/material";
 import { CloudUpload, Event } from "@mui/icons-material";
 import useAxios from "../useAxios";
@@ -120,7 +121,7 @@ const navigate = useNavigate();
           </Typography>
 
           {/* Dropdown */}
-          <TextField
+          {/* <TextField
             select
             fullWidth
             label="Select Event"
@@ -151,8 +152,37 @@ const navigate = useNavigate();
             ) : (
               <MenuItem disabled>Loading events...</MenuItem>
             )}
-          </TextField>
-
+          </TextField> */}
+<Autocomplete
+  options={eventOptions.map((ev) => ev.name)} // array of names
+  value={eventName}
+  onChange={(e, newValue) => setEventName(newValue || "")}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      placeholder="Select Event"
+      label="Event Name"
+      margin="normal"
+      variant="outlined"
+      fullWidth
+      InputProps={{
+        ...params.InputProps,
+        startAdornment: (
+          <InputAdornment position="start">
+            <Event sx={{ color: "#d32f2f" }} />
+          </InputAdornment>
+        ),
+      }}
+      sx={{
+        mb: isMobile ? 2 : 3,
+        "& .MuiOutlinedInput-root": {
+          borderRadius: 2,
+        },
+      }}
+    />
+  )}
+  loading={eventOptions.length === 0}
+/>
           {/* Button */}
           <Button
             variant="contained"
