@@ -73,57 +73,47 @@ async function runFaceSwap(imagePath, video1Id) {
   const data = {
     source_img: base64Image,
     video_input:`https://api.bilimbebrandactivations.com/api/upload/file/${video1Id}`,
-    face_restore: true,
-    input_faces_index: 0,
+     input_faces_index: 0,
     source_faces_index: 0,
+    face_restore: true,
     face_restore_visibility: 1,
     codeformer_weight: 0.95,
     detect_gender_input: "no",
     detect_gender_source: "no",
     frame_load_cap: 0,
-    base_64: false ,
+    //base_64: false ,
   };
 
   try {
     const response = await axios.post(url, data, {
       headers: { "x-api-key": api_key, "Content-Type": "application/json" },
-      maxContentLength: Infinity,
+  responseType: "stream",       
+maxContentLength: Infinity,
       maxBodyLength: Infinity,
+ validateStatus: () => true
     });
+const ctype = String(response.headers["content-type"] || "").toLowerCase();
     // Use base64 output from API
-    if (!response.data || !response.data.output) {
-      throw new Error("FaceSwap API returned invalid response");
-    }
-
-    // Download swapped video
-    // const videoResponse = await axios.get(response.data.output_url, {
-    //   responseType: "arraybuffer",
-    // });
-
-    // const outputPath = path.join(
-    //   __dirname,
-    //   `../uploads/faceswap-${Date.now()}.mp4`
-    // );
-    // fs.writeFileSync(outputPath, videoResponse.data);
+  if (response.status >= 200 && response.status < 300 && ctype.startsWith("video/")) {
     // Save to GridFS instead of filesystem
-    const swappedBuffer = Buffer.from(response.data.output, "base64");
+    //const swappedBuffer = Buffer.from(response.data);
     const swappedVideoId = await uploadToGridFS(
       `faceswap-${Date.now()}.mp4`,
-      swappedBuffer,
+      response.data,
       "video/mp4"
     );
     // Cleanup temp video
     await fs.unlink(tempVideoPath).catch(() => {});
+  console.log("swappedVideoId", swappedVideoId);
     return swappedVideoId; // return path of processed video
+}
   } catch (error) {
     await fs.unlink(tempVideoPath).catch(() => {});
-
-    console.error(
-      "FaceSwap Error:",
-      error.response ? error.response.data : error.message
-    );
-    throw error;
-  }
+    // Error path: try to surface readable info
+  let errText = "";
+  try { errText = Buffer.from(response.data).toString("utf8").slice(0, 2000); } catch {}
+  throw new Error(`FaceSwap API returned invalid response (status ${response.status}, content-type ${ctype}). Body: ${errText}`);  }
 }
 
 module.exports = runFaceSwap;
+

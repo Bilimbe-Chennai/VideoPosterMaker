@@ -79,7 +79,7 @@ const shareOuput = async (whatsapp, downloadUrl, id, res) => {
     console.error("Server error in /share:", err.response?.data || err.message);
     return {
       success: false,
-      message: error.message || "Internal server error",
+      message: err.message || "Internal server error",
     };
   }
 };
@@ -254,7 +254,7 @@ router.post("/client-upload", async (req, res) => {
               type: settings.type,
               video1Id: settings.video1Id,
               video2Id: settings.video2Id,
-              posterVideoId: new mongoose.Types.ObjectId(posterVideoId),
+              posterVideoId:posterVideoId,
               whatsapp,
               whatsappstatus: "pending",
             });

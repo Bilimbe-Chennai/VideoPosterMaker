@@ -31,7 +31,7 @@ import useAxios from "../useAxios";
 import { useParams } from "react-router-dom";
 export default function ClientPage() {
   const [whatsapp, setWhatsapp] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState("Female");
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [genderOptions, setGenderOptions] = useState([
@@ -486,7 +486,7 @@ export default function ClientPage() {
                         autoPlay
                         loop
                         muted
-                        sx={{ objectFit: "cover" }}
+                        sx={{ objectFit: "contain" }}
                       />
                     </Card>
                   </Fade>

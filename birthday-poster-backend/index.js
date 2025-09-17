@@ -42,5 +42,8 @@ app.use("/temp", express.static(path.join(os.tmpdir())));
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
-
+// ? Health check route for quick debugging
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", origin: req.headers.origin || "no-origin" });
+});
 app.listen(process.env.PORT, () => console.log('Server running on http://localhost:7000'));

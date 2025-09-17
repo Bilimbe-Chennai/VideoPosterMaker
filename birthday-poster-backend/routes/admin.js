@@ -96,8 +96,8 @@ router.post("/settings", async (req, res) => {
         return res.status(400).json({ error: "Missing audio or video" });
       }
       // 2. Upload original photo and video to GridFS
-      let video1Id;
-       if (videosMergeOption === true && faceSwap === false) {
+     let video1Id;
+       if (video1Buffer || (videosMergeOption  && !faceSwap)) {
         video1Id = await uploadToGridFS(
         `video1-${Date.now()}.mp4`,
         video1Buffer,
@@ -105,15 +105,14 @@ router.post("/settings", async (req, res) => {
       );
        }
      
-      let video2Id;
-      if (videosMergeOption === true) {
+    let video2Id;
+     if (video2Buffer || videosMergeOption || (faceSwap && video2Buffer)) {
         video2Id = await uploadToGridFS(
           `video2-${Date.now()}.mp4`,
           video2Buffer,
           "video/mp4"
         );
-      }
-
+      }    
       const audioId = await uploadToGridFS(
         `audio-${Date.now()}.mp4`,
         audioBuffer,

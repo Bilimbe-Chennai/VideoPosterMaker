@@ -46,6 +46,7 @@ import {
   LinearScale,
   List,
 } from "@mui/icons-material";
+import { Event } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import AudiotrackIcon from "@mui/icons-material/Audiotrack";
@@ -531,6 +532,23 @@ function CreatePosterPage() {
           >
             Transform your media into stunning video poster
           </Typography>
+<Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              textAlign: "right",
+            }}
+          >
+            <Button
+              variant="contained"
+              color="error"
+              component={Link}
+              to="/"
+              startIcon={<Event />}
+            >
+              Go to Event Page
+            </Button>
+          </Box>
         </Box>
         <Grid
           container
@@ -880,21 +898,35 @@ function CreatePosterPage() {
                     uploading ||
                     !formData.name ||
                     !formData.date ||
-                    ((mediaType === "videovideo" &&
-                      !faceSwap && mergingOption)&&
-                      (!formData.video1 ||!formData.video2|| !formData.audio)) ||
-                      ((mediaType === "videovideo" &&
-                      faceSwap && !mergingOption)&&
-                      (!formData.boyvideo ||!formData.girlvideo ||!formData.childboyvideo ||!formData.childgirlvideo || !formData.audio)) ||
-                      ((mediaType === "videovideo" &&
-                      faceSwap && mergingOption)&&
-                      (!formData.video2 || !formData.boyvideo ||!formData.girlvideo ||!formData.childboyvideo ||!formData.childgirlvideo || !formData.audio)) ||
+                    (mediaType === "videovideo" &&
+                      !faceSwap &&
+                      mergingOption &&
+                      (!formData.video1 ||
+                        !formData.video2 ||
+                        !formData.audio)) ||
+                    (mediaType === "videovideo" &&
+                      faceSwap &&
+                      !mergingOption &&
+                      (!formData.boyvideo ||
+                        !formData.girlvideo ||
+                        !formData.childboyvideo ||
+                        !formData.childgirlvideo ||
+                        !formData.audio)) ||
+                    (mediaType === "videovideo" &&
+                      faceSwap &&
+                      mergingOption &&
+                      (!formData.video2 ||
+                        !formData.boyvideo ||
+                        !formData.girlvideo ||
+                        !formData.childboyvideo ||
+                        !formData.childgirlvideo ||
+                        !formData.audio)) ||
                     (mediaType === "photogif" &&
                       (!formData.photo || !formData.gif)) ||
                     (mediaType === "videophoto" &&
                       (!formData.video || !formData.photo))
-                  }
-                  startIcon={<CloudUpload sx={{ fontSize: 24 }} />}
+                  } 
+                 startIcon={<CloudUpload sx={{ fontSize: 24 }} />}
                   fullWidth
                 >
                   {uploading ? (
