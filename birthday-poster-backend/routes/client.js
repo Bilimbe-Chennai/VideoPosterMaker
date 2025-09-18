@@ -206,8 +206,7 @@ router.post("/client-upload", async (req, res) => {
               selectedVideoId = settings.video1Id; // fallback / default
             }
             if (
-              settings.faceSwap &&
-              clientPhoto &&
+             settings.faceSwap &&
               !settings.videosMergeOption
             ) {
               posterVideoId = await runFaceSwap(
@@ -254,7 +253,7 @@ router.post("/client-upload", async (req, res) => {
               type: settings.type,
               video1Id: settings.video1Id,
               video2Id: settings.video2Id,
-              posterVideoId:posterVideoId,
+              posterVideoId: posterVideoId,
               whatsapp,
               whatsappstatus: "pending",
             });

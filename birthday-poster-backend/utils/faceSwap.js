@@ -104,7 +104,6 @@ const ctype = String(response.headers["content-type"] || "").toLowerCase();
     );
     // Cleanup temp video
     await fs.unlink(tempVideoPath).catch(() => {});
-  console.log("swappedVideoId", swappedVideoId);
     return swappedVideoId; // return path of processed video
 }
   } catch (error) {

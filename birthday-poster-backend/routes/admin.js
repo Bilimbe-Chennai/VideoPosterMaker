@@ -91,12 +91,11 @@ router.post("/settings", async (req, res) => {
           childgirlBuffer = body;
         }
       });
-
       if (!audioBuffer) {
         return res.status(400).json({ error: "Missing audio or video" });
-      }
-      // 2. Upload original photo and video to GridFS
-     let video1Id;
+      }      
+// 2. Upload original photo and video to GridFS
+      let video1Id;
        if (video1Buffer || (videosMergeOption  && !faceSwap)) {
         video1Id = await uploadToGridFS(
         `video1-${Date.now()}.mp4`,
@@ -104,16 +103,29 @@ router.post("/settings", async (req, res) => {
         "video/mp4"
       );
        }
-     
-    let video2Id;
-     if (video2Buffer || videosMergeOption || (faceSwap && video2Buffer)) {
-        video2Id = await uploadToGridFS(
-          `video2-${Date.now()}.mp4`,
-          video2Buffer,
-          "video/mp4"
+      let video2Id;
+      const isVideosMergeOption =
+        videosMergeOption === true || videosMergeOption === "true";
+      if (isVideosMergeOption) {
+        if (
+          video2Buffer &&
+          Buffer.isBuffer(video2Buffer) &&
+          video2Buffer.length > 0
+        ) {
+          video2Id = await uploadToGridFS(
+            `video2-${Date.now()}.mp4`,
+            video2Buffer,
+            "video/mp4"
+          );
+        } else {
+          console.error("? video2Buffer missing or empty");
+        }
+      } else {
+        console.log(
+          "?? Skipping video2Buffer upload because videosMergeOption is false"
         );
-      }    
-      const audioId = await uploadToGridFS(
+      }
+ const audioId = await uploadToGridFS(
         `audio-${Date.now()}.mp4`,
         audioBuffer,
         "audio/mp3"
