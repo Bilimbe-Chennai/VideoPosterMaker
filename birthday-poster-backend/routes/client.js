@@ -194,14 +194,38 @@ router.post("/client-upload", async (req, res) => {
             if (!settings)
               return res.status(400).json({ error: "No admin settings found" });
             let selectedVideoId;
-            if (gender === "Male") {
-              selectedVideoId = settings.boyVideoId;
-            } else if (gender === "Female") {
-              selectedVideoId = settings.girlVideoId;
-            } else if (gender === "Child Male") {
-              selectedVideoId = settings.childBoyVideoId;
-            } else if (gender === "Child Female") {
-              selectedVideoId = settings.childGirlVideoId;
+            if (gender === "Male1") {
+              selectedVideoId = settings.boyVideoId1;
+            } else if (gender === "Female1") {
+              selectedVideoId = settings.girlVideoId1;
+            } else if (gender === "Child Male1") {
+              selectedVideoId = settings.childBoyVideoId1;
+            } else if (gender === "Child Female1") {
+              selectedVideoId = settings.childGirlVideoId1;
+            }else  if (gender === "Male12") {
+              selectedVideoId = settings.boyVideoId2;
+            } else if (gender === "Female2") {
+              selectedVideoId = settings.girlVideoId2;
+            } else if (gender === "Child Male2") {
+              selectedVideoId = settings.childBoyVideoId2;
+            }else if (gender === "Child Female2") {
+              selectedVideoId = settings.childGirlVideoId2;
+            }else  if (gender === "Male3") {
+              selectedVideoId = settings.boyVideoId3;
+            }  else if (gender === "Female3") {
+              selectedVideoId = settings.girlVideoId3;
+            } else if (gender === "Child Male3") {
+              selectedVideoId = settings.childBoyVideoId3;
+            } else if (gender === "Child Female3") {
+              selectedVideoId = settings.childGirlVideoId3;
+            }else  if (gender === "Male4") {
+              selectedVideoId = settings.boyVideoId4;
+            }  else if (gender === "Female4") {
+              selectedVideoId = settings.girlVideoId4;
+            } else if (gender === "Child Male4") {
+              selectedVideoId = settings.childBoyVideoId4;
+            } else if (gender === "Child Female4") {
+              selectedVideoId = settings.childGirlVideoId4;
             } else {
               selectedVideoId = settings.video1Id; // fallback / default
             }

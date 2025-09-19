@@ -127,10 +127,22 @@ function CreatePosterPage() {
     video2: null,
     audio: null,
     //samplevideo: null,
-    boyvideo: null,
-    girlvideo: null,
-    childboyvideo: null,
-    childgirlvideo: null,
+    boyvideo1: null,
+    girlvideo1: null,
+    childboyvideo1: null,
+    childgirlvideo1: null,
+     boyvideo2: null,
+    girlvideo2: null,
+    childboyvideo2: null,
+    childgirlvideo2: null,
+     boyvideo3: null,
+    girlvideo3: null,
+    childboyvideo3: null,
+    childgirlvideo3: null,
+     boyvideo4: null,
+    girlvideo4: null,
+    childboyvideo4: null,
+    childgirlvideo4: null,
   });
   const [fileNames, setFileNames] = useState({
     photo: "",
@@ -140,10 +152,22 @@ function CreatePosterPage() {
     video2: "",
     audio: "",
     //samplevideo: "",
-    boyvideo: "",
-    girlvideo: "",
-    childboyvideo: "",
-    childgirlvideo: "",
+     boyvideo1: "",
+    girlvideo1: "",
+    childboyvideo1: "",
+    childgirlvideo1: "",
+     boyvideo2: "",
+    girlvideo2: "",
+    childboyvideo2: "",
+    childgirlvideo2: "",
+     boyvideo3: "",
+    girlvideo3: "",
+    childboyvideo3: "",
+    childgirlvideo3: "",
+     boyvideo4: "",
+    girlvideo4: "",
+    childboyvideo4: "",
+    childgirlvideo4: "",
   });
   const [loading, setLoading] = useState(true);
   const [media, setMedia] = useState(null);
@@ -192,10 +216,22 @@ function CreatePosterPage() {
       video2: "",
       audio: "",
       //samplevideo: "",
-      boyvideo: "",
-      girlvideo: "",
-      childboyvideo: "",
-      childgirlvideo: "",
+     boyvideo1: "",
+    girlvideo1: "",
+    childboyvideo1: "",
+    childgirlvideo1: "",
+     boyvideo2: "",
+    girlvideo2: "",
+    childboyvideo2: "",
+    childgirlvideo2: "",
+     boyvideo3: "",
+    girlvideo3: "",
+    childboyvideo3: "",
+    childgirlvideo3: "",
+     boyvideo4: "",
+    girlvideo4: "",
+    childboyvideo4: "",
+    childgirlvideo4: "",
     });
     setMedia(null);
   };
@@ -266,7 +302,7 @@ function CreatePosterPage() {
       setQrCode(res.data.qrCode);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Upload failed. Check server and FFmpeg setup.");
+      alert("Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -301,29 +337,113 @@ function CreatePosterPage() {
           disabled: !mergingOption,
         },
         {
-          name: "boyvideo",
-          label: "Upload Boy Video",
+          name: "boyvideo1",
+          label: "Upload Boy Video 1",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+         {
+          name: "boyvideo2",
+          label: "Upload Boy Video 2",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+         {
+          name: "boyvideo3",
+          label: "Upload Boy Video 3",
           icon: <Videocam />,
           accept: "video/*",
           disabled: !faceSwap,
         },
         {
-          name: "girlvideo",
-          label: "Upload Girl Video",
+          name: "boyvideo4",
+          label: "Upload Boy Video 4",
           icon: <Videocam />,
           accept: "video/*",
           disabled: !faceSwap,
         },
         {
-          name: "childboyvideo",
-          label: "Upload Child Boy Video",
+          name: "girlvideo1",
+          label: "Upload Girl Video 1",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+          {
+          name: "girlvideo2",
+          label: "Upload Girl Video 2",
           icon: <Videocam />,
           accept: "video/*",
           disabled: !faceSwap,
         },
         {
-          name: "childgirlvideo",
-          label: "Upload Child Girl Video",
+          name: "girlvideo3",
+          label: "Upload Girl Video 3",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+         {
+          name: "girlvideo4",
+          label: "Upload Girl Video 4",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childgirlvideo1",
+          label: "Upload Child Girl Video 1",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+         {
+          name: "childgirlvideo2",
+          label: "Upload Child Girl Video 2",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childgirlvideo3",
+          label: "Upload Child Girl Video 3",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childgirlvideo4",
+          label: "Upload Child Girl Video 4",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+         {
+          name: "childboyvideo1",
+          label: "Upload Child Boy Video 1",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childboyvideo2",
+          label: "Upload Child Boy Video 2",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childboyvideo3",
+          label: "Upload Child Boy Video 3",
+          icon: <Videocam />,
+          accept: "video/*",
+          disabled: !faceSwap,
+        },
+        {
+          name: "childboyvideo4",
+          label: "Upload Child Boy Video 4",
           icon: <Videocam />,
           accept: "video/*",
           disabled: !faceSwap,
@@ -339,6 +459,7 @@ function CreatePosterPage() {
           label: "Upload Audio",
           icon: <AudiotrackIcon />,
           accept: "audio/*,.mp3,.m4a,.aac,.wav",
+          disabled:  (!mergingOption && faceSwap),
         },
       ],
       photogif: [
@@ -907,19 +1028,18 @@ function CreatePosterPage() {
                     (mediaType === "videovideo" &&
                       faceSwap &&
                       !mergingOption &&
-                      (!formData.boyvideo ||
-                        !formData.girlvideo ||
-                        !formData.childboyvideo ||
-                        !formData.childgirlvideo ||
-                        !formData.audio)) ||
+                      (!formData.boyvideo1 ||
+                        !formData.girlvideo1 ||
+                        !formData.childboyvideo1 ||
+                        !formData.childgirlvideo1 )) ||
                     (mediaType === "videovideo" &&
                       faceSwap &&
                       mergingOption &&
                       (!formData.video2 ||
-                        !formData.boyvideo ||
-                        !formData.girlvideo ||
-                        !formData.childboyvideo ||
-                        !formData.childgirlvideo ||
+                        !formData.boyvideo1 ||
+                        !formData.girlvideo1 ||
+                        !formData.childboyvideo1 ||
+                        !formData.childgirlvideo1 ||
                         !formData.audio)) ||
                     (mediaType === "photogif" &&
                       (!formData.photo || !formData.gif)) ||

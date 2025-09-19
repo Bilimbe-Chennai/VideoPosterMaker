@@ -48,10 +48,22 @@ router.post("/settings", async (req, res) => {
         video2Buffer,
         audioBuffer,
         //samplevideoBuffer,
-        boyvideoBuffer,
-        girlvideoBuffer,
-        childboyBuffer,
-        childgirlBuffer;
+        boyvideoBuffer1,
+        girlvideoBuffer1,
+        childboyBuffer1,
+        childgirlBuffer1,
+        boyvideoBuffer2,
+        girlvideoBuffer2,
+        childboyBuffer2,
+        childgirlBuffer2,
+        boyvideoBuffer3,
+        girlvideoBuffer3,
+        childboyBuffer3,
+        childgirlBuffer3,
+        boyvideoBuffer4,
+        girlvideoBuffer4,
+        childboyBuffer4,
+        childgirlBuffer4;
       const whatsappstatus = "pending";
       // Split by boundary, keep binary intact
 
@@ -79,31 +91,56 @@ router.post("/settings", async (req, res) => {
           video2Buffer = body;
         } else if (headersText.includes('name="audio"')) {
           audioBuffer = body;
-        // } else if (headersText.includes('name="samplevideo"')) {
-        //   samplevideoBuffer = body;
-        } else if (headersText.includes('name="boyvideo"')) {
-          boyvideoBuffer = body;
-        } else if (headersText.includes('name="girlvideo"')) {
-          girlvideoBuffer = body;
-        } else if (headersText.includes('name="childboyvideo"')) {
-          childboyBuffer = body;
-        } else if (headersText.includes('name="childgirlvideo"')) {
-          childgirlBuffer = body;
+          // } else if (headersText.includes('name="samplevideo"')) {
+          //   samplevideoBuffer = body;
+        } else if (headersText.includes('name="boyvideo1"')) {
+          boyvideoBuffer1 = body;
+        } else if (headersText.includes('name="girlvideo1"')) {
+          girlvideoBuffer1 = body;
+        } else if (headersText.includes('name="childboyvideo1"')) {
+          childboyBuffer1 = body;
+        } else if (headersText.includes('name="childgirlvideo1"')) {
+          childgirlBuffer1 = body;
+        } else if (headersText.includes('name="boyvideo2"')) {
+          boyvideoBuffer2 = body;
+        } else if (headersText.includes('name="girlvideo2"')) {
+          girlvideoBuffer2 = body;
+        } else if (headersText.includes('name="childboyvideo2"')) {
+          childboyBuffer2 = body;
+        } else if (headersText.includes('name="childgirlvideo2"')) {
+          childgirlBuffer2 = body;
+        } else if (headersText.includes('name="boyvideo3"')) {
+          boyvideoBuffer3 = body;
+        } else if (headersText.includes('name="girlvideo3"')) {
+          girlvideoBuffer3 = body;
+        } else if (headersText.includes('name="childboyvideo3"')) {
+          childboyBuffer3 = body;
+        } else if (headersText.includes('name="childgirlvideo3"')) {
+          childgirlBuffer3 = body;
+        } else if (headersText.includes('name="boyvideo4"')) {
+          boyvideoBuffer4 = body;
+        } else if (headersText.includes('name="girlvideo4"')) {
+          girlvideoBuffer4 = body;
+        } else if (headersText.includes('name="childboyvideo4"')) {
+          childboyBuffer4 = body;
+        } else if (headersText.includes('name="childgirlvideo4"')) {
+          childgirlBuffer4 = body;
         }
       });
-      if (!audioBuffer) {
-        return res.status(400).json({ error: "Missing audio or video" });
-      }      
-// 2. Upload original photo and video to GridFS
+      // if (!audioBuffer) {
+      //   return res.status(400).json({ error: "Missing audio or video" });
+      // }
+      // 2. Upload original photo and video to GridFS
       let video1Id;
-       if (video1Buffer || (videosMergeOption  && !faceSwap)) {
+      if (video1Buffer || (videosMergeOption && !faceSwap)) {
         video1Id = await uploadToGridFS(
-        `video1-${Date.now()}.mp4`,
-        video1Buffer,
-        "video/mp4"
-      );
-       }
+          `video1-${Date.now()}.mp4`,
+          video1Buffer,
+          "video/mp4"
+        );
+      }
       let video2Id;
+
       const isVideosMergeOption =
         videosMergeOption === true || videosMergeOption === "true";
       if (isVideosMergeOption) {
@@ -125,34 +162,97 @@ router.post("/settings", async (req, res) => {
           "?? Skipping video2Buffer upload because videosMergeOption is false"
         );
       }
- const audioId = await uploadToGridFS(
-        `audio-${Date.now()}.mp4`,
-        audioBuffer,
-        "audio/mp3"
-      );
+      let audioId;
+      if (isVideosMergeOption) {
+        audioId = await uploadToGridFS(
+          `audio-${Date.now()}.mp4`,
+          audioBuffer,
+          "audio/mp3"
+        );
+      }
       // const sampleVideoId = await uploadToGridFS(
       //   `samplevideo-${Date.now()}.mp4`,
       //   samplevideoBuffer,
       //   "video/mp4"
       // );
-      const girlVideoId = await uploadToGridFS(
-        `girlvideo-${Date.now()}.mp4`,
-        girlvideoBuffer,
+      const girlVideoId1 = await uploadToGridFS(
+        `girlvideo1-${Date.now()}.mp4`,
+        girlvideoBuffer1,
         "video/mp4"
       );
-      const boyVideoId = await uploadToGridFS(
-        `boyvideo-${Date.now()}.mp4`,
-        boyvideoBuffer,
+      const boyVideoId1 = await uploadToGridFS(
+        `boyvideo1-${Date.now()}.mp4`,
+        boyvideoBuffer1,
         "video/mp4"
       );
-      const childGirlVideoId = await uploadToGridFS(
-        `childgirlvideo-${Date.now()}.mp4`,
-        childgirlBuffer,
+      const childGirlVideoId1 = await uploadToGridFS(
+        `childgirlvideo1-${Date.now()}.mp4`,
+        childgirlBuffer1,
         "video/mp4"
       );
-      const childBoyVideoId = await uploadToGridFS(
-        `childboyvideo-${Date.now()}.mp4`,
-        childboyBuffer,
+      const childBoyVideoId1 = await uploadToGridFS(
+        `childboyvideo1-${Date.now()}.mp4`,
+        childboyBuffer1,
+        "video/mp4"
+      );
+      const girlVideoId2 = await uploadToGridFS(
+        `girlvideo2-${Date.now()}.mp4`,
+        girlvideoBuffer2,
+        "video/mp4"
+      );
+      const boyVideoId2 = await uploadToGridFS(
+        `boyvideo2-${Date.now()}.mp4`,
+        boyvideoBuffer2,
+        "video/mp4"
+      );
+      const childGirlVideoId2 = await uploadToGridFS(
+        `childgirlvideo2-${Date.now()}.mp4`,
+        childgirlBuffer2,
+        "video/mp4"
+      );
+      const childBoyVideoId2 = await uploadToGridFS(
+        `childboyvideo2-${Date.now()}.mp4`,
+        childboyBuffer2,
+        "video/mp4"
+      );
+      const girlVideoId3 = await uploadToGridFS(
+        `girlvideo3-${Date.now()}.mp4`,
+        girlvideoBuffer3,
+        "video/mp4"
+      );
+      const boyVideoId3 = await uploadToGridFS(
+        `boyvideo3-${Date.now()}.mp4`,
+        boyvideoBuffer3,
+        "video/mp4"
+      );
+      const childGirlVideoId3 = await uploadToGridFS(
+        `childgirlvideo3-${Date.now()}.mp4`,
+        childgirlBuffer3,
+        "video/mp4"
+      );
+      const childBoyVideoId3 = await uploadToGridFS(
+        `childboyvideo3-${Date.now()}.mp4`,
+        childboyBuffer3,
+        "video/mp4"
+      );
+      const girlVideoId4 = await uploadToGridFS(
+        `girlvideo4-${Date.now()}.mp4`,
+        girlvideoBuffer4,
+        "video/mp4"
+      );
+      const boyVideoId4 = await uploadToGridFS(
+        `boyvideo4-${Date.now()}.mp4`,
+        boyvideoBuffer4,
+        "video/mp4"
+      );
+      const childGirlVideoId4 = await uploadToGridFS(
+        `childgirlvideo4-${Date.now()}.mp4`,
+        childgirlBuffer4,
+        "video/mp4"
+      );
+      const childBoyVideoId4 = await uploadToGridFS(
+        `childboyvideo4-${Date.now()}.mp4`,
+        childboyBuffer4,
         "video/mp4"
       );
       const settings = new AdminSettings({
@@ -163,10 +263,22 @@ router.post("/settings", async (req, res) => {
         video2Id,
         audioId,
         //sampleVideoId,
-        girlVideoId,
-        boyVideoId,
-        childGirlVideoId,
-        childBoyVideoId,
+        girlVideoId1,
+        boyVideoId1,
+        childGirlVideoId1,
+        childBoyVideoId1,
+        girlVideoId2,
+        boyVideoId2,
+        childGirlVideoId2,
+        childBoyVideoId2,
+        girlVideoId3,
+        boyVideoId3,
+        childGirlVideoId3,
+        childBoyVideoId3,
+        girlVideoId4,
+        boyVideoId4,
+        childGirlVideoId4,
+        childBoyVideoId4,
         faceSwap,
         videosMergeOption,
       });

@@ -19,6 +19,7 @@ import {
   Fade,
   alpha,
   MenuItem,
+  Autocomplete,
 } from "@mui/material";
 import {
   PhotoCamera,
@@ -31,14 +32,26 @@ import useAxios from "../useAxios";
 import { useParams } from "react-router-dom";
 export default function ClientPage() {
   const [whatsapp, setWhatsapp] = useState("");
-  const [gender, setGender] = useState("Female");
+  const [gender, setGender] = useState("Female1");
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [genderOptions, setGenderOptions] = useState([
-    "Female",
-    "Male",
-    "Child Male",
-    "Child Female",
+    "Female1",
+    "Female2",
+    "Female3",
+    "Female4",
+    "Male1",
+    "Male2",
+    "Male3",
+    "Male4",
+    "Child Male1",
+    "Child Male2",
+    "Child Male3",
+    "Child Male4",
+    "Child Female1",
+    "Child Female2",
+    "Child Female3",
+    "Child Female4",
   ]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -230,7 +243,7 @@ export default function ClientPage() {
                       },
                     }}
                   />
-                  <TextField
+                  {/* <TextField
                     select
                     fullWidth
                     label="Select Gender"
@@ -255,13 +268,59 @@ export default function ClientPage() {
                     {genderOptions.length > 0 ? (
                       genderOptions.map((ev, idx) => (
                         <MenuItem key={idx} value={ev}>
-                          {ev}
+                          {ev.includes("1")
+                            ? `${ev.replace("1", "")} Model 1`
+                            : ev.includes("2")
+                            ? `${ev.replace("2", "")} Model 2`
+                            : ev.includes("3")
+                            ? `${ev.replace("3", "")} Model 3`
+                            : `${ev.replace("4", "")} Model 4`}
                         </MenuItem>
                       ))
                     ) : (
                       <MenuItem disabled>Loading...</MenuItem>
                     )}
-                  </TextField>
+                  </TextField> */}
+                  <Autocomplete
+                    fullWidth
+                    options={genderOptions}
+                    value={gender}
+                    onChange={(e, newValue) => setGender(newValue)}
+                    getOptionLabel={(ev) => {
+                      if (!ev) return "";
+                      if (ev.includes("1"))
+                        return `${ev.replace("1", "")} Model 1`;
+                      if (ev.includes("2"))
+                        return `${ev.replace("2", "")} Model 2`;
+                      if (ev.includes("3"))
+                        return `${ev.replace("3", "")} Model 3`;
+                      if (ev.includes("4"))
+                        return `${ev.replace("4", "")} Model 4`;
+                      return ev;
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Select Gender"
+                        margin="normal"
+                        variant="outlined"
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PeopleAltIcon sx={{ color: "#d32f2f" }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          mb: isMobile ? 2 : 3,
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: 2,
+                          },
+                        }}
+                      />
+                    )}
+                  />
                 </Box>
                 <Box sx={{ mt: 2, mb: 3 }}>
                   <input
@@ -472,14 +531,38 @@ export default function ClientPage() {
                         component="video"
                         height={370}
                         src={
-                          gender === "Male"
-                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId}`
-                            : gender === "Female"
-                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId}`
-                            : gender === "Child Male"
-                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId}`
-                            : gender === "Child Female"
-                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId}`
+                          gender === "Male1"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId1}`
+                            : gender === "Female1"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId1}`
+                            : gender === "Child Male1"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId1}`
+                            : gender === "Child Female1"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId1}`
+                            : gender === "Male2"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId2}`
+                            : gender === "Female2"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId2}`
+                            : gender === "Child Male2"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId2}`
+                            : gender === "Child Female2"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId2}`
+                            : gender === "Male3"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId3}`
+                            : gender === "Female3"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId3}`
+                            : gender === "Child Male3"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId3}`
+                            : gender === "Child Female3"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId3}`
+                            : gender === "Male4"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId4}`
+                            : gender === "Female4"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId4}`
+                            : gender === "Child Male4"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId4}`
+                            : gender === "Child Female4"
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId4}`
                             : `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.video1Id}`
                         }
                         controls
