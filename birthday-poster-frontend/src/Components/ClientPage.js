@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import {
   Container,
@@ -20,6 +20,10 @@ import {
   alpha,
   MenuItem,
   Autocomplete,
+  Select,
+  FormControl,
+  InputLabel,
+  Checkbox,
 } from "@mui/material";
 import {
   PhotoCamera,
@@ -27,14 +31,25 @@ import {
   CloudUpload,
   CheckCircle,
 } from "@mui/icons-material";
+import { PlayArrow, Pause, VolumeOff, VolumeUp } from "@mui/icons-material";
+import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination } from "swiper/modules";
+
+import "swiper/css";
+import "../App.css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import useAxios from "../useAxios";
 import { useParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 export default function ClientPage() {
   const [whatsapp, setWhatsapp] = useState("");
   const [gender, setGender] = useState("Female1");
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState("video1.mp4");
   const [genderOptions, setGenderOptions] = useState([
     "Female1",
     "Female2",
@@ -53,6 +68,7 @@ export default function ClientPage() {
     "Child Female3",
     "Child Female4",
   ]);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -63,6 +79,14 @@ export default function ClientPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const fileInputRef = useRef(null); // 👈 add this
+  const swiperRef = useRef(null);
+  const videoRefs = useRef([]);
+  const startXRef = useRef(0);
+  const movedRef = useRef(false);
+  const [playingStates, setPlayingStates] = useState({});
+  const [progressStates, setProgressStates] = useState({});
+  const [mutedStates, setMutedStates] = useState({});
+  const progressRef = useRef(null);
   // 🔹 Fetch events from adminsettings when page loads
   useEffect(() => {
     const fetchEvents = async () => {
@@ -78,13 +102,91 @@ export default function ClientPage() {
     };
     fetchEvents();
   }, []);
+  // Toggle play/pause on click (per video)
+  const handleVideoClick = (index) => {
+    const v = videoRefs.current[index];
+    if (!v) return;
+    if (v.paused) {
+      v.play();
+      setPlayingStates((prev) => ({ ...prev, [index]: true }));
+    } else {
+      v.pause();
+      setPlayingStates((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+  // useEffect(() => {
+  //   // Ensure autoplay happens (muted required for many browsers)
+  //   if (videoRefs.current) {
+  //     videoRefs.current.muted = muted;
+  //     // try autoplay
+  //     const p = videoRefs.current.play();
+  //     if (p && p.then) p.catch(() => {}); // swallow autoplay rejection
+  //   }
+  // }, [muted, previewUrl]);
+  // Time update (update progress + playing state)
+  const onTimeUpdate = (index) => {
+    const v = videoRefs.current[index];
+    if (!v || !v.duration) return;
+    setProgressStates((prev) => ({
+      ...prev,
+      [index]: (v.currentTime / v.duration) * 100,
+    }));
+    setPlayingStates((prev) => ({ ...prev, [index]: !v.paused }));
+  };
+
+  // Progress click (seek)
+  const onProgressClick = (e, index) => {
+    const v = videoRefs.current[index];
+    if (!v) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    v.currentTime = v.duration * pct;
+    setProgressStates((prev) => ({ ...prev, [index]: pct * 100 }));
+  };
+
+  // Toggle mute
+  const toggleMute = (e, index) => {
+    e.stopPropagation();
+    setMutedStates((prev) => {
+      const next = !prev[index];
+      if (videoRefs.current[index]) videoRefs.current[index].muted = next;
+      return { ...prev, [index]: next };
+    });
+  };
+  const videoMap = {
+    "Female1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId1}`,
+    "Female2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId2}`,
+    "Female3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId3}`,
+    "Female4": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId4}`,
+    "Male1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId1}`,
+    "Male2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId2}`,
+    "Male3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId3}`,
+    "Male4": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId4}`,
+    "Child Male1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId1}`,
+    "Child Male2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId2}`,
+    "Child Male3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId3}`,
+    "Child Male4": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId4}`,
+    "Child Female1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId1}`,
+    "Child Female2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId2}`,
+    "Child Female3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId3}`,
+    "Child Female4": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childGirlVideoId4}`,
+  };
+
+  const videoUrl =
+    videoMap[gender] ||
+    `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.video1Id}`;
+  const keys = Object.keys(videoMap);
+
+  const handleCheckboxChange = (key) => {
+    setSelectedVideo(key);
+    setGender(key);
+  };
   const handleSubmit = () => {
     setSuccess("");
     if (!whatsapp || !photo) {
       setError("Please fill all fields");
       return;
     }
-
     const formData = new FormData();
     formData.append("whatsapp", whatsapp);
     formData.append("photo", photo);
@@ -139,6 +241,141 @@ export default function ClientPage() {
       reader.readAsDataURL(file);
     }
   };
+  const slides = useMemo(
+    () =>
+      genderOptions.map((key, index) => (
+        <SwiperSlide key={`${key}-${index}`}>
+          <Box
+            sx={{ position: "relative", borderRadius: 2, overflow: "hidden" }}
+          >
+            {/* wrapper with touch-action so browser doesn't steal horizontal gestures */}
+            {/* <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          zIndex: 5,        // above video
+          touchAction: "pan-y", // allow vertical scrolling
+        }}
+      /> */}
+            <video
+              ref={(el) => (videoRefs.current[index] = el)} // 👈 assign ref per index
+              src={videoMap[key]}
+              controls={false} // using custom controls so native controls won't block swipe
+              playsInline
+              preload="metadata"
+              onTimeUpdate={() => onTimeUpdate(index)}
+              onClick={() => handleVideoClick(index)}
+              style={{ width: "100%", borderRadius: "10px" }}
+            />
+            <Box
+              onClick={() => {
+                const vid = videoRefs.current[index];
+                if (!vid) return;
+
+                if (vid.paused) {
+                  vid.play().catch(() => {});
+                } else {
+                  vid.pause();
+                }
+              }}
+              sx={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 5,
+                // 👉 IMPORTANT: allow Swiper to still detect horizontal drags
+                touchAction: "pan-y",
+              }}
+            />
+            {/* Checkbox overlay (top-right) — interactive but small so it won't block most swipes */}
+            <Checkbox
+              checked={selectedVideo === key}
+              onChange={() => handleCheckboxChange(key)}
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                bgcolor: "rgba(255,255,255,0.85)",
+                borderRadius: "50%",
+                zIndex: 20,
+                // allow clicking the checkbox but keep rest of area swipeable
+              }}
+              className="swiper-no-swiping" // 👈 so checkbox doesn’t trigger swipe
+            />
+            <Box
+              sx={{
+                position: "absolute",
+                left: 8,
+                right: 8,
+                bottom: 8,
+                zIndex: 40,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                background: "rgba(0,0,0,0.35)",
+                borderRadius: 2,
+                padding: "6px 8px",
+                height: 40,
+              }}
+            >
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVideoClick(index);
+                }}
+                sx={{ color: "white" }}
+              >
+                {playingStates[index] ? (
+                  <Pause fontSize="small" />
+                ) : (
+                  <PlayArrow fontSize="small" />
+                )}
+              </IconButton>
+
+              <Box
+                onClick={(e) => onProgressClick(e, index)}
+                sx={{
+                  flex: 1,
+                  height: 6,
+                  bgcolor: "rgba(255,255,255,0.25)",
+                  borderRadius: 1,
+                  cursor: "pointer",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: `${progressStates[index] || 0}%`,
+                    bgcolor: "primary.main",
+                  }}
+                />
+              </Box>
+
+              <IconButton
+                size="small"
+                onClick={(e) => toggleMute(e, index)}
+                sx={{ color: "white" }}
+              >
+                {mutedStates[index] ? (
+                  <VolumeOff fontSize="small" />
+                ) : (
+                  <VolumeUp fontSize="small" />
+                )}
+              </IconButton>
+            </Box>
+          </Box>
+        </SwiperSlide>
+      )),
+    [genderOptions, videoMap, selectedVideo, handleCheckboxChange] // only rebuild when these change
+  );
 
   return (
     <Box
@@ -301,7 +538,7 @@ export default function ClientPage() {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="Select Gender"
+                        label="Selected Gender Model"
                         margin="normal"
                         variant="outlined"
                         InputProps={{
@@ -321,6 +558,100 @@ export default function ClientPage() {
                       />
                     )}
                   />
+                </Box>
+                <Box sx={{ textAlign: "center", position: "relative" }}>
+                  {/* Video Slider with Animation */}
+                  <Swiper
+                    onSwiper={(s) => (swiperRef.current = s)}
+                    modules={[Navigation, Pagination]}
+                    navigation={{
+                      prevEl: ".custom-prev",
+                      nextEl: ".custom-next",
+                    }}
+                    pagination={{ clickable: true }}
+                    spaceBetween={20}
+                    grabCursor={true}
+                    slidesPerView={4}
+                    breakpoints={{
+                      320: { slidesPerView: 1 },
+                      768: { slidesPerView: 2 },
+                      1200: { slidesPerView: 4 },
+                    }}
+                    style={{ borderRadius: 10, padding: "10px 40px" }}
+                  >
+                    {slides}
+                    {/* Custom arrows (same as you wanted) */}
+                    <IconButton
+                      className="custom-prev"
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: 6,
+                        transform: "translateY(-50%)",
+                        bgcolor: "rgba(211,47,47,0.9)",
+                        color: "white",
+                        zIndex: 30,
+                        "&:hover": { bgcolor: "rgba(211,47,47,1)" },
+                      }}
+                    >
+                      <ArrowBackIos fontSize="small" />
+                    </IconButton>
+
+                    <IconButton
+                      className="custom-next"
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        right: 6,
+                        transform: "translateY(-50%)",
+                        bgcolor: "rgba(211,47,47,0.9)",
+                        color: "white",
+                        zIndex: 30,
+                        "&:hover": { bgcolor: "rgba(211,47,47,1)" },
+                      }}
+                    >
+                      <ArrowForwardIos fontSize="small" />
+                    </IconButton>
+                  </Swiper>
+
+                  {/* <Swiper
+                    spaceBetween={30}
+                    slidesPerView={4}
+                    style={{ borderRadius: "10px" }}
+                    onSlideChange={() => console.log("slide change")}
+                    onSwiper={(swiper) => console.log(swiper)}
+                  >
+                    {genderOptions.map((key, index) => (
+                      <SwiperSlide key={key}>
+                        <Box sx={{ position: "relative" }}>
+              
+                          <video
+                            src={videoMap[key]}
+                            controls
+                            autoPlay
+                            style={{
+                              width: "100%",
+                              maxHeight: "500px",
+                              borderRadius: "10px",
+                            }}
+                          />
+
+                         
+                          <Checkbox
+                            checked={selectedVideo.includes(key)}
+                            onChange={() => handleCheckboxChange(key)}
+                            sx={{
+                              position: "absolute",
+                              top: 10,
+                              right: 10,
+                              bgcolor: "rgba(255,255,255,0.7)",
+                              borderRadius: "50%",
+                            }}
+                          />
+                        </Box>
+                      </SwiperSlide>
+                    ))}
+                  </Swiper> */}
                 </Box>
                 <Box sx={{ mt: 2, mb: 3 }}>
                   <input
@@ -515,7 +846,7 @@ export default function ClientPage() {
                   gutterBottom
                   sx={{ color: "#d32f2f", fontWeight: "bold" }}
                 >
-                  Sample Output Video
+                Selected  Sample Output Video
                 </Typography>
 
                 {adminSetting ? (

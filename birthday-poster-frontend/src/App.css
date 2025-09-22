@@ -36,3 +36,17 @@
     transform: rotate(360deg);
   }
 }
+/* make sure videos & slides don't accidentally block horizontal gestures */
+.swiper-slide video {
+  touch-action: pan-y;          /* allow vertical page scroll, let swiper handle horizontal pan */
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* nice grab cursor while using desktop mouse dragging */
+.swiper {
+  cursor: grab;
+}
+.swiper:active {
+  cursor: grabbing;
+}

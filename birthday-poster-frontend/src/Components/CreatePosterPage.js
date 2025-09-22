@@ -131,15 +131,15 @@ function CreatePosterPage() {
     girlvideo1: null,
     childboyvideo1: null,
     childgirlvideo1: null,
-     boyvideo2: null,
+    boyvideo2: null,
     girlvideo2: null,
     childboyvideo2: null,
     childgirlvideo2: null,
-     boyvideo3: null,
+    boyvideo3: null,
     girlvideo3: null,
     childboyvideo3: null,
     childgirlvideo3: null,
-     boyvideo4: null,
+    boyvideo4: null,
     girlvideo4: null,
     childboyvideo4: null,
     childgirlvideo4: null,
@@ -152,19 +152,19 @@ function CreatePosterPage() {
     video2: "",
     audio: "",
     //samplevideo: "",
-     boyvideo1: "",
+    boyvideo1: "",
     girlvideo1: "",
     childboyvideo1: "",
     childgirlvideo1: "",
-     boyvideo2: "",
+    boyvideo2: "",
     girlvideo2: "",
     childboyvideo2: "",
     childgirlvideo2: "",
-     boyvideo3: "",
+    boyvideo3: "",
     girlvideo3: "",
     childboyvideo3: "",
     childgirlvideo3: "",
-     boyvideo4: "",
+    boyvideo4: "",
     girlvideo4: "",
     childboyvideo4: "",
     childgirlvideo4: "",
@@ -216,22 +216,22 @@ function CreatePosterPage() {
       video2: "",
       audio: "",
       //samplevideo: "",
-     boyvideo1: "",
-    girlvideo1: "",
-    childboyvideo1: "",
-    childgirlvideo1: "",
-     boyvideo2: "",
-    girlvideo2: "",
-    childboyvideo2: "",
-    childgirlvideo2: "",
-     boyvideo3: "",
-    girlvideo3: "",
-    childboyvideo3: "",
-    childgirlvideo3: "",
-     boyvideo4: "",
-    girlvideo4: "",
-    childboyvideo4: "",
-    childgirlvideo4: "",
+      boyvideo1: "",
+      girlvideo1: "",
+      childboyvideo1: "",
+      childgirlvideo1: "",
+      boyvideo2: "",
+      girlvideo2: "",
+      childboyvideo2: "",
+      childgirlvideo2: "",
+      boyvideo3: "",
+      girlvideo3: "",
+      childboyvideo3: "",
+      childgirlvideo3: "",
+      boyvideo4: "",
+      girlvideo4: "",
+      childboyvideo4: "",
+      childgirlvideo4: "",
     });
     setMedia(null);
   };
@@ -343,14 +343,14 @@ function CreatePosterPage() {
           accept: "video/*",
           disabled: !faceSwap,
         },
-         {
+        {
           name: "boyvideo2",
           label: "Upload Boy Video 2",
           icon: <Videocam />,
           accept: "video/*",
           disabled: !faceSwap,
         },
-         {
+        {
           name: "boyvideo3",
           label: "Upload Boy Video 3",
           icon: <Videocam />,
@@ -371,7 +371,7 @@ function CreatePosterPage() {
           accept: "video/*",
           disabled: !faceSwap,
         },
-          {
+        {
           name: "girlvideo2",
           label: "Upload Girl Video 2",
           icon: <Videocam />,
@@ -385,7 +385,7 @@ function CreatePosterPage() {
           accept: "video/*",
           disabled: !faceSwap,
         },
-         {
+        {
           name: "girlvideo4",
           label: "Upload Girl Video 4",
           icon: <Videocam />,
@@ -399,7 +399,7 @@ function CreatePosterPage() {
           accept: "video/*",
           disabled: !faceSwap,
         },
-         {
+        {
           name: "childgirlvideo2",
           label: "Upload Child Girl Video 2",
           icon: <Videocam />,
@@ -420,7 +420,7 @@ function CreatePosterPage() {
           accept: "video/*",
           disabled: !faceSwap,
         },
-         {
+        {
           name: "childboyvideo1",
           label: "Upload Child Boy Video 1",
           icon: <Videocam />,
@@ -459,7 +459,7 @@ function CreatePosterPage() {
           label: "Upload Audio",
           icon: <AudiotrackIcon />,
           accept: "audio/*,.mp3,.m4a,.aac,.wav",
-          disabled:  (!mergingOption && faceSwap),
+          disabled: !mergingOption && faceSwap,
         },
       ],
       photogif: [
@@ -597,8 +597,20 @@ function CreatePosterPage() {
             textAlign: "center",
             mb: 1,
             position: "relative",
+            justifyContent:"space-between"
           }}
         >
+          {" "}
+          <Button
+            variant="contained"
+            color="error"
+            component={Link}
+            to="/"
+            startIcon={<Event />}
+            style={{marginRight:30}}
+          >
+            Go to Event Page
+          </Button>
           <Box
             sx={{
               display: "inline-flex",
@@ -642,7 +654,16 @@ function CreatePosterPage() {
               Video Poster Generator
             </Typography>
           </Box>
-
+          <Button
+            variant="contained"
+            color="error"
+            component={Link}
+            to="/view-all-posters"
+            startIcon={<List />}
+            style={{marginLeft:30}}
+          >
+            View All
+          </Button>
           <Typography
             variant="subtitle1"
             sx={{
@@ -653,11 +674,10 @@ function CreatePosterPage() {
           >
             Transform your media into stunning video poster
           </Typography>
-<Box
+          {/* <Box
             sx={{
               display: "flex",
-              justifyContent: "flex-end",
-              textAlign: "right",
+              justifyContent: "space-around",
             }}
           >
             <Button
@@ -669,7 +689,16 @@ function CreatePosterPage() {
             >
               Go to Event Page
             </Button>
-          </Box>
+            <Button
+              variant="contained"
+              color="error"
+              component={Link}
+              to="/view-all-posters"
+              startIcon={<List />}
+            >
+              View All
+            </Button>
+          </Box> */}
         </Box>
         <Grid
           container
@@ -1031,7 +1060,7 @@ function CreatePosterPage() {
                       (!formData.boyvideo1 ||
                         !formData.girlvideo1 ||
                         !formData.childboyvideo1 ||
-                        !formData.childgirlvideo1 )) ||
+                        !formData.childgirlvideo1)) ||
                     (mediaType === "videovideo" &&
                       faceSwap &&
                       mergingOption &&
@@ -1045,8 +1074,8 @@ function CreatePosterPage() {
                       (!formData.photo || !formData.gif)) ||
                     (mediaType === "videophoto" &&
                       (!formData.video || !formData.photo))
-                  } 
-                 startIcon={<CloudUpload sx={{ fontSize: 24 }} />}
+                  }
+                  startIcon={<CloudUpload sx={{ fontSize: 24 }} />}
                   fullWidth
                 >
                   {uploading ? (
@@ -1069,28 +1098,20 @@ function CreatePosterPage() {
           </Grid>
 
           {/* Right Column - Preview */}
-          <Grid item xs={12} md={6}>
-            <Box
-              sx={{
-                p: 2,
-                width: 500,
-                borderRadius: "16px",
-                height: "100%",
-                background: "white",
-                backdropFilter: "blur(10px)",
-                border: "1px solid rgba(211, 47, 47, 0.1)",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
+          {!(mediaType === "videovideo") && (
+            <Grid item xs={12} md={6}>
               <Box
                 sx={{
+                  p: 2,
+                  width: 500,
+                  borderRadius: "16px",
+                  height: "100%",
+                  background: "white",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(211, 47, 47, 0.1)",
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
                   display: "flex",
-                  alignItems: "center",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  mb: 1.5,
+                  flexDirection: "column",
                 }}
               >
                 <Box
@@ -1098,26 +1119,35 @@ function CreatePosterPage() {
                     display: "flex",
                     alignItems: "center",
                     flexDirection: "row",
+                    justifyContent: "space-between",
+                    mb: 1.5,
                   }}
                 >
-                  <AutoAwesome
+                  <Box
                     sx={{
-                      fontSize: 32,
-                      mr: 2,
-                      color: "#D32F2F",
-                    }}
-                  />
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: 700,
-                      color: "#D32F2F",
+                      display: "flex",
+                      alignItems: "center",
+                      flexDirection: "row",
                     }}
                   >
-                    Output Video
-                  </Typography>
-                </Box>
-                <Button
+                    <AutoAwesome
+                      sx={{
+                        fontSize: 32,
+                        mr: 2,
+                        color: "#D32F2F",
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        fontWeight: 700,
+                        color: "#D32F2F",
+                      }}
+                    >
+                      Output Video
+                    </Typography>
+                  </Box>
+                  {/* <Button
                   variant="contained"
                   color="error"
                   component={Link}
@@ -1125,283 +1155,239 @@ function CreatePosterPage() {
                   startIcon={<List />}
                 >
                   View All
-                </Button>
-              </Box>
-              <Divider
-                sx={{
-                  mb: 1.5,
-                  borderColor: "rgba(211, 47, 47, 0.1)",
-                }}
-              />
+                </Button> */}
+                </Box>
+                <Divider
+                  sx={{
+                    mb: 1.5,
+                    borderColor: "rgba(211, 47, 47, 0.1)",
+                  }}
+                />
 
-              <Box
-                sx={{
-                  flex: 1,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderRadius: "12px",
-                  backgroundColor: "rgba(211, 47, 47, 0.03)",
-                  border: "2px dashed rgba(211, 47, 47, 0.1)",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                {uploading && (
-                  <Box
-                    sx={{
-                      textAlign: "center",
-                      p: 2,
-                      backgroundColor: "rgba(255, 255, 255, 0.8)",
-                      borderRadius: "12px",
-                      maxWidth: 400,
-                    }}
-                  >
-                    <CircularProgress
-                      size={80}
-                      thickness={4}
-                      sx={{
-                        color: "#D32F2F",
-                        mb: 3,
-                      }}
-                    />
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        mb: 1,
-                        fontWeight: 600,
-                        color: "#212121",
-                      }}
-                    >
-                      Creating your masterpiece
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#616161" }}>
-                      Our AI is working its magic...
-                    </Typography>
-                  </Box>
-                )}
-
-                {!media && !uploading && (
-                  <Box
-                    sx={{
-                      textAlign: "center",
-                      p: 4,
-                      maxWidth: 400,
-                    }}
-                  >
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: "12px",
+                    backgroundColor: "rgba(211, 47, 47, 0.03)",
+                    border: "2px dashed rgba(211, 47, 47, 0.1)",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  {uploading && (
                     <Box
                       sx={{
-                        width: 140,
-                        height: 140,
-                        borderRadius: "50%",
-                        backgroundColor: "rgba(211, 47, 47, 0.1)",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        mx: "auto",
-                        mb: 3,
-                        border: "2px dashed rgba(211, 47, 47, 0.3)",
+                        textAlign: "center",
+                        p: 2,
+                        backgroundColor: "rgba(255, 255, 255, 0.8)",
+                        borderRadius: "12px",
+                        maxWidth: 400,
                       }}
                     >
-                      <Image
+                      <CircularProgress
+                        size={80}
+                        thickness={4}
                         sx={{
-                          fontSize: 60,
-                          color: "rgba(211, 47, 47, 0.5)",
+                          color: "#D32F2F",
+                          mb: 3,
                         }}
                       />
-                    </Box>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        mb: 1,
-                        fontWeight: 600,
-                        color: "#212121",
-                      }}
-                    >
-                      Your visual masterpiece awaits
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#616161" }}>
-                      Configure your settings and generate a preview
-                    </Typography>
-                  </Box>
-                )}
-
-                {(media?.posterVideoId || media?.mergedVideoId) && (
-                  <Fade in={true} timeout={500}>
-                    <StyledCard>
-                      <Box sx={{ position: "relative" }}>
-                        {/* <CardMedia
-                          component="img"
-                          image={mediaType === "videovideo"?`https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`:`https://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
-                          alt="Poster Preview"
-                          sx={{
-                            width: "100%",
-                            maxHeight: 250,
-                            objectFit: "contain",
-                          }}
-                        /> */}
-                        <Box
-                          sx={{
-                            position: "relative",
-                            width: "100%",
-                            height: 250,
-                          }}
-                        >
-                          <video
-                            controls
-                            //poster={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.photoId}`}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "contain",
-                              backgroundColor: "#a91111ff",
-                            }}
-                          >
-                            <source
-                              src={
-                                mediaType === "videophoto"
-                                  ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
-                                  : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
-                              }
-                              type="video/mp4"
-                            />
-                            Your browser does not support the video tag.
-                          </video>
-                          {/* <IconButton
-                            sx={{
-                              position: "absolute",
-                              top: "50%",
-                              left: "50%",
-                              transform: "translate(-50%, -50%)",
-                              backgroundColor: "rgba(0,0,0,0.5)",
-                              color: "white",
-                              "&:hover": {
-                                backgroundColor: "rgba(0,0,0,0.7)",
-                              },
-                            }}
-                          >
-                            <PlayArrow fontSize="large" />
-                          </IconButton> */}
-                        </Box>
-                        {/* <Box
-                          sx={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            display: "flex",
-                            alignItems: "flex-end",
-                            p: 3,
-                          }}
-                        >
-                          <Typography
-                            variant="h6"
-                            sx={{ color: "white", fontWeight: 600 }}
-                          >
-                            {formData.name || "Your Poster"}
-                          </Typography>
-                        </Box> */}
-                      </Box>
-                      <CardContent
+                      <Typography
+                        variant="h6"
                         sx={{
-                          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                          mb: 1,
+                          fontWeight: 600,
+                          color: "#212121",
                         }}
                       >
-                        <Grid container spacing={2}>
-                          <Grid item xs={6} md={3}>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "row",
-                                justifyContent: "space-evenly",
+                        Creating your masterpiece
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#616161" }}>
+                        Our AI is working its magic...
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {!media && !uploading && (
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        p: 4,
+                        maxWidth: 400,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 140,
+                          height: 140,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(211, 47, 47, 0.1)",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          mx: "auto",
+                          mb: 3,
+                          border: "2px dashed rgba(211, 47, 47, 0.3)",
+                        }}
+                      >
+                        <Image
+                          sx={{
+                            fontSize: 60,
+                            color: "rgba(211, 47, 47, 0.5)",
+                          }}
+                        />
+                      </Box>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          mb: 1,
+                          fontWeight: 600,
+                          color: "#212121",
+                        }}
+                      >
+                        Your visual masterpiece awaits
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#616161" }}>
+                        Configure your settings and generate a preview
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {(media?.posterVideoId || media?.mergedVideoId) && (
+                    <Fade in={true} timeout={500}>
+                      <StyledCard>
+                        <Box sx={{ position: "relative" }}>
+                          <Box
+                            sx={{
+                              position: "relative",
+                              width: "100%",
+                              height: 250,
+                            }}
+                          >
+                            <video
+                              controls
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                                backgroundColor: "#a91111ff",
                               }}
                             >
-                              <Button
-                                variant="contained"
-                                href={
+                              <source
+                                src={
                                   mediaType === "videophoto"
-                                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
-                                    : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
+                                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
+                                    : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
                                 }
-                                download="final-video.mp4"
+                                type="video/mp4"
+                              />
+                              Your browser does not support the video tag.
+                            </video>
+                          </Box>
+                        </Box>
+                        <CardContent
+                          sx={{
+                            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                          }}
+                        >
+                          <Grid container spacing={2}>
+                            <Grid item xs={6} md={3}>
+                              <Box
                                 sx={{
-                                  background:
-                                    "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
-                                  color: "white",
-                                  borderRadius: "8px",
-                                  py: 1.5,
-                                  fontWeight: 600,
-                                  boxShadow: "none",
-                                  "&:hover": {
-                                    boxShadow:
-                                      "0 4px 15px rgba(183, 28, 28, 0.4)",
-                                  },
-                                  width: "100%",
+                                  display: "flex",
+                                  flexDirection: "row",
+                                  justifyContent: "space-evenly",
                                 }}
-                                startIcon={<Download />}
                               >
-                                Download Video
-                              </Button>
-                              <div style={{ margin: "10px" }}>
-                                <IconButton
-                                  onClick={openModal}
-                                  style={{
+                                <Button
+                                  variant="contained"
+                                  href={
+                                    mediaType === "videophoto"
+                                      ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
+                                      : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
+                                  }
+                                  download="final-video.mp4"
+                                  sx={{
+                                    background:
+                                      "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
                                     color: "white",
-                                    backgroundColor: "green",
+                                    borderRadius: "8px",
+                                    py: 1.5,
+                                    fontWeight: 600,
+                                    boxShadow: "none",
+                                    "&:hover": {
+                                      boxShadow:
+                                        "0 4px 15px rgba(183, 28, 28, 0.4)",
+                                    },
+                                    width: "100%",
+                                  }}
+                                  startIcon={<Download />}
+                                >
+                                  Download Video
+                                </Button>
+                                <div style={{ margin: "10px" }}>
+                                  <IconButton
+                                    onClick={openModal}
+                                    style={{
+                                      color: "white",
+                                      backgroundColor: "green",
+                                    }}
+                                  >
+                                    <WhatsAppIcon />
+                                  </IconButton>
+                                </div>
+                              </Box>
+                              {mediaType === "videophoto" && (
+                                <Button
+                                  variant="contained"
+                                  href={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
+                                  download="final-video.mp4"
+                                  sx={{
+                                    background:
+                                      "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
+                                    color: "white",
+                                    borderRadius: "8px",
+                                    py: 1.5,
+                                    mt: 2,
+                                    fontWeight: 600,
+                                    boxShadow: "none",
+                                    "&:hover": {
+                                      boxShadow:
+                                        "0 4px 15px rgba(183, 28, 28, 0.4)",
+                                    },
+                                    width: "100%",
+                                  }}
+                                  startIcon={<Download />}
+                                >
+                                  Download Poster
+                                </Button>
+                              )}
+                              {media?.qrCode && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "center",
                                   }}
                                 >
-                                  <WhatsAppIcon />
-                                </IconButton>
-                              </div>
-                            </Box>
-                            {mediaType === "videophoto" && (
-                              <Button
-                                variant="contained"
-                                href={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
-                                download="final-video.mp4"
-                                sx={{
-                                  background:
-                                    "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
-                                  color: "white",
-                                  borderRadius: "8px",
-                                  py: 1.5,
-                                  mt: 2,
-                                  fontWeight: 600,
-                                  boxShadow: "none",
-                                  "&:hover": {
-                                    boxShadow:
-                                      "0 4px 15px rgba(183, 28, 28, 0.4)",
-                                  },
-                                  width: "100%",
-                                }}
-                                startIcon={<Download />}
-                              >
-                                Download Poster
-                              </Button>
-                            )}
-                            {media?.qrCode && (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <img
-                                  src={media?.qrCode}
-                                  alt="Download QR Code"
-                                />
-                              </div>
-                            )}
+                                  <img
+                                    src={media?.qrCode}
+                                    alt="Download QR Code"
+                                  />
+                                </div>
+                              )}
+                            </Grid>
                           </Grid>
-                        </Grid>
-                      </CardContent>
-                    </StyledCard>
-                  </Fade>
-                )}
+                        </CardContent>
+                      </StyledCard>
+                    </Fade>
+                  )}
+                </Box>
               </Box>
-            </Box>
-          </Grid>
+            </Grid>
+          )}
         </Grid>
       </Container>
 
