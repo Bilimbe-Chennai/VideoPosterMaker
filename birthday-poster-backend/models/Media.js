@@ -6,6 +6,9 @@ const MediaSchema = new mongoose.Schema({
   date: String,
   type: String,
   whatsapp: String,
+  source: String,
+  email: String,
+  template_name:String,
   photoId: mongoose.Schema.Types.ObjectId,
   videoId: mongoose.Schema.Types.ObjectId,
   posterId: mongoose.Schema.Types.ObjectId,
@@ -15,8 +18,10 @@ const MediaSchema = new mongoose.Schema({
   mergedVideoId: mongoose.Schema.Types.ObjectId,
   gifId: mongoose.Schema.Types.ObjectId,
   audioId: mongoose.Schema.Types.ObjectId,
+  templateId: mongoose.Schema.Types.ObjectId,
   whatsappstatus:String,
   qrCode: { type: String },
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model('medias', MediaSchema);

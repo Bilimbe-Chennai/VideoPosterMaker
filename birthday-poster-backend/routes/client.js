@@ -131,6 +131,7 @@ router.post("/client-upload", async (req, res) => {
     let tempclientphotoPath;
     let EventId;
     let gender;
+    let clientName; // NEW: For videovideovideo type
     const clientPhoto = req.files?.photo;
     const contentType = req.headers["content-type"];
     if (!contentType || !contentType.includes("multipart/form-data")) {
@@ -168,19 +169,96 @@ router.post("/client-upload", async (req, res) => {
             EventId = body.toString().trim();
           } else if (headersText.includes('name="gender"')) {
             gender = body.toString().trim();
+          } else if (headersText.includes('name="clientName"')) {
+            // NEW
+            clientName = body.toString().trim();
           }
         });
+        const settings = await AdminSettings.findOne({ _id: EventId });
+        if (!settings)
+          return res.status(400).json({ error: "No admin settings found" });
+        if (settings.type === "videovideovideo") {
+          if (!clientName || !whatsapp) {
+            return res.status(400).json({
+              success: false,
+              error:
+                "For videovideovideo type, both name and WhatsApp are required",
+            });
+          }
+          const mergedVideoId = settings.mergedVideoId;
+          if (!mergedVideoId) {
+            return res.status(400).json({
+              success: false,
+              error: "No merged video found in admin settings",
+            });
+          }
+          // 3. Create new media entry with client data
+          const media = new Media({
+            _id: new mongoose.Types.ObjectId(),
+            name: settings.name,
+            clientName: clientName,
+            date: settings.date,
+            type: settings.type,
+            mergedVideoId: mergedVideoId,
+            posterVideoId: mergedVideoId, // Same as merged video
+            whatsapp: whatsapp,
+            whatsappstatus: "pending",
+            clientname: settings.clientname, // From admin settings
+            brandname: settings.brandname, // From admin settings
+            createdAt: new Date(),
+          });
 
-        if (!photoBuffer) {
+          // 4. Generate QR code
+          const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${mergedVideoId}?download=true`;
+          const qrCodeData = await QRCode.toDataURL(downloadUrl);
+          media.qrCode = qrCodeData;
+
+          // 5. Save to database
+          await media.save();
+
+          // 6. Send to WhatsApp in background (don't wait for it)
+          shareOuput(whatsapp, downloadUrl, media._id, {
+            json: () => {},
+          }).catch((err) => {
+            console.error("WhatsApp sending error:", err);
+            // Don't fail the request if WhatsApp fails
+          });
+
+          // 7. Return success response with media data
+          res.json({
+            success: true,
+            message: "Video request processed successfully",
+            media: {
+              _id: media._id,
+              name: media.name,
+              clientName: media.clientName,
+              mergedVideoId: media.mergedVideoId,
+              posterVideoId: media.posterVideoId,
+              whatsapp: media.whatsapp,
+              clientname: media.clientname,
+              brandname: media.brandname,
+              qrCode: media.qrCode,
+              createdAt: media.createdAt,
+            },
+          });
+        }
+        if (gender && !photoBuffer) {
           return res.status(400).json({ error: "Missing photo or video" });
         }
         // ✅ Respond IMMEDIATELY to frontend (fire-and-forget)
-        res
-          .status(202)
-          .json({ message: "Upload received. Processing in background." });
-        // ✅ Continue processing in background
+        if (settings.type !== "videovideovideo") {
+          res.status(202).json({
+            message: "Upload received. Processing in background.",
+            clientName: clientName, // Send back for frontend display
+          });
+           // ✅ Continue processing in background
         (async () => {
           try {
+            // 1. Get admin settings
+            const settings = await AdminSettings.findOne({ _id: EventId });
+            if (!settings)
+              return res.status(400).json({ error: "No admin settings found" });
+
             // 2. Upload original photo and video to GridFS
             const clientphotoId = await uploadToGridFS(
               `Clientphoto-${Date.now()}.jpg`,
@@ -190,9 +268,9 @@ router.post("/client-upload", async (req, res) => {
             clientID = clientphotoId;
             tempclientphotoPath = await saveTempFile(photoBuffer, "jpg");
             // 1. Get latest admin settings
-            const settings = await AdminSettings.findOne({ _id: EventId });
-            if (!settings)
-              return res.status(400).json({ error: "No admin settings found" });
+            // const settings = await AdminSettings.findOne({ _id: EventId });
+            // if (!settings)
+            //   return res.status(400).json({ error: "No admin settings found" });
             let selectedVideoId;
             if (gender === "Male1") {
               selectedVideoId = settings.boyVideoId1;
@@ -202,25 +280,25 @@ router.post("/client-upload", async (req, res) => {
               selectedVideoId = settings.childBoyVideoId1;
             } else if (gender === "Child Female1") {
               selectedVideoId = settings.childGirlVideoId1;
-            }else  if (gender === "Male12") {
+            } else if (gender === "Male12") {
               selectedVideoId = settings.boyVideoId2;
             } else if (gender === "Female2") {
               selectedVideoId = settings.girlVideoId2;
             } else if (gender === "Child Male2") {
               selectedVideoId = settings.childBoyVideoId2;
-            }else if (gender === "Child Female2") {
+            } else if (gender === "Child Female2") {
               selectedVideoId = settings.childGirlVideoId2;
-            }else  if (gender === "Male3") {
+            } else if (gender === "Male3") {
               selectedVideoId = settings.boyVideoId3;
-            }  else if (gender === "Female3") {
+            } else if (gender === "Female3") {
               selectedVideoId = settings.girlVideoId3;
             } else if (gender === "Child Male3") {
               selectedVideoId = settings.childBoyVideoId3;
             } else if (gender === "Child Female3") {
               selectedVideoId = settings.childGirlVideoId3;
-            }else  if (gender === "Male4") {
+            } else if (gender === "Male4") {
               selectedVideoId = settings.boyVideoId4;
-            }  else if (gender === "Female4") {
+            } else if (gender === "Female4") {
               selectedVideoId = settings.girlVideoId4;
             } else if (gender === "Child Male4") {
               selectedVideoId = settings.childBoyVideoId4;
@@ -229,10 +307,7 @@ router.post("/client-upload", async (req, res) => {
             } else {
               selectedVideoId = settings.video1Id; // fallback / default
             }
-            if (
-             settings.faceSwap &&
-              !settings.videosMergeOption
-            ) {
+            if (settings.faceSwap && !settings.videosMergeOption) {
               posterVideoId = await runFaceSwap(
                 tempclientphotoPath,
                 selectedVideoId
@@ -256,7 +331,7 @@ router.post("/client-upload", async (req, res) => {
             } else if (settings.videosMergeOption && settings.faceSwap) {
               faceswapVideoId = await runFaceSwap(
                 tempclientphotoPath,
-                selectedVideoId,
+                selectedVideoId
               );
               posterVideoId = await mergeTwoVideos({
                 name: settings.name,
@@ -293,6 +368,7 @@ router.post("/client-upload", async (req, res) => {
             console.error("Background processing error:", err);
           }
         })();
+        }
       } catch (err) {
         console.error("Client upload error (inside end):", err);
         //res.status(500).json({ success: false, error: err.message });
@@ -303,5 +379,116 @@ router.post("/client-upload", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+router.post("/client/:temp_name", async (req, res) => {
+  try {
+    let clientName; 
+    let email;
+    let whatsapp;
+    let template_name;
+    let source;
+    // let templateId;
+    const clientPhoto = req.files?.photo;
+    const contentType = req.headers["content-type"];
+    if (!contentType || !contentType.includes("multipart/form-data")) {
+      return res.status(400).json({ error: "Invalid content type" });
+    }
+    const boundary = "--" + contentType.split("boundary=")[1];
+    let chunks = [];
+    req.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
 
+    req.on("end", async () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        const boundaryBuffer = Buffer.from(boundary);
+        const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
+        let photoBuffer;
+        parts.forEach((part) => {
+          const [rawHeaders, rawBody] = splitBuffer(
+            part,
+            Buffer.from("\r\n\r\n")
+          );
+          const headersText = rawHeaders.toString();
+          const body = rawBody.slice(0, rawBody.length - 2); // remove trailing CRLF
+
+          if (headersText.includes('name="whatsapp"')) {
+            whatsapp = body.toString().trim();
+          } else if (headersText.includes('name="photo"')) {
+            photoBuffer = body;
+          } else if (headersText.includes('name="clientName"')) {
+            clientName = body.toString().trim();
+          } else if (headersText.includes('name="email"')) {
+            email = body.toString().trim();
+          } else if (headersText.includes('name="template_name"')) {
+            template_name = body.toString().trim();
+          }else if (headersText.includes('name="source"')) {
+            source = body.toString().trim();
+          }
+        });
+        if (!photoBuffer) {
+          return res.status(400).json({ error: "Missing photo" });
+        }
+        if (!whatsapp) {
+          return res.status(400).json({ error: "Missing Whatsapp Number" });
+        }
+          res.status(202).json({
+            message: "Upload received. Processing in background.",
+            clientName: clientName, // Send back for frontend display
+          });
+           // ✅ Continue processing in background
+        (async () => {
+          try {
+            // 1. Get admin settings
+            // const settings = await AdminSettings.findOne({ temp_id: template_name });
+            // if (!settings)
+            //   return res.status(400).json({ error: "No admin settings found" });
+            // 2. Upload original photo and video to GridFS
+            const clientphotoId = await uploadToGridFS(
+              `Clientphoto-${Date.now()}.jpg`,
+              photoBuffer,
+              "image/jpeg"
+            );
+            //  const tempphotoId = await uploadToGridFS(
+            //   `Clientphoto-${Date.now()}.jpg`,
+            //   tempBuffer,
+            //   "image/jpeg"
+            // );
+            clientID = clientphotoId;
+            // templateId = tempphotoId;
+            tempclientphotoPath = await saveTempFile(photoBuffer, "jpg"); 
+            // 3. Save client request
+            const media = new Media({
+              _id: new mongoose.Types.ObjectId(),
+              name: clientName,
+              // date: settings.date,
+              email: email,
+              template_name: template_name,
+              source: source,
+              posterVideoId: clientphotoId,
+              whatsapp,
+              whatsappstatus: "pending",
+            });
+            // const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
+            // const qrCodeData = await QRCode.toDataURL(downloadUrl);
+            // media.qrCode = qrCodeData;
+            await media.save();
+            // await shareOuput(whatsapp, downloadUrl, media._id, {
+            //   json: () => {},
+            // });
+            //res.json({ success: true, media });
+          } catch (err) {
+            console.error("Background processing error:", err);
+          }
+        })();
+      } catch (err) {
+        console.error("Client upload error (inside end):", err);
+        //res.status(500).json({ success: false, error: err.message });
+      }
+    });
+  } catch (err) {
+    console.error("Client upload error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 module.exports = router;

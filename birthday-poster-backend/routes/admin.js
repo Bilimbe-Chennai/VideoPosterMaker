@@ -2,6 +2,7 @@ const express = require("express");
 const { getConnection } = require("../InitDB");
 const { Readable } = require("stream");
 const AdminSettings = require("../models/AdminSettings.js");
+const { mergeThreeVideos } = require("../utils/videoMerge.js");
 const router = express.Router();
 async function uploadToGridFS(filename, buffer, contentType) {
   const { bucket } = getConnection();
@@ -159,7 +160,7 @@ router.post("/settings", async (req, res) => {
         }
       } else {
         console.log(
-          "?? Skipping video2Buffer upload because videosMergeOption is false"
+          "Skipping video2Buffer upload because videosMergeOption is false"
         );
       }
       let audioId;
@@ -290,12 +291,356 @@ router.post("/settings", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+//----->create option only for 3 video merge
+// router.post("/settings/videovideovideo", async (req, res) => {
+//   try {
+//       let posterVideoId;
+//     // Files come from form-data
+//     const contentType = req.headers["content-type"];
+//     if (!contentType || !contentType.includes("multipart/form-data")) {
+//       return res.status(400).json({ error: "Invalid content type" });
+//     }
 
+//     const boundary = "--" + contentType.split("boundary=")[1];
+//     let chunks = [];
+//     req.on("data", (chunk) => {
+//       chunks.push(chunk);
+//     });
+//     req.on("end", async () => {
+//       const buffer = Buffer.concat(chunks);
+//       const boundaryBuffer = Buffer.from(boundary);
+//       const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
+//       let name, date, type, faceSwap, videosMergeOption,clientname,brandname,congratsOption,video1TextOption,video2TextOption,video3TextOption,approved;
+//       let video1Buffer,
+//         video2Buffer,
+//         video3Buffer,
+//         audioBuffer;
+//       const whatsappstatus = "pending";
+//       parts.forEach((part) => {
+//         const [rawHeaders, rawBody] = splitBuffer(
+//           part,
+//           Buffer.from("\r\n\r\n")
+//         );
+//         const headersText = rawHeaders.toString();
+//         const body = rawBody.slice(0, rawBody.length - 2); // remove trailing CRLF
+//         if (headersText.includes('name="name"')) {
+//           name = body.toString().trim();
+//         } else if (headersText.includes('name="date"')) {
+//           date = body.toString().trim();
+//         } else if (headersText.includes('name="type"')) {
+//           type = body.toString().trim();
+//         } else if (headersText.includes('name="faceSwap"')) {
+//           faceSwap = body.toString().trim();
+//         } else if (headersText.includes('name="clientname"')) {
+//           clientname = body.toString().trim();
+//         } else if (headersText.includes('name="brandname"')) {
+//           brandname = body.toString().trim();
+//         } else if (headersText.includes('name="congratsOption"')) {
+//           congratsOption = body.toString().trim();
+//         }else if (headersText.includes('name="video1TextOption"')) {
+//           video1TextOption = body.toString().trim();
+//         }else if (headersText.includes('name="video2TextOption"')) {
+//           video2TextOption = body.toString().trim();
+//         }else if (headersText.includes('name="video3TextOption"')) {
+//           video3TextOption = body.toString().trim();
+//         }else if (headersText.includes('name="videosMergeOption"')) {
+//           videosMergeOption = body.toString().trim();
+//         }else if (headersText.includes('name="approved"')) {
+//           approved = body.toString().trim();
+//         } else if (headersText.includes('name="video1"')) {
+//           video1Buffer = body;
+//         } else if (headersText.includes('name="video2"')) {
+//           video2Buffer = body;
+//         } else if (headersText.includes('name="audio"')) {
+//           audioBuffer = body;
+//         } else if (headersText.includes('name="video3"')) {
+//           video3Buffer = body;
+//         } 
+//       });
+//       // if (!audioBuffer) {
+//       //   return res.status(400).json({ error: "Missing audio or video" });
+//       // }
+//       // 2. Upload original photo and video to GridFS
+//       let video1Id;
+    
+//         video1Id = await uploadToGridFS(
+//           `video1-${Date.now()}.mp4`,
+//           video1Buffer,
+//           "video/mp4"
+//         );
+//       let video2Id;
+//           video2Id = await uploadToGridFS(
+//             `video2-${Date.now()}.mp4`,
+//             video2Buffer,
+//             "video/mp4"
+//           );
+//           let video3Id;
+//           video3Id = await uploadToGridFS(
+//             `video3-${Date.now()}.mp4`,
+//             video3Buffer,
+//             "video/mp4"
+//           );
+//       let audioId;
+//         audioId = await uploadToGridFS(
+//           `audio-${Date.now()}.mp4`,
+//           audioBuffer,
+//           "audio/mp3"
+//         );
+        
+//    posterVideoId = await mergeThreeVideos({
+//                 name: name,
+//                 date: date,
+//                 type: type,
+//                 video1Id: video1Id,
+//                 video2Id: video2Id,
+//                 video3Id: video3Id,
+//                 audioId: audioId,
+//                 clientname,
+//                 brandname,
+//                 congratsOption,
+//                 video1TextOption,video2TextOption,video3TextOption
+//               });
+//       const media = new AdminSettings({
+//         name,
+//         date,
+//         type,
+//         video1Id,
+//         video2Id,
+//         video3Id,
+//         audioId,
+//         faceSwap,
+//         videosMergeOption,
+//         mergedVideoId:posterVideoId,
+//         clientname,
+//         brandname,
+//         congratsOption,
+//         video1TextOption,video2TextOption,video3TextOption,
+//         approved
+//       }); 
+//       await media.save();
+//       res.json({ success: true, media });
+//     });
+//   } catch (err) {
+//     console.error("Admin settings error:", err);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
 // Get latest settings
+router.post("/settings/videovideovideo", async (req, res) => {
+  try {
+    let posterVideoId;
+    // Files come from form-data
+    const contentType = req.headers["content-type"];
+    if (!contentType || !contentType.includes("multipart/form-data")) {
+      return res.status(400).json({ error: "Invalid content type" });
+    }
+
+    const boundary = "--" + contentType.split("boundary=")[1];
+    let chunks = [];
+    req.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
+    req.on("end", async () => {
+      const buffer = Buffer.concat(chunks);
+      const boundaryBuffer = Buffer.from(boundary);
+      const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
+      
+      let name, date, type, faceSwap, videosMergeOption, clientname, brandname, 
+          congratsOption, video1TextOption, video2TextOption, video3TextOption, approved;
+      let video1Buffer, video2Buffer, video3Buffer, audioBuffer;
+      
+      // NEW: Check if this is an edit
+      let isEdit = false;
+      let editId = null;
+      
+      const whatsappstatus = "pending";
+      
+      parts.forEach((part) => {
+        const [rawHeaders, rawBody] = splitBuffer(
+          part,
+          Buffer.from("\r\n\r\n")
+        );
+        const headersText = rawHeaders.toString();
+        const body = rawBody.slice(0, rawBody.length - 2); // remove trailing CRLF
+        
+        if (headersText.includes('name="name"')) {
+          name = body.toString().trim();
+        } else if (headersText.includes('name="date"')) {
+          date = body.toString().trim();
+        } else if (headersText.includes('name="type"')) {
+          type = body.toString().trim();
+        } else if (headersText.includes('name="faceSwap"')) {
+          faceSwap = body.toString().trim();
+        } else if (headersText.includes('name="clientname"')) {
+          clientname = body.toString().trim();
+        } else if (headersText.includes('name="brandname"')) {
+          brandname = body.toString().trim();
+        } else if (headersText.includes('name="congratsOption"')) {
+          congratsOption = body.toString().trim();
+        } else if (headersText.includes('name="video1TextOption"')) {
+          video1TextOption = body.toString().trim();
+        } else if (headersText.includes('name="video2TextOption"')) {
+          video2TextOption = body.toString().trim();
+        } else if (headersText.includes('name="video3TextOption"')) {
+          video3TextOption = body.toString().trim();
+        } else if (headersText.includes('name="videosMergeOption"')) {
+          videosMergeOption = body.toString().trim();
+        } else if (headersText.includes('name="approved"')) {
+          approved = body.toString().trim();
+        } else if (headersText.includes('name="_id"')) {  // NEW: Check for _id
+          editId = body.toString().trim();
+        } else if (headersText.includes('name="isEdit"')) {  // NEW: Check for isEdit flag
+          isEdit = body.toString().trim();
+        } else if (headersText.includes('name="video1"')) {
+          video1Buffer = body.length > 0 ? body : null;
+        } else if (headersText.includes('name="video2"')) {
+          video2Buffer = body.length > 0 ? body : null;
+        } else if (headersText.includes('name="audio"')) {
+          audioBuffer = body.length > 0 ? body : null;
+        } else if (headersText.includes('name="video3"')) {
+          video3Buffer = body.length > 0 ? body : null;
+        } 
+      });
+      
+      // Upload files to GridFS
+      let video1Id, video2Id, video3Id, audioId;
+      
+      // Handle video1 - upload new or keep existing
+      if (video1Buffer) {
+        video1Id = await uploadToGridFS(
+          `video1-${Date.now()}.mp4`,
+          video1Buffer,
+          "video/mp4"
+        );
+      } else if (isEdit && editId) {
+        // If editing and no new video1, we need to get existing video1Id
+        const existingMedia = await AdminSettings.findById(editId);
+        if (existingMedia) {
+          video1Id = existingMedia.video1Id;
+        }
+      }
+      
+      // Handle video2
+      if (video2Buffer) {
+        video2Id = await uploadToGridFS(
+          `video2-${Date.now()}.mp4`,
+          video2Buffer,
+          "video/mp4"
+        );
+      } else if (isEdit && editId) {
+        const existingMedia = await AdminSettings.findById(editId);
+        if (existingMedia) {
+          video2Id = existingMedia.video2Id;
+        }
+      }
+      
+      // Handle video3
+      if (video3Buffer) {
+        video3Id = await uploadToGridFS(
+          `video3-${Date.now()}.mp4`,
+          video3Buffer,
+          "video/mp4"
+        );
+      } else if (isEdit && editId) {
+        const existingMedia = await AdminSettings.findById(editId);
+        if (existingMedia) {
+          video3Id = existingMedia.video3Id;
+        }
+      }
+      
+      // Handle audio
+      if (audioBuffer) {
+        audioId = await uploadToGridFS(
+          `audio-${Date.now()}.mp4`,
+          audioBuffer,
+          "audio/mp3"
+        );
+      } else if (isEdit && editId) {
+        const existingMedia = await AdminSettings.findById(editId);
+        if (existingMedia) {
+          audioId = existingMedia.audioId;
+        }
+      }
+      
+      // Generate merged video
+      posterVideoId = await mergeThreeVideos({
+        name: name,
+        date: date,
+        type: type,
+        video1Id: video1Id,
+        video2Id: video2Id,
+        video3Id: video3Id,
+        audioId: audioId,
+        clientname,
+        brandname,
+        congratsOption,
+        video1TextOption, video2TextOption, video3TextOption
+      });
+      
+      let media;
+      
+      if (isEdit && editId) {
+        // UPDATE EXISTING MEDIA
+        media = await AdminSettings.findByIdAndUpdate(
+          editId,
+          {
+            name,
+            date,
+            type,
+            video1Id,
+            video2Id,
+            video3Id,
+            audioId,
+            faceSwap,
+            videosMergeOption,
+            mergedVideoId: posterVideoId,
+            clientname,
+            brandname,
+            congratsOption,
+            video1TextOption, video2TextOption, video3TextOption,
+            approved,
+            updatedAt: new Date()
+          },
+          { new: true } // Return the updated document
+        );
+        
+        if (!media) {
+          return res.status(404).json({ error: "Media not found for update" });
+        }
+      } else {
+        // CREATE NEW MEDIA
+        media = new AdminSettings({
+          name,
+          date,
+          type,
+          video1Id,
+          video2Id,
+          video3Id,
+          audioId,
+          faceSwap,
+          videosMergeOption,
+          mergedVideoId: posterVideoId,
+          clientname,
+          brandname,
+          congratsOption,
+          video1TextOption, video2TextOption, video3TextOption,
+          approved
+        });
+        
+        await media.save();
+      }
+      
+      res.json({ success: true, media });
+    });
+  } catch (err) {
+    console.error("Admin settings error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 router.get("/settings", async (req, res) => {
   //const latest = await AdminSettings.findOne().sort({ createdAt: -1 });
   const latest = await AdminSettings.find();
-  res.json(latest);
+  res.json(latest.reverse());
 });
 // Get one settings using id
 router.get("/getone/:id", async (req, res) => {
@@ -309,5 +654,57 @@ router.get("/getone/:id", async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
+// 4. GET ALL APPROVED VIDEOS API (optional)
+router.get('/approved', async (req, res) => {
+    try {
+        const approvedVideos = await AdminSettings.find({ approved: true })
+            .sort({ createdAt: -1 });
+        
+        res.json({ 
+            success: true, 
+            count: approvedVideos.length,
+            videos: approvedVideos 
+        });
+        
+    } catch (error) {
+        console.error('Get approved videos error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch approved videos',
+            error: error.message 
+        });
+    }
+});
+router.post('/approve/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Find the media by ID
+        const media = await AdminSettings.findById({_id:id});
+        
+        if (!media) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Video not found' 
+            });
+        }       
+        // Update approved status
+        media.approved = true;
+        media.approvedAt = new Date();
+        await media.save();
+        res.json({ 
+            success: true, 
+            message: 'Video approved successfully',
+            media 
+        });
+        
+    } catch (error) {
+        console.error('Approve video error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to approve video',
+            error: error.message 
+        });
+    }
+});
 module.exports = router;
