@@ -1,5 +1,13 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 import axios from "axios";
+// Add these imports
+import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import ShareIcon from "@mui/icons-material/Share";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import Tooltip from '@mui/material/Tooltip';
 import {
   Container,
   Paper,
@@ -30,6 +38,7 @@ import {
   WhatsApp,
   CloudUpload,
   CheckCircle,
+  Download,
 } from "@mui/icons-material";
 import { PlayArrow, Pause, VolumeOff, VolumeUp } from "@mui/icons-material";
 import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
@@ -70,6 +79,7 @@ export default function ClientPage() {
   ]);
 
   const [error, setError] = useState("");
+  const [clientName, setClientName] = useState("");
   const [success, setSuccess] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [adminSetting, setAdminSetting] = useState();
@@ -85,8 +95,12 @@ export default function ClientPage() {
   const movedRef = useRef(false);
   const [playingStates, setPlayingStates] = useState({});
   const [progressStates, setProgressStates] = useState({});
+  const [getOutput, setGetOutput] = useState({});
+  // console.log("getoutput",getOutput)
   const [mutedStates, setMutedStates] = useState({});
+  const [showOutputVideo, setShowOutputVideo] = useState(false);
   const progressRef = useRef(null);
+  const isVideoVideoVideoType = adminSetting?.type === "videovideovideo";
   // 🔹 Fetch events from adminsettings when page loads
   useEffect(() => {
     const fetchEvents = async () => {
@@ -154,14 +168,14 @@ export default function ClientPage() {
     });
   };
   const videoMap = {
-    "Female1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId1}`,
-    "Female2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId2}`,
-    "Female3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId3}`,
-    "Female4": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId4}`,
-    "Male1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId1}`,
-    "Male2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId2}`,
-    "Male3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId3}`,
-    "Male4": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId4}`,
+    Female1: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId1}`,
+    Female2: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId2}`,
+    Female3: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId3}`,
+    Female4: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId4}`,
+    Male1: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId1}`,
+    Male2: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId2}`,
+    Male3: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId3}`,
+    Male4: `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId4}`,
     "Child Male1": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId1}`,
     "Child Male2": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId2}`,
     "Child Male3": `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.childBoyVideoId3}`,
@@ -183,34 +197,89 @@ export default function ClientPage() {
   };
   const handleSubmit = () => {
     setSuccess("");
-    if (!whatsapp || !photo) {
-      setError("Please fill all fields");
-      return;
+    // Different validation based on type
+    if (isVideoVideoVideoType) {
+      // For videovideovideo: require name and whatsapp only (no photo/gender)
+      if (!clientName || !whatsapp) {
+        setError("Please enter your name and WhatsApp number");
+        return;
+      }
+    } else {
+      // For other types: original validation
+      if (!whatsapp || !photo) {
+        setError("Please fill all fields");
+        return;
+      }
     }
+    setShowOutputVideo(false);
+    setLoading(true);
     const formData = new FormData();
     formData.append("whatsapp", whatsapp);
-    formData.append("photo", photo);
-    formData.append("EventId", id);
-    formData.append("gender", gender);
-    // ✅ Show success message immediately (without waiting)
-    setError("");
-    setSuccess(
-      "Your video is being processed and will be sent to your WhatsApp!"
-    );
-    setWhatsapp("");
-    setPhoto(null);
-    setPreviewUrl("");
-    // reset the actual file input 👇
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (isVideoVideoVideoType) {
+      // For videovideovideo, send name instead of photo/gender
+      formData.append("clientName", clientName);
+    } else {
+      // For other types, send photo and gender
+      if (photo) formData.append("photo", photo);
+      formData.append("gender", gender);
     }
+    formData.append("EventId", id);
+    //formData.append("gender", gender);
+    // ✅ Show success message immediately (without waiting)
+    // setError("");
+    // setSuccess(
+    //  isVideoVideoVideoType
+    //     ? "Your personalized video is being generated and will be sent to your WhatsApp!"
+    //     : "Your video is being processed and will be sent to your WhatsApp!"
+    // );
+    // setWhatsapp("");
+    // setClientName("");
+    // setPhoto(null);
+    // setPreviewUrl("");
+    // // reset the actual file input 👇
+    // if (fileInputRef.current) {
+    //   fileInputRef.current.value = "";
+    // }
     axiosData
       .post("client/client-upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
+      .then((response) => {
+        // Handle different response structures
+        if (isVideoVideoVideoType) {
+          // videovideovideo: Immediate success response
+          if (response.data.success) {
+            setSuccess(`✅ Video sent to ${whatsapp}!`);
+            setGetOutput(response.data.media);
+            setShowOutputVideo(true);
+            setWhatsapp("");
+            setClientName("");
+          } else {
+            setError(response.data.error || "Submission failed");
+          }
+        } else {
+          // Other types: 202 Accepted response
+          if (response.status === 202) {
+            setSuccess(
+              "✅ Upload received! Video is being processed and will be sent to your WhatsApp."
+            );
+            setWhatsapp("");
+            setPhoto(null);
+            setPreviewUrl("");
+            if (fileInputRef.current) {
+              fileInputRef.current.value = "";
+            }
+          } else if (response.data.error) {
+            setError(response.data.error);
+          }
+        }
+      })
       .catch((err) => {
         console.error("Upload failed:", err);
         setError("Error submitting details. Please try again.");
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
@@ -392,7 +461,7 @@ export default function ClientPage() {
       <Container
         maxWidth="lg"
         sx={{
-          width: isMobile ? "100%" : isTablet ? "90%" : "80%",
+          width: isMobile ? "100%" : isTablet ? "90%" : isVideoVideoVideoType?"100%":"90%",
           transition: "all 0.3s ease",
         }}
       >
@@ -408,7 +477,7 @@ export default function ClientPage() {
           <Grid
             container
             sx={{ justifyContent: "center" }}
-            spacing={isMobile ? 2 : 4}
+            spacing={isMobile ? 2 : 5}
           >
             {/* Left side - Form */}
             <Grid item xs={12} md={6}>
@@ -426,19 +495,22 @@ export default function ClientPage() {
                   sx={{
                     fontWeight: "bold",
                     color: "#d32f2f",
-                    textAlign: isMobile ? "center" : "left",
+                    textAlign: isMobile ? "center" : "center",
                   }}
                 >
-                  Client Submission
+                  {isVideoVideoVideoType
+                    ? "Personalized Video Request"
+                    : "Client Submission"}
                 </Typography>
 
                 <Typography
                   variant="body1"
                   color="text.secondary"
-                  sx={{ mb: 3, textAlign: isMobile ? "center" : "left" }}
+                  sx={{ mb: 3, textAlign: isMobile ? "center" : "center" }}
                 >
-                  Submit your details to receive your personalized video via
-                  WhatsApp
+                  {isVideoVideoVideoType
+                    ? "Enter your details to receive a personalized video with your name"
+                    : "Submit your details to receive your personalized video via WhatsApp"}
                 </Typography>
 
                 {error && (
@@ -452,35 +524,95 @@ export default function ClientPage() {
                     {success}
                   </Alert>
                 )}
-                <Box sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
-                  <TextField
-                    fullWidth
-                    label="WhatsApp Number"
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                    placeholder="+91XXXXXXXXXX"
-                    margin="normal"
-                    variant="outlined"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <WhatsApp sx={{ color: "#d32f2f" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      mb: 2,
-                      "& .MuiOutlinedInput-root": {
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#d32f2f",
-                        },
-                      },
-                      "& .MuiInputLabel-root.Mui-focused": {
-                        color: "#d32f2f",
-                      },
-                    }}
-                  />
-                  {/* <TextField
+                <Box sx={{ display: "flex", flexDirection: isVideoVideoVideoType?"column":"row", gap: 2 }}>
+                  {isVideoVideoVideoType ? (
+                    <>
+                      {" "}
+                      <TextField
+                        fullWidth
+                        label="Your Name"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="Enter your name"
+                        margin="normal"
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PeopleAltIcon sx={{ color: "#d32f2f" }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          mb: 2,
+                          "& .MuiOutlinedInput-root": {
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#d32f2f",
+                            },
+                          },
+                          "& .MuiInputLabel-root.Mui-focused": {
+                            color: "#d32f2f",
+                          },
+                        }}
+                      />
+                      <TextField
+                        fullWidth
+                        label="WhatsApp Number"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                        placeholder="+91XXXXXXXXXX"
+                        margin="normal"
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <WhatsApp sx={{ color: "#d32f2f" }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          mb: 2,
+                          "& .MuiOutlinedInput-root": {
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#d32f2f",
+                            },
+                          },
+                          "& .MuiInputLabel-root.Mui-focused": {
+                            color: "#d32f2f",
+                          },
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <TextField
+                        fullWidth
+                        label="WhatsApp Number"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                        placeholder="+91XXXXXXXXXX"
+                        margin="normal"
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <WhatsApp sx={{ color: "#d32f2f" }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          mb: 2,
+                          "& .MuiOutlinedInput-root": {
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#d32f2f",
+                            },
+                          },
+                          "& .MuiInputLabel-root.Mui-focused": {
+                            color: "#d32f2f",
+                          },
+                        }}
+                      />
+                      {/* <TextField
                     select
                     fullWidth
                     label="Select Gender"
@@ -518,103 +650,107 @@ export default function ClientPage() {
                       <MenuItem disabled>Loading...</MenuItem>
                     )}
                   </TextField> */}
-                  <Autocomplete
-                    fullWidth
-                    options={genderOptions}
-                    value={gender}
-                    onChange={(e, newValue) => setGender(newValue)}
-                    getOptionLabel={(ev) => {
-                      if (!ev) return "";
-                      if (ev.includes("1"))
-                        return `${ev.replace("1", "")} Model 1`;
-                      if (ev.includes("2"))
-                        return `${ev.replace("2", "")} Model 2`;
-                      if (ev.includes("3"))
-                        return `${ev.replace("3", "")} Model 3`;
-                      if (ev.includes("4"))
-                        return `${ev.replace("4", "")} Model 4`;
-                      return ev;
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Selected Gender Model"
-                        margin="normal"
-                        variant="outlined"
-                        InputProps={{
-                          ...params.InputProps,
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <PeopleAltIcon sx={{ color: "#d32f2f" }} />
-                            </InputAdornment>
-                          ),
+                      <Autocomplete
+                        fullWidth
+                        options={genderOptions}
+                        value={gender}
+                        onChange={(e, newValue) => setGender(newValue)}
+                        getOptionLabel={(ev) => {
+                          if (!ev) return "";
+                          if (ev.includes("1"))
+                            return `${ev.replace("1", "")} Model 1`;
+                          if (ev.includes("2"))
+                            return `${ev.replace("2", "")} Model 2`;
+                          if (ev.includes("3"))
+                            return `${ev.replace("3", "")} Model 3`;
+                          if (ev.includes("4"))
+                            return `${ev.replace("4", "")} Model 4`;
+                          return ev;
                         }}
-                        sx={{
-                          mb: isMobile ? 2 : 3,
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: 2,
-                          },
-                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Selected Gender Model"
+                            margin="normal"
+                            variant="outlined"
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PeopleAltIcon sx={{ color: "#d32f2f" }} />
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{
+                              mb: isMobile ? 2 : 3,
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: 2,
+                              },
+                            }}
+                          />
+                        )}
                       />
-                    )}
-                  />
+                    </>
+                  )}
                 </Box>
-                <Box sx={{ textAlign: "center", position: "relative" }}>
-                  {/* Video Slider with Animation */}
-                  <Swiper
-                    onSwiper={(s) => (swiperRef.current = s)}
-                    modules={[Navigation, Pagination]}
-                    navigation={{
-                      prevEl: ".custom-prev",
-                      nextEl: ".custom-next",
-                    }}
-                    pagination={{ clickable: true }}
-                    spaceBetween={20}
-                    grabCursor={true}
-                    slidesPerView={4}
-                    breakpoints={{
-                      320: { slidesPerView: 1 },
-                      768: { slidesPerView: 2 },
-                      1200: { slidesPerView: 4 },
-                    }}
-                    style={{ borderRadius: 10, padding: "10px 40px" }}
-                  >
-                    {slides}
-                    {/* Custom arrows (same as you wanted) */}
-                    <IconButton
-                      className="custom-prev"
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        left: 6,
-                        transform: "translateY(-50%)",
-                        bgcolor: "rgba(211,47,47,0.9)",
-                        color: "white",
-                        zIndex: 30,
-                        "&:hover": { bgcolor: "rgba(211,47,47,1)" },
+                {/* Only show video slider for non-videovideovideo types */}
+                {!isVideoVideoVideoType && (
+                  <Box sx={{ textAlign: "center", position: "relative" }}>
+                    {/* Video Slider with Animation */}
+                    <Swiper
+                      onSwiper={(s) => (swiperRef.current = s)}
+                      modules={[Navigation, Pagination]}
+                      navigation={{
+                        prevEl: ".custom-prev",
+                        nextEl: ".custom-next",
                       }}
-                    >
-                      <ArrowBackIos fontSize="small" />
-                    </IconButton>
-
-                    <IconButton
-                      className="custom-next"
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        right: 6,
-                        transform: "translateY(-50%)",
-                        bgcolor: "rgba(211,47,47,0.9)",
-                        color: "white",
-                        zIndex: 30,
-                        "&:hover": { bgcolor: "rgba(211,47,47,1)" },
+                      pagination={{ clickable: true }}
+                      spaceBetween={20}
+                      grabCursor={true}
+                      slidesPerView={4}
+                      breakpoints={{
+                        320: { slidesPerView: 1 },
+                        768: { slidesPerView: 2 },
+                        1200: { slidesPerView: 4 },
                       }}
+                      style={{ borderRadius: 10, padding: "10px 40px" }}
                     >
-                      <ArrowForwardIos fontSize="small" />
-                    </IconButton>
-                  </Swiper>
+                      {slides}
+                      {/* Custom arrows (same as you wanted) */}
+                      <IconButton
+                        className="custom-prev"
+                        sx={{
+                          position: "absolute",
+                          top: "50%",
+                          left: 6,
+                          transform: "translateY(-50%)",
+                          bgcolor: "rgba(211,47,47,0.9)",
+                          color: "white",
+                          zIndex: 30,
+                          "&:hover": { bgcolor: "rgba(211,47,47,1)" },
+                        }}
+                      >
+                        <ArrowBackIos fontSize="small" />
+                      </IconButton>
 
-                  {/* <Swiper
+                      <IconButton
+                        className="custom-next"
+                        sx={{
+                          position: "absolute",
+                          top: "50%",
+                          right: 6,
+                          transform: "translateY(-50%)",
+                          bgcolor: "rgba(211,47,47,0.9)",
+                          color: "white",
+                          zIndex: 30,
+                          "&:hover": { bgcolor: "rgba(211,47,47,1)" },
+                        }}
+                      >
+                        <ArrowForwardIos fontSize="small" />
+                      </IconButton>
+                    </Swiper>
+
+                    {/* <Swiper
                     spaceBetween={30}
                     slidesPerView={4}
                     style={{ borderRadius: "10px" }}
@@ -652,67 +788,75 @@ export default function ClientPage() {
                       </SwiperSlide>
                     ))}
                   </Swiper> */}
-                </Box>
-                <Box sx={{ mt: 2, mb: 3 }}>
-                  <input
-                    ref={fileInputRef} // 👈 attach ref
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    id="photo-upload"
-                    type="file"
-                    onChange={handleFileChange}
-                  />
-                  <label htmlFor="photo-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      fullWidth
-                      size={isMobile ? "small" : "medium"}
-                      startIcon={<PhotoCamera />}
-                      sx={{
-                        py: isMobile ? 1 : 1.5,
-                        borderStyle: "dashed",
-                        borderWidth: 2,
-                        borderColor: photo ? "#4caf50" : "#d32f2f",
-                        backgroundColor: photo
-                          ? alpha("#4caf50", 0.08)
-                          : "transparent",
-                        color: photo ? "#4caf50" : "#d32f2f",
-                        "&:hover": {
-                          borderColor: photo ? "#4caf50" : "#b71c1c",
+                  </Box>
+                )}
+                {/* Only show photo upload for non-videovideovideo types */}
+                {!isVideoVideoVideoType && (
+                  <Box sx={{ mt: 2, mb: 3 }}>
+                    <input
+                      ref={fileInputRef} // 👈 attach ref
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      id="photo-upload"
+                      type="file"
+                      onChange={handleFileChange}
+                    />
+                    <label htmlFor="photo-upload">
+                      <Button
+                        variant="outlined"
+                        component="span"
+                        fullWidth
+                        size={isMobile ? "small" : "medium"}
+                        startIcon={<PhotoCamera />}
+                        sx={{
+                          py: isMobile ? 1 : 1.5,
+                          borderStyle: "dashed",
+                          borderWidth: 2,
+                          borderColor: photo ? "#4caf50" : "#d32f2f",
                           backgroundColor: photo
-                            ? alpha("#4caf50", 0.12)
-                            : alpha("#d32f2f", 0.08),
-                        },
-                      }}
+                            ? alpha("#4caf50", 0.08)
+                            : "transparent",
+                          color: photo ? "#4caf50" : "#d32f2f",
+                          "&:hover": {
+                            borderColor: photo ? "#4caf50" : "#b71c1c",
+                            backgroundColor: photo
+                              ? alpha("#4caf50", 0.12)
+                              : alpha("#d32f2f", 0.08),
+                          },
+                        }}
+                      >
+                        {photo ? (
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <CheckCircle sx={{ mr: 1, color: "#4caf50" }} />
+                            <Typography variant="body2" noWrap>
+                              {photo.name}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          "Upload Your Photo"
+                        )}
+                      </Button>
+                    </label>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mt: 1, display: "block" }}
                     >
-                      {photo ? (
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <CheckCircle sx={{ mr: 1, color: "#4caf50" }} />
-                          <Typography variant="body2" noWrap>
-                            {photo.name}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        "Upload Your Photo"
-                      )}
-                    </Button>
-                  </label>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 1, display: "block" }}
-                  >
-                    Supported formats: JPG, PNG, WEBP.
-                  </Typography>
-                </Box>
-
+                      Supported formats: JPG, PNG, WEBP.
+                    </Typography>
+                  </Box>
+                )}
                 <Button
                   variant="contained"
                   fullWidth
                   size={isMobile ? "medium" : "large"}
                   onClick={handleSubmit}
-                  disabled={loading || !whatsapp || !photo}
+                  disabled={
+                    loading ||
+                    (isVideoVideoVideoType
+                      ? !clientName || !whatsapp
+                      : !whatsapp || !photo)
+                  }
                   startIcon={
                     loading ? <CircularProgress size={20} /> : <CloudUpload />
                   }
@@ -742,8 +886,9 @@ export default function ClientPage() {
                   color="text.secondary"
                   sx={{ mt: 2, display: "block", textAlign: "center" }}
                 >
-                  Your photo will be used to create a personalized video message
-                  that will be sent to your WhatsApp number.
+                  {isVideoVideoVideoType
+                    ? "Your name will be personalized in the video that will be sent to your WhatsApp."
+                    : "Your photo will be used to create a personalized video message that will be sent to your WhatsApp number."}
                 </Typography>
               </Box>
             </Grid>
@@ -762,76 +907,80 @@ export default function ClientPage() {
                 gap: 2,
               }}
             >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "100%",
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{ color: "#d32f2f", fontWeight: "bold" }}
+              {/* Only show photo preview for non-videovideovideo types */}
+              {!isVideoVideoVideoType && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                  }}
                 >
-                  Photo Preview
-                </Typography>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{ color: "#d32f2f", fontWeight: "bold" }}
+                  >
+                    Photo Preview
+                  </Typography>
 
-                {previewUrl ? (
-                  <Fade in={true} timeout={1000}>
-                    <Card
+                  {previewUrl ? (
+                    <Fade in={true} timeout={1000}>
+                      <Card
+                        sx={{
+                          maxWidth: isMobile ? 280 : 345,
+                          width: "100%",
+                          border: "2px solid #ffcdd2",
+                        }}
+                      >
+                        <CardMedia
+                          component="img"
+                          height={isMobile ? 250 : 370}
+                          image={previewUrl}
+                          alt="Preview"
+                          sx={{ objectFit: "cover" }}
+                        />
+                      </Card>
+                    </Fade>
+                  ) : (
+                    <Box
                       sx={{
-                        maxWidth: isMobile ? 280 : 345,
                         width: "100%",
-                        border: "2px solid #ffcdd2",
+                        maxWidth: isMobile ? 280 : 345,
+                        height: isMobile ? 250 : 370,
+                        border: "2px dashed",
+                        borderColor: "#ffcdd2",
+                        borderRadius: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "#fff5f5",
                       }}
                     >
-                      <CardMedia
-                        component="img"
-                        height={isMobile ? 250 : 370}
-                        image={previewUrl}
-                        alt="Preview"
-                        sx={{ objectFit: "cover" }}
-                      />
-                    </Card>
-                  </Fade>
-                ) : (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      maxWidth: isMobile ? 280 : 345,
-                      height: isMobile ? 250 : 370,
-                      border: "2px dashed",
-                      borderColor: "#ffcdd2",
-                      borderRadius: 2,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#fff5f5",
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      align="center"
-                    >
-                      Your photo will appear here
-                    </Typography>
-                  </Box>
-                )}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        align="center"
+                      >
+                        Your photo will appear here
+                      </Typography>
+                    </Box>
+                  )}
 
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 2, textAlign: "center", px: isMobile ? 1 : 0 }}
-                >
-                  {isMobile
-                    ? "Upload a clear photo for best results"
-                    : "Make sure your face is clearly visible for optimal video processing"}
-                </Typography>
-              </Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 2, textAlign: "center", px: isMobile ? 1 : 0 }}
+                  >
+                    {isMobile
+                      ? "Upload a clear photo for best results"
+                      : "Make sure your face is clearly visible for optimal video processing"}
+                  </Typography>
+                </Box>
+              )}
+              {/* Show output video preview */}
               <Box
                 sx={{
                   display: "flex",
@@ -839,6 +988,7 @@ export default function ClientPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   height: "100%",
+                  width: isVideoVideoVideoType ? "100%" : "auto",
                 }}
               >
                 <Typography
@@ -846,23 +996,28 @@ export default function ClientPage() {
                   gutterBottom
                   sx={{ color: "#d32f2f", fontWeight: "bold" }}
                 >
-                Selected  Sample Output Video
+                  {isVideoVideoVideoType
+                    ? "Your Personalized Video"
+                    : "Selected Sample Output Video"}
                 </Typography>
 
-                {adminSetting ? (
+                {showOutputVideo && adminSetting ? (
                   <Fade in={true} timeout={1000}>
                     <Card
                       sx={{
                         maxWidth: isMobile ? 280 : 345,
                         width: "100%",
                         border: "2px solid #ffcdd2",
+                        boxShadow: "0 4px 20px rgba(76, 175, 80, 0.3)",
                       }}
                     >
                       <CardMedia
                         component="video"
                         height={370}
                         src={
-                          gender === "Male1"
+                          isVideoVideoVideoType
+                            ? `https://api.bilimbebrandactivations.com/api/upload/file/${getOutput?.mergedVideoId}`
+                            : gender === "Male1"
                             ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.boyVideoId1}`
                             : gender === "Female1"
                             ? `https://api.bilimbebrandactivations.com/api/upload/file/${adminSetting?.girlVideoId1}`
@@ -924,7 +1079,9 @@ export default function ClientPage() {
                       color="text.secondary"
                       align="center"
                     >
-                      Output video sample will appear here
+                      {isVideoVideoVideoType
+                        ? "Submit your details to see your personalized video"
+                        : "Submit your photo to see your generated video"}
                     </Typography>
                   </Box>
                 )}
@@ -934,12 +1091,113 @@ export default function ClientPage() {
                   color="text.secondary"
                   sx={{ mt: 2, textAlign: "center", px: isMobile ? 1 : 0 }}
                 >
-                  {isMobile
+                  {showOutputVideo
+                    ? isVideoVideoVideoType
+                      ? "Your personalized video has been generated and sent to your WhatsApp!"
+                      : "Your video has been generated and sent to your WhatsApp!"
+                    : isMobile
                     ? "This is a sample preview of your video."
                     : "Preview how your final video will look once processing is complete."}
                 </Typography>
+                {/* Compact Social Media Share Section */}
               </Box>
             </Grid>
+            {
+              isVideoVideoVideoType && (<Box
+  sx={{
+    display: "flex",
+    justifyContent: "center",
+    gap: 2,
+    mb: 1,
+    mt:5
+  }}
+>
+  {/* WhatsApp */}
+  <IconButton
+    sx={{
+      backgroundColor: "#25D366",
+      color: "white",
+      width: 48,
+      height: 48,
+      "&:hover": {
+        backgroundColor: "#128C7E",
+        transform: "scale(1.1)",
+      },
+      transition: "all 0.3s ease",
+    }}
+  >
+    <WhatsAppIcon />
+  </IconButton>
+
+  {/* Facebook */}
+  <IconButton
+    sx={{
+      backgroundColor: "#1877F2",
+      color: "white",
+      width: 48,
+      height: 48,
+      "&:hover": {
+        backgroundColor: "#0D5CAF",
+        transform: "scale(1.1)",
+      },
+      transition: "all 0.3s ease",
+    }}
+  >
+    <FacebookIcon />
+  </IconButton>
+
+  {/* Instagram */}
+  <IconButton
+    sx={{
+      background: "linear-gradient(45deg, #405DE6, #833AB4, #E1306C)",
+      color: "white",
+      width: 48,
+      height: 48,
+      "&:hover": {
+        opacity: 0.9,
+        transform: "scale(1.1)",
+      },
+      transition: "all 0.3s ease",
+    }}
+  >
+    <InstagramIcon />
+  </IconButton>
+
+  {/* Twitter/X */}
+  <IconButton
+    sx={{
+      backgroundColor: "#000000",
+      color: "white",
+      width: 48,
+      height: 48,
+      "&:hover": {
+        backgroundColor: "#1A1A1A",
+        transform: "scale(1.1)",
+      },
+      transition: "all 0.3s ease",
+    }}
+  >
+    <TwitterIcon />
+  </IconButton>
+
+  {/* LinkedIn */}
+  <IconButton
+    sx={{
+      backgroundColor: "#0077B5",
+      color: "white",
+      width: 48,
+      height: 48,
+      "&:hover": {
+        backgroundColor: "#005582",
+        transform: "scale(1.1)",
+      },
+      transition: "all 0.3s ease",
+    }}
+  >
+    <LinkedInIcon />
+  </IconButton>
+</Box>)
+            }
           </Grid>
         </Paper>
       </Container>

@@ -458,7 +458,7 @@ export default function ViewAllPoster() {
   }, []);
   const fetchMedia = async () => {
     try {
-      const response = await axiosData.get("upload/all");
+      const response = await axiosData.get("admin/settings");
       setMediaList(response.data);
     } catch (error) {
       console.error("Error fetching media:", error);
@@ -787,7 +787,7 @@ export default function ViewAllPoster() {
                         }
                       }}
                     /> */}
-                        {media?.type === "videovideo" ? (
+                        {(media?.type === "videovideo" || media?.type === "videovideovideo")? (
                           // Video poster with play icon overlay
                           <>
                             {/* <CardMedia
@@ -820,7 +820,7 @@ export default function ViewAllPoster() {
                             >
                               <source
                                 src={
-                                  media?.type === "videophoto"
+                                  (media?.type === "videophoto" || media?.type === "videovideovideo")
                                     ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
                                     : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
                                 }

@@ -45,7 +45,15 @@ import {
   Palette,
   LinearScale,
   List,
+  Edit,
+  CheckCircle,
 } from "@mui/icons-material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
+import AddchartIcon from "@mui/icons-material/Addchart";
 import { Event } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
@@ -53,6 +61,7 @@ import AudiotrackIcon from "@mui/icons-material/Audiotrack";
 import useAxios from "../useAxios";
 import { styled } from "@mui/material/styles";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+
 const GradientButton = styled(Button)(({ theme }) => ({
   background: "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
   color: "white",
@@ -115,16 +124,33 @@ function CreatePosterPage() {
   const [mediaType, setMediaType] = useState("photogif");
   const [success, setSuccess] = useState(false);
   const [faceSwap, setFaceSwap] = useState(false);
+  const [congratsOption, setCongratsOption] = useState(false);
+  const [video1TextOption, setVideo1TextOption] = useState(false);
+  const [video2TextOption, setVideo2TextOption] = useState(false);
+  const [video3TextOption, setVideo3TextOption] = useState(false);
   const [mergingOption, setMergingOption] = useState(false);
+  const [clientname, setClientname] = useState("");
+  const [brandname, setBrandname] = useState("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [editedVideo, setEditedVideo] = useState({
+    title: "",
+    description: "",
+    tags: "",
+    isPublic: false,
+  });
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
+  const [originalMediaData, setOriginalMediaData] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
-    date: new Date().toISOString().split("T")[0],
+    date: dayjs(),
     type: "",
     photo: null,
     gif: null,
     video: null,
     video1: null,
     video2: null,
+    video3: null,
     audio: null,
     //samplevideo: null,
     boyvideo1: null,
@@ -144,12 +170,14 @@ function CreatePosterPage() {
     childboyvideo4: null,
     childgirlvideo4: null,
   });
+  console.log(formData.date)
   const [fileNames, setFileNames] = useState({
     photo: "",
     gif: "",
     video: "",
     video1: "",
     video2: "",
+    video3: "",
     audio: "",
     //samplevideo: "",
     boyvideo1: "",
@@ -169,7 +197,7 @@ function CreatePosterPage() {
     childboyvideo4: "",
     childgirlvideo4: "",
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [media, setMedia] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -197,6 +225,114 @@ function CreatePosterPage() {
     setShowModal(false);
     setPhoneNumber("");
   };
+  // Update these functions to use the correct variable names
+  const handleApproveVideo = async () => {
+    try {
+      const response = await axiosData.post(
+        `admin/approve/${media?._id}`,
+        {
+          approved: true,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.data.success) {
+        setMedia((prev) => ({
+          ...prev,
+          approved: true,
+          approvedAt: new Date().toISOString(),
+        }));
+        // alert("Video approved successfully!");
+      } else {
+        throw new Error("Failed to approve video");
+      }
+    } catch (error) {
+      console.error("Error approving video:", error);
+      alert("Failed to approve video. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (isEditingExisting) {
+      // Reset form to original state
+      if (originalMediaData) {
+        setFormData(originalMediaData.formData);
+        setClientname(originalMediaData.clientname);
+        setBrandname(originalMediaData.brandname);
+        setCongratsOption(originalMediaData.congratsOption);
+        setVideo1TextOption(originalMediaData.video1TextOption);
+        setVideo2TextOption(originalMediaData.video2TextOption);
+        setVideo3TextOption(originalMediaData.video3TextOption);
+
+        // Reset file names
+        const updatedFileNames = { ...fileNames };
+        Object.keys(originalMediaData.fileNames).forEach((key) => {
+          updatedFileNames[key] = originalMediaData.fileNames[key];
+        });
+        setFileNames(updatedFileNames);
+      }
+    }
+
+    setEditedVideo({
+      title: media?.title || "",
+      description: media?.description || "",
+      tags: media?.tags || "",
+      isPublic: media?.isPublic || false,
+    });
+    setIsEditMode(false);
+    setIsEditingExisting(false);
+  };
+
+  const handleEditClick = () => {
+    if (!media) return;
+
+    // console.log("Editing media ID:", media._id);
+
+    // Populate form with existing data
+    // For text fields:
+    setFormData((prev) => ({
+      ...prev,
+      name: media.name || "",
+      date: media.date
+        ? media.date.split("T")[0]
+        : new Date().toISOString().split("T")[0],
+    }));
+
+    // For options:
+    setClientname(media.clientname || "");
+    setBrandname(media.brandname || "");
+    setCongratsOption(media.congratsOption || false);
+    setVideo1TextOption(media.video1TextOption || false);
+    setVideo2TextOption(media.video2TextOption || false);
+    setVideo3TextOption(media.video3TextOption || false);
+    setFaceSwap(media.faceSwap || false);
+    setMergingOption(media.videosMergeOption || false);
+
+    // For files - show existing file names
+    const updatedFileNames = { ...fileNames };
+
+    // Clear all
+    Object.keys(updatedFileNames).forEach((key) => {
+      updatedFileNames[key] = "";
+    });
+
+    // Set existing files
+    if (media.video1Id) updatedFileNames.video1 = media.video1Id;
+    if (media.video2Id) updatedFileNames.video2 = media.video2Id;
+    if (media.video3Id) updatedFileNames.video3 = media.video3Id;
+    if (media.audioId) updatedFileNames.audio = media.audioId;
+
+    setFileNames(updatedFileNames);
+
+    // Enable edit mode
+    setIsEditMode(true);
+    setIsEditingExisting(true);
+  };
   const handleMediaTypeChange = (e) => {
     setMediaType(e.target.value);
     setFormData({
@@ -214,6 +350,7 @@ function CreatePosterPage() {
       video: "",
       video1: "",
       video2: "",
+      video3: "",
       audio: "",
       //samplevideo: "",
       boyvideo1: "",
@@ -235,8 +372,8 @@ function CreatePosterPage() {
     });
     setMedia(null);
   };
-
   const shareOnWhatsApp = async () => {
+    setLoading(true)
     const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`; // replace with your download link
 
     if (!phoneNumber.trim()) {
@@ -250,7 +387,6 @@ function CreatePosterPage() {
       message
     )}`;
     try {
-      setLoading(true);
       const res = await axiosData.post(
         "upload/share",
         {
@@ -274,40 +410,484 @@ function CreatePosterPage() {
     }
     //window.open(whatsappUrl, "_blank");
   };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMedia(null);
-    setUploading(true);
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      date: new Date().toISOString().split("T")[0],
+      type: "",
+      photo: null,
+      gif: null,
+      video: null,
+      video1: null,
+      video2: null,
+      video3: null,
+      audio: null,
+      boyvideo1: null,
+      girlvideo1: null,
+      childboyvideo1: null,
+      childgirlvideo1: null,
+      boyvideo2: null,
+      girlvideo2: null,
+      childboyvideo2: null,
+      childgirlvideo2: null,
+      boyvideo3: null,
+      girlvideo3: null,
+      childboyvideo3: null,
+      childgirlvideo3: null,
+      boyvideo4: null,
+      girlvideo4: null,
+      childboyvideo4: null,
+      childgirlvideo4: null,
+    });
+
+    setFileNames({
+      photo: "",
+      gif: "",
+      video: "",
+      video1: "",
+      video2: "",
+      video3: "",
+      audio: "",
+      boyvideo1: "",
+      girlvideo1: "",
+      childboyvideo1: "",
+      childgirlvideo1: "",
+      boyvideo2: "",
+      girlvideo2: "",
+      childboyvideo2: "",
+      childgirlvideo2: "",
+      boyvideo3: "",
+      girlvideo3: "",
+      childboyvideo3: "",
+      childgirlvideo3: "",
+      boyvideo4: "",
+      girlvideo4: "",
+      childboyvideo4: "",
+      childgirlvideo4: "",
+    });
+
+    setClientname("");
+    setBrandname("");
+    setCongratsOption(false);
+    setVideo1TextOption(false);
+    setVideo2TextOption(false);
+    setVideo3TextOption(false);
+    setFaceSwap(false);
+    setMergingOption(false);
+    setIsEditMode(false);
+    setIsEditingExisting(false);
+    setOriginalMediaData(null);
+    setUploading(false);
+  };
+  const handleSaveEdit = async () => {
     try {
+      setUploading(true);
+
       const uploadData = new FormData();
-      Object.entries(formData).forEach(([key, val]) => {
-        if (val) uploadData.append(key, val);
-      });
-      uploadData.append("faceSwap", faceSwap);
-      uploadData.append("videosMergeOption", mergingOption);
-      // Append the mediaType to the form data
+
+      // Add all text fields
+      uploadData.append("name", formData.name);
+      uploadData.append("clientname", clientname);
+      uploadData.append("brandname", brandname);
+      uploadData.append("date", formData.date.format("DD/MM/YYYY"));
       uploadData.append("type", mediaType);
-      let endpoint;
-      if (mediaType === "videovideo") {
-        endpoint = `admin/settings`;
-      } else {
-        endpoint = `upload/${mediaType}`;
-      }
-      const res = await axiosData.post(endpoint, uploadData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      uploadData.append("congratsOption", congratsOption);
+      uploadData.append("video1TextOption", video1TextOption);
+      uploadData.append("video2TextOption", video2TextOption);
+      uploadData.append("video3TextOption", video3TextOption);
+      uploadData.append("title", editedVideo.title);
+      uploadData.append("description", editedVideo.description);
+      uploadData.append("tags", editedVideo.tags);
+      uploadData.append("isPublic", editedVideo.isPublic);
+
+      // Only append files if they were changed
+      const fileFields = ["video1", "video2", "video3", "audio"];
+      fileFields.forEach((field) => {
+        if (formData[field] && typeof formData[field] !== "string") {
+          uploadData.append(field, formData[field]);
+        }
       });
-      setMedia(res.data.media);
-      setQrCode(res.data.qrCode);
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Upload failed.");
+
+      const response = await axiosData.post(
+        `upload/update/${media?._id}`,
+        uploadData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setMedia(response.data.media);
+        setIsEditMode(false);
+        setIsEditingExisting(false);
+        // alert("Video updated successfully!");
+      } else {
+        throw new Error(response.data.message || "Failed to update video");
+      }
+    } catch (error) {
+      console.error("Error updating video:", error);
+      alert(error.message || "Failed to update video. Please try again.");
     } finally {
       setUploading(false);
     }
   };
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   if (!isEditMode || !isEditingExisting) {
+  //       setMedia(null);
+  //   }
+  //   setUploading(true);
+  //   try {
+  //     const uploadData = new FormData();
+  //     Object.entries(formData).forEach(([key, val]) => {
+  //       if (val) uploadData.append(key, val);
+  //     });
+  //     uploadData.append("faceSwap", faceSwap);
+  //     uploadData.append("videosMergeOption", mergingOption);
+  //     uploadData.append("congratsOption", congratsOption);
+  //     uploadData.append("video1TextOption", video1TextOption);
+  //     uploadData.append("video2TextOption", video2TextOption);
+  //     uploadData.append("video3TextOption", video3TextOption);
+  //     uploadData.append("clientname", clientname);
+  //     uploadData.append("brandname", brandname);
+  //     uploadData.append("approved", approved);
+  //     // Append the mediaType to the form data
+  //     uploadData.append("type", mediaType);
+  //       // If editing, send the _id and isEdit flag
+  //       if (isEditMode && isEditingExisting && media?._id) {
+  //           uploadData.append("_id", media._id);
+  //           uploadData.append("isEdit", "true");
+  //       }
+  //      console.log("uploadData",uploadData)
+  //     let endpoint;
+  //     if (mediaType === "videovideo") {
+  //       endpoint = `admin/settings`;
+  //     }if (mediaType === "videovideovideo") {
+  //       endpoint = `admin/settings/videovideovideo`;
+  //     } else {
+  //       endpoint = `upload/${mediaType}`;
+  //     }
+  //     const res = await axiosData.post(endpoint, uploadData, {
+  //       headers: {
+  //         "Content-Type": "multipart/form-data",
+  //       },
+  //     });
+  //     // if(mediaType === "videovideovideo"){
 
+  //     // }
+  //       if (res.data.media) {
+  //     console.log("datares",res.data)
+  //     setMedia(res.data.media);
+  //     setQrCode(res.data.qrCode);
+  //       if (isEditMode && isEditingExisting) {
+  //               setIsEditMode(false);
+  //               setIsEditingExisting(false);
+  //               alert('Video updated successfully!');
+  //           } else {
+  //               alert('Video created successfully!');
+  //           }
+  //     //resetForm()
+  //       }else {
+  //           throw new Error("No media data returned");
+  //       }
+  //   } catch (err) {
+  //     console.error("Upload error:", err);
+  //     alert("Upload failed.");
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Don't reset media if we're editing
+    if (!isEditMode || !isEditingExisting) {
+      setMedia(null);
+    }
+
+    setUploading(true);
+
+    try {
+      const uploadData = new FormData();
+
+      // ================================
+      // 1. ALWAYS SEND THESE BASIC FIELDS (All Media Types)
+      // ================================
+      uploadData.append("name", formData.name);
+      uploadData.append("date", formData.date.format("DD/MM/YYYY"));
+      uploadData.append("type", mediaType);
+      // ================================
+      // 2. ADD TYPE-SPECIFIC FIELDS
+      // ================================
+
+      // For videovideo type
+      if (mediaType === "videovideo") {
+        uploadData.append("faceSwap", faceSwap);
+        uploadData.append("videosMergeOption", mergingOption);
+
+        // Send video files
+        if (formData.video1) uploadData.append("video1", formData.video1);
+        if (formData.video2) uploadData.append("video2", formData.video2);
+        if (formData.audio) uploadData.append("audio", formData.audio);
+
+        // Send face swap videos if enabled
+        if (faceSwap) {
+          if (formData.boyvideo1)
+            uploadData.append("boyvideo1", formData.boyvideo1);
+          if (formData.girlvideo1)
+            uploadData.append("girlvideo1", formData.girlvideo1);
+          if (formData.childboyvideo1)
+            uploadData.append("childboyvideo1", formData.childboyvideo1);
+          if (formData.childgirlvideo1)
+            uploadData.append("childgirlvideo1", formData.childgirlvideo1);
+
+          if (formData.boyvideo2)
+            uploadData.append("boyvideo2", formData.boyvideo2);
+          if (formData.girlvideo2)
+            uploadData.append("girlvideo2", formData.girlvideo2);
+          if (formData.childboyvideo2)
+            uploadData.append("childboyvideo2", formData.childboyvideo2);
+          if (formData.childgirlvideo2)
+            uploadData.append("childgirlvideo2", formData.childgirlvideo2);
+
+          if (formData.boyvideo3)
+            uploadData.append("boyvideo3", formData.boyvideo3);
+          if (formData.girlvideo3)
+            uploadData.append("girlvideo3", formData.girlvideo3);
+          if (formData.childboyvideo3)
+            uploadData.append("childboyvideo3", formData.childboyvideo3);
+          if (formData.childgirlvideo3)
+            uploadData.append("childgirlvideo3", formData.childgirlvideo3);
+
+          if (formData.boyvideo4)
+            uploadData.append("boyvideo4", formData.boyvideo4);
+          if (formData.girlvideo4)
+            uploadData.append("girlvideo4", formData.girlvideo4);
+          if (formData.childboyvideo4)
+            uploadData.append("childboyvideo4", formData.childboyvideo4);
+          if (formData.childgirlvideo4)
+            uploadData.append("childgirlvideo4", formData.childgirlvideo4);
+        }
+      }
+
+      // For videovideovideo type
+      else if (mediaType === "videovideovideo") {
+        uploadData.append("clientname", clientname);
+        uploadData.append("brandname", brandname);
+        uploadData.append("congratsOption", congratsOption);
+        uploadData.append("video1TextOption", video1TextOption);
+        uploadData.append("video2TextOption", video2TextOption);
+        uploadData.append("video3TextOption", video3TextOption);
+
+        // Send video files
+        if (formData.video1) uploadData.append("video1", formData.video1);
+        if (formData.video2) uploadData.append("video2", formData.video2);
+        if (formData.video3) uploadData.append("video3", formData.video3);
+        if (formData.audio) uploadData.append("audio", formData.audio);
+      }
+
+      // For photogif type
+      else if (mediaType === "photogif") {
+        if (formData.photo) uploadData.append("photo", formData.photo);
+        if (formData.gif) uploadData.append("gif", formData.gif);
+      }
+
+      // For videophoto type
+      else if (mediaType === "videophoto") {
+        if (formData.video) uploadData.append("video", formData.video);
+        if (formData.photo) uploadData.append("photo", formData.photo);
+      }
+
+      // ================================
+      // 3. HANDLE EDIT MODE (All Types)
+      // ================================
+      if (isEditMode && isEditingExisting && media?._id) {
+        uploadData.append("_id", media._id);
+        uploadData.append("isEdit", "true");
+
+        // For edit mode, we need to handle files that weren't changed
+        // Your backend should keep existing files if not provided
+        // So we only append files that actually exist in formData
+
+        // console.log("Edit mode - Media ID:", media._id);
+        // console.log("Files to send:", {
+        //   video1: formData.video1 ? "Yes" : "No",
+        //   video2: formData.video2 ? "Yes" : "No",
+        //   video3: formData.video3 ? "Yes" : "No",
+        //   audio: formData.audio ? "Yes" : "No",
+        //   photo: formData.photo ? "Yes" : "No",
+        //   gif: formData.gif ? "Yes" : "No",
+        // });
+      }
+
+      // ================================
+      // 4. DETERMINE ENDPOINT
+      // ================================
+      let endpoint;
+      if (mediaType === "videovideo") {
+        endpoint = `admin/settings`;
+      } else if (mediaType === "videovideovideo") {
+        endpoint = `admin/settings/videovideovideo`;
+      } else {
+        endpoint = `upload/${mediaType}`;
+      }
+
+      // console.log("Submitting to:", endpoint);
+      // console.log("Media Type:", mediaType);
+      // console.log("Mode:", isEditMode && isEditingExisting ? "EDIT" : "CREATE");
+
+      // ================================
+      // 5. VALIDATION CHECKS
+      // ================================
+      // Skip validation for edit mode (files might not be changed)
+      if (!isEditMode || !isEditingExisting) {
+        let validationError = "";
+
+        if (mediaType === "videovideo") {
+          if (
+            !faceSwap &&
+            mergingOption &&
+            (!formData.video1 || !formData.video2 || !formData.audio)
+          ) {
+            validationError =
+              "For video merging, please upload Video 1, Video 2, and Audio";
+          }
+          if (faceSwap && !mergingOption) {
+            if (
+              !formData.boyvideo1 ||
+              !formData.girlvideo1 ||
+              !formData.childboyvideo1 ||
+              !formData.childgirlvideo1
+            ) {
+              validationError =
+                "For face swap, please upload all required videos";
+            }
+          }
+          if (faceSwap && mergingOption) {
+            if (
+              !formData.video2 ||
+              !formData.boyvideo1 ||
+              !formData.girlvideo1 ||
+              !formData.childboyvideo1 ||
+              !formData.childgirlvideo1 ||
+              !formData.audio
+            ) {
+              validationError =
+                "For face swap with merging, please upload all required videos and audio";
+            }
+          }
+        } else if (mediaType === "videovideovideo") {
+          if (!formData.video1 || !formData.video2 || !formData.video3) {
+            validationError = "Please upload all three videos";
+          }
+        } else if (mediaType === "photogif") {
+          if (!formData.photo || !formData.gif) {
+            validationError = "Please upload both photo and GIF";
+          }
+        } else if (mediaType === "videophoto") {
+          if (!formData.video || !formData.photo) {
+            validationError = "Please upload both video and photo";
+          }
+        }
+
+        if (validationError) {
+          alert(validationError);
+          setUploading(false);
+          return;
+        }
+      }
+
+      // ================================
+      // 6. MAKE THE REQUEST
+      // ================================
+      const response = await axiosData.post(endpoint, uploadData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // console.log("Response:", response.data);
+
+      if (response.data.media) {
+        setMedia(response.data.media);
+
+        // Update QR code if provided
+        if (response.data.qrCode) {
+          setQrCode(response.data.qrCode);
+        }
+
+        if (isEditMode && isEditingExisting) {
+          setIsEditMode(false);
+          setIsEditingExisting(false);
+          // alert(
+          //   `${mediaType
+          //     .replace("video", "Video")
+          //     .replace("gif", "GIF")
+          //     .replace("photo", "Photo")} updated successfully!`
+          // );
+
+          // Update file names with new IDs
+          const updatedFileNames = { ...fileNames };
+          const fileIdFields = [
+            "video1Id",
+            "video2Id",
+            "video3Id",
+            "audioId",
+            "photoId",
+            "gifId",
+            "videoId",
+          ];
+
+          fileIdFields.forEach((fieldId) => {
+            const fieldName = fieldId.replace("Id", "");
+            if (response.data.media[fieldId]) {
+              updatedFileNames[
+                fieldName
+              ] = `Existing: ${response.data.media[fieldId]}`;
+            }
+          });
+
+          setFileNames(updatedFileNames);
+        } else {
+          // alert(
+          //   `${mediaType
+          //     .replace("video", "Video")
+          //     .replace("gif", "GIF")
+          //     .replace("photo", "Photo")} created successfully!`
+          // );
+        }
+
+        // Reset form if not in edit mode
+        if (!isEditMode) {
+          resetForm();
+        }
+      } else {
+        throw new Error("No media data returned from server");
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+
+      if (isEditMode && isEditingExisting) {
+        alert(
+          `${mediaType
+            .replace("video", "Video")
+            .replace("gif", "GIF")
+            .replace("photo", "Photo")} update failed. Please try again.`
+        );
+      } else {
+        alert(
+          `${mediaType
+            .replace("video", "Video")
+            .replace("gif", "GIF")
+            .replace("photo", "Photo")} creation failed. Please try again.`
+        );
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -462,6 +1042,32 @@ function CreatePosterPage() {
           disabled: !mergingOption && faceSwap,
         },
       ],
+      videovideovideo: [
+        {
+          name: "video1",
+          label: "Upload First Video",
+          icon: <Videocam />,
+          accept: "video/*",
+        },
+        {
+          name: "video2",
+          label: "Upload Second Video",
+          icon: <Videocam />,
+          accept: "video/*",
+        },
+        {
+          name: "video3",
+          label: "Upload Third Video",
+          icon: <Videocam />,
+          accept: "video/*",
+        },
+        {
+          name: "audio",
+          label: "Upload Audio",
+          icon: <AudiotrackIcon />,
+          accept: "audio/*,.mp3,.m4a,.aac,.wav",
+        },
+      ],
       photogif: [
         {
           name: "photo",
@@ -535,7 +1141,9 @@ function CreatePosterPage() {
                     {input.label}
                   </Typography>
                   <Typography variant="caption">
-                    {input.accept.includes("video")
+                    {isEditingExisting && media?.[`${input.name}Id`]
+                      ? "Click to replace"
+                      : input.accept.includes("video")
                       ? "MP4, MOV, AVI"
                       : input.accept.includes("gif")
                       ? "GIF format"
@@ -545,6 +1153,38 @@ function CreatePosterPage() {
                   </Typography>
                 </Box>
               </label>
+              {/* Show existing file info when in edit mode */}
+              {isEditingExisting &&
+                media?.[`${input.name}Id`] &&
+                !fileNames[input.name] && (
+                  <Fade in={true}>
+                    <Chip
+                      label={`Current: ${media[`${input.name}Id`].substring(
+                        0,
+                        10
+                      )}...`}
+                      sx={{
+                        mt: 2,
+                        backgroundColor: "rgba(0, 128, 0, 0.2)",
+                        color: "#006400",
+                        border: "1px solid rgba(0, 128, 0, 0.5)",
+                        borderRadius: "8px",
+                        height: "auto",
+                        py: 0.5,
+                      }}
+                      avatar={
+                        <Avatar
+                          sx={{
+                            bgcolor: "rgba(0, 128, 0, 0.3)",
+                            color: "#006400",
+                          }}
+                        >
+                          {input.icon}
+                        </Avatar>
+                      }
+                    />
+                  </Fade>
+                )}
               {fileNames[input.name] && (
                 <Fade in={true}>
                   <Chip
@@ -553,9 +1193,15 @@ function CreatePosterPage() {
                     deleteIcon={<Close />}
                     sx={{
                       mt: 2,
-                      backgroundColor: "rgba(211, 47, 47, 0.2)",
-                      color: "#b92828",
-                      border: "1px solid rgba(211, 47, 47, 0.5)",
+                      backgroundColor: isEditingExisting
+                        ? "rgba(255, 165, 0, 0.2)"
+                        : "rgba(211, 47, 47, 0.2)",
+                      color: isEditingExisting ? "#FF8C00" : "#b92828",
+                      border: `1px solid ${
+                        isEditingExisting
+                          ? "rgba(255, 165, 0, 0.5)"
+                          : "rgba(211, 47, 47, 0.5)"
+                      }`,
                       borderRadius: "8px",
                       height: "auto",
                       py: 0.5,
@@ -563,12 +1209,10 @@ function CreatePosterPage() {
                     avatar={
                       <Avatar
                         sx={{
-                          bgcolor: "rgba(225, 116, 116, 0.3)",
-                          color: "#b92828",
-                          "& .MuiSvgIcon-root": {
-                            // This targets the icon specifically
-                            color: "#b92828", // Ensures the icon inherits the color
-                          },
+                          bgcolor: isEditingExisting
+                            ? "rgba(255, 165, 0, 0.3)"
+                            : "rgba(225, 116, 116, 0.3)",
+                          color: isEditingExisting ? "#FF8C00" : "#b92828",
                         }}
                       >
                         {input.icon}
@@ -597,7 +1241,7 @@ function CreatePosterPage() {
             textAlign: "center",
             mb: 1,
             position: "relative",
-            justifyContent:"space-between"
+            justifyContent: "space-between",
           }}
         >
           {" "}
@@ -607,7 +1251,7 @@ function CreatePosterPage() {
             component={Link}
             to="/"
             startIcon={<Event />}
-            style={{marginRight:30}}
+            style={{ marginRight: 30 }}
           >
             Go to Event Page
           </Button>
@@ -660,7 +1304,7 @@ function CreatePosterPage() {
             component={Link}
             to="/view-all-posters"
             startIcon={<List />}
-            style={{marginLeft:30}}
+            style={{ marginLeft: 30 }}
           >
             View All
           </Button>
@@ -808,15 +1452,58 @@ function CreatePosterPage() {
                       <Typography>Video + Video</Typography>
                     </Box>
                   </MenuItem>
+                  <MenuItem value="videovideovideo">
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Videocam sx={{ mr: 1.5, color: "#D32F2F" }} />
+                      <Typography>Video + Video + video</Typography>
+                    </Box>
+                  </MenuItem>
                 </Select>
               </FormControl>
 
               <Box component="form" onSubmit={handleSubmit}>
+                {isEditMode && isEditingExisting && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 2,
+                      p: 1.5,
+                      bgcolor: "rgba(33, 150, 243, 0.1)",
+                      borderRadius: 2,
+                      border: "1px solid rgba(33, 150, 243, 0.3)",
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ color: "#1976d2", fontWeight: "bold" }}
+                    >
+                      Editing: {media?.name || "Video"}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleCancelEdit}
+                      sx={{
+                        color: "#d32f2f",
+                        borderColor: "#d32f2f",
+                        "&:hover": {
+                          borderColor: "#b71c1c",
+                          backgroundColor: "rgba(211, 47, 47, 0.04)",
+                        },
+                      }}
+                    >
+                      Cancel Edit
+                    </Button>
+                  </Box>
+                )}
+
                 <TextField
                   name="name"
                   label={
                     <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <PersonOutline
+                      <AddchartIcon
                         sx={{
                           mr: 1.5,
                           fontSize: 24,
@@ -824,6 +1511,12 @@ function CreatePosterPage() {
                         }}
                       />
                       Project Name
+                      <Typography
+                        component="span"
+                        sx={{ color: "#D32F2F", ml: 0.5 }}
+                      >
+                        *
+                      </Typography>
                     </Box>
                   }
                   fullWidth
@@ -831,6 +1524,9 @@ function CreatePosterPage() {
                   onChange={handleChange}
                   variant="outlined"
                   size="medium"
+                  InputLabelProps={{
+                    required: false, // Disable default asterisk
+                  }}
                   value={formData.name}
                   sx={{
                     mb: 2,
@@ -905,6 +1601,322 @@ function CreatePosterPage() {
                       Enable Merging Option
                     </label>
                   </Box>
+                )}
+                {mediaType === "videovideovideo" && (
+                  <>
+                    <TextField
+                      name="clientname"
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <PersonOutline
+                            sx={{
+                              mr: 1.5,
+                              fontSize: 24,
+                              color: "#D32F2F",
+                            }}
+                          />
+                          Client Name
+                          <Typography
+                            component="span"
+                            sx={{ color: "#D32F2F", ml: 0.5 }}
+                          >
+                            *
+                          </Typography>
+                        </Box>
+                      }
+                      fullWidth
+                      required
+                      onChange={(e) => setClientname(e.target.value)}
+                      variant="outlined"
+                      size="medium"
+                      InputLabelProps={{
+                        required: false, // Disable default asterisk
+                      }}
+                      value={clientname}
+                      sx={{
+                        mb: 2,
+                        "& .MuiInputLabel-root": {
+                          color: "#616161",
+                        },
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "12px",
+                          color: "#212121",
+                          "& fieldset": {
+                            borderColor: "rgba(211, 47, 47, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "#D32F2F",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#D32F2F",
+                          },
+                        },
+                      }}
+                    />
+                    <TextField
+                      name="brandname"
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <TwoWheelerIcon
+                            sx={{
+                              mr: 1.5,
+                              fontSize: 24,
+                              color: "#D32F2F",
+                            }}
+                          />
+                          Brand Name
+                          <Typography
+                            component="span"
+                            sx={{ color: "#D32F2F", ml: 0.5 }}
+                          >
+                            *
+                          </Typography>
+                        </Box>
+                      }
+                      fullWidth
+                      required
+                      onChange={(e) => setBrandname(e.target.value)}
+                      variant="outlined"
+                      size="medium"
+                      InputLabelProps={{
+                        required: false, // Disable default asterisk
+                      }}
+                      value={brandname}
+                      sx={{
+                        mb: 2,
+                        "& .MuiInputLabel-root": {
+                          color: "#616161",
+                        },
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "12px",
+                          color: "#212121",
+                          "& fieldset": {
+                            borderColor: "rgba(211, 47, 47, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "#D32F2F",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#D32F2F",
+                          },
+                        },
+                      }}
+                    />
+                    {/* <TextField
+                      name="date"
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <CalendarToday
+                            sx={{
+                              mr: 1.5,
+                              fontSize: 24,
+                              color: "#D32F2F",
+                            }}
+                          />
+                          Date
+                          <Typography
+                            component="span"
+                            sx={{ color: "#D32F2F", ml: 0.5 }}
+                          >
+                            *
+                          </Typography>
+                        </Box>
+                      }
+                      type="date"
+                      fullWidth
+                      required
+                      onChange={handleChange}
+                      variant="outlined"
+                      size="medium"
+                      InputLabelProps={{
+                        required: false, // Disable default asterisk
+                      }}
+                      value={formData.date}
+                      sx={{
+                        mb: 1,
+                        "& .MuiInputLabel-root": {
+                          color: "#616161",
+                        },
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "12px",
+                          color: "#212121",
+                          "& fieldset": {
+                            borderColor: "rgba(211, 47, 47, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "#D32F2F",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#D32F2F",
+                          },
+                        },
+                      }}
+                    /> */}
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <DatePicker
+                        label={
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <CalendarToday
+                              sx={{
+                                mr: 1.5,
+                                fontSize: 24,
+                                color: "#D32F2F",
+                              }}
+                            />
+                            Date
+                            <Typography
+                              component="span"
+                              sx={{ color: "#D32F2F", ml: 0.5 }}
+                            >
+                              *
+                            </Typography>
+                          </Box>
+                        }
+                        format="DD/MM/YYYY"
+                        value={
+                          formData.date
+                            ? dayjs(formData.date, "DD/MM/YYYY")
+                            : null
+                        }
+                        onChange={(newValue) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                           date: newValue, 
+                          }));
+                        }}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            required: true,
+                            variant: "outlined",
+                            size: "medium",
+                             InputLabelProps: {
+        required: false,         // ✅ removes the star
+      },
+      FormHelperTextProps: {
+        sx: { display: "none" }, // ✅ hides helper star row if any
+      },
+                            sx: {
+                              mb: 1,
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "12px",
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </LocalizationProvider>
+                  </>
+                )}
+                {mediaType === "videovideovideo" && (
+                  <>
+                    <Box
+                      sx={{
+                        mb: 1,
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: "#D32F2F",
+                      }}
+                    >
+                      {" "}
+                      <label
+                        style={{
+                          display: "flex",
+                          textAlign: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={congratsOption}
+                          style={{ height: 20, width: 20, color: "#D32F2F" }}
+                          onChange={(e) => setCongratsOption(e.target.checked)}
+                        />
+                        Enable Congratulations End Text
+                      </label>
+                    </Box>
+                    <Box
+                      sx={{
+                        mb: 1,
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: "#D32F2F",
+                      }}
+                    >
+                      {" "}
+                      <label
+                        style={{
+                          display: "flex",
+                          textAlign: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={video1TextOption}
+                          style={{ height: 20, width: 20, color: "#D32F2F" }}
+                          onChange={(e) =>
+                            setVideo1TextOption(e.target.checked)
+                          }
+                        />
+                        Enable overlay text for video 1
+                      </label>
+                    </Box>
+                    <Box
+                      sx={{
+                        mb: 1,
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: "#D32F2F",
+                      }}
+                    >
+                      {" "}
+                      <label
+                        style={{
+                          display: "flex",
+                          textAlign: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={video2TextOption}
+                          style={{ height: 20, width: 20, color: "#D32F2F" }}
+                          onChange={(e) =>
+                            setVideo2TextOption(e.target.checked)
+                          }
+                        />
+                        Enable overlay text for video 2
+                      </label>
+                    </Box>
+                    <Box
+                      sx={{
+                        mb: 1,
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: "#D32F2F",
+                      }}
+                    >
+                      {" "}
+                      <label
+                        style={{
+                          display: "flex",
+                          textAlign: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={video3TextOption}
+                          style={{ height: 20, width: 20, color: "#D32F2F" }}
+                          onChange={(e) =>
+                            setVideo3TextOption(e.target.checked)
+                          }
+                        />
+                        Enable overlay text for video 3
+                      </label>
+                    </Box>
+                  </>
                 )}
                 {/* <TextField
                   name="date"
@@ -1045,35 +2057,46 @@ function CreatePosterPage() {
                   sx={{ mb: 1 }}
                   type="submit"
                   disabled={
-                    uploading ||
-                    !formData.name ||
-                    !formData.date ||
-                    (mediaType === "videovideo" &&
-                      !faceSwap &&
-                      mergingOption &&
-                      (!formData.video1 ||
-                        !formData.video2 ||
-                        !formData.audio)) ||
-                    (mediaType === "videovideo" &&
-                      faceSwap &&
-                      !mergingOption &&
-                      (!formData.boyvideo1 ||
-                        !formData.girlvideo1 ||
-                        !formData.childboyvideo1 ||
-                        !formData.childgirlvideo1)) ||
-                    (mediaType === "videovideo" &&
-                      faceSwap &&
-                      mergingOption &&
-                      (!formData.video2 ||
-                        !formData.boyvideo1 ||
-                        !formData.girlvideo1 ||
-                        !formData.childboyvideo1 ||
-                        !formData.childgirlvideo1 ||
-                        !formData.audio)) ||
-                    (mediaType === "photogif" &&
-                      (!formData.photo || !formData.gif)) ||
-                    (mediaType === "videophoto" &&
-                      (!formData.video || !formData.photo))
+                    isEditMode && isEditingExisting
+                      ? // Different validation for edit mode
+                        uploading ||
+                        !formData.name ||
+                        !formData.date || !formData.date === null ||
+                        (mediaType === "videovideovideo" &&
+                          (!clientname || !brandname))
+                      : uploading ||
+                        !formData.name ||
+                        !formData.date ||
+                        (mediaType === "videovideo" &&
+                          !faceSwap &&
+                          mergingOption &&
+                          (!formData.video1 ||
+                            !formData.video2 ||
+                            !formData.audio)) ||
+                        (mediaType === "videovideo" &&
+                          faceSwap &&
+                          !mergingOption &&
+                          (!formData.boyvideo1 ||
+                            !formData.girlvideo1 ||
+                            !formData.childboyvideo1 ||
+                            !formData.childgirlvideo1)) ||
+                        (mediaType === "videovideo" &&
+                          faceSwap &&
+                          mergingOption &&
+                          (!formData.video2 ||
+                            !formData.boyvideo1 ||
+                            !formData.girlvideo1 ||
+                            !formData.childboyvideo1 ||
+                            !formData.childgirlvideo1 ||
+                            !formData.audio)) ||
+                        (mediaType === "photogif" &&
+                          (!formData.photo || !formData.gif)) ||
+                        (mediaType === "videophoto" &&
+                          (!formData.video || !formData.photo)) ||
+                        (mediaType === "videovideovideo" &&
+                          (!formData.video3 ||
+                            !formData.video1 ||
+                            !formData.video2))
                   }
                   startIcon={<CloudUpload sx={{ fontSize: 24 }} />}
                   fullWidth
@@ -1084,8 +2107,15 @@ function CreatePosterPage() {
                         size={24}
                         sx={{ mr: 2, color: "white" }}
                       />
-                      Creating Magic...
+                      {isEditMode && isEditingExisting
+                        ? "Updating..."
+                        : "Creating Magic..."}
                     </>
+                  ) : isEditMode && isEditingExisting ? (
+                    `Update ${mediaType
+                      .replace("video", "Video")
+                      .replace("gif", "GIF")
+                      .replace("photo", "Photo")}`
                   ) : (
                     `Generate ${mediaType
                       .replace("video", "Video")
@@ -1256,134 +2286,192 @@ function CreatePosterPage() {
                     </Box>
                   )}
 
-                  {(media?.posterVideoId || media?.mergedVideoId) && (
-                    <Fade in={true} timeout={500}>
-                      <StyledCard>
-                        <Box sx={{ position: "relative" }}>
-                          <Box
-                            sx={{
-                              position: "relative",
-                              width: "100%",
-                              height: 250,
-                            }}
-                          >
-                            <video
-                              controls
-                              style={{
+                  {(media?.posterVideoId || media?.mergedVideoId) &&
+                    !uploading &&
+                    media && (
+                      <Fade in={true} timeout={500}>
+                        <StyledCard>
+                          <Box sx={{ position: "relative" }}>
+                            <Box
+                              sx={{
+                                position: "relative",
                                 width: "100%",
                                 height: "100%",
-                                objectFit: "contain",
-                                backgroundColor: "#a91111ff",
                               }}
                             >
-                              <source
-                                src={
-                                  mediaType === "videophoto"
-                                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
-                                    : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
-                                }
-                                type="video/mp4"
-                              />
-                              Your browser does not support the video tag.
-                            </video>
-                          </Box>
-                        </Box>
-                        <CardContent
-                          sx={{
-                            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-                          }}
-                        >
-                          <Grid container spacing={2}>
-                            <Grid item xs={6} md={3}>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  flexDirection: "row",
-                                  justifyContent: "space-evenly",
+                              <video
+                                controls
+                                style={{
+                                  width: "100%",
+                                  height: 700,
+                                  objectFit: "contain",
+                                  backgroundColor: "#a91111ff",
                                 }}
                               >
-                                <Button
-                                  variant="contained"
-                                  href={
-                                    mediaType === "videophoto"
-                                      ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
-                                      : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
+                                <source
+                                  src={
+                                    mediaType === "videophoto" ||
+                                    mediaType === "videovideovideo"
+                                      ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}`
+                                      : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}`
                                   }
-                                  download="final-video.mp4"
+                                  type="video/mp4"
+                                />
+                                Your browser does not support the video tag.
+                              </video>
+                            </Box>
+                          </Box>
+                          <CardContent
+                            sx={{
+                              borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                            }}
+                          >
+                            <Grid container spacing={2}>
+                              <Grid item xs={6} md={3}>
+                                <Box
                                   sx={{
-                                    background:
-                                      "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
-                                    color: "white",
-                                    borderRadius: "8px",
-                                    py: 1.5,
-                                    fontWeight: 600,
-                                    boxShadow: "none",
-                                    "&:hover": {
-                                      boxShadow:
-                                        "0 4px 15px rgba(183, 28, 28, 0.4)",
-                                    },
-                                    width: "100%",
+                                    display: "flex",
+                                    flexDirection: "row",
+                                    justifyContent: "space-evenly",
+                                    gap: "10px",
                                   }}
-                                  startIcon={<Download />}
                                 >
-                                  Download Video
-                                </Button>
-                                <div style={{ margin: "10px" }}>
-                                  <IconButton
-                                    onClick={openModal}
-                                    style={{
-                                      color: "white",
-                                      backgroundColor: "green",
+                                  <Button
+                                    variant="outlined"
+                                    onClick={handleEditClick}
+                                    sx={{
+                                      borderColor: "#ae1515ff",
+                                      color: "#ae1515ff",
+                                      borderRadius: "8px",
+                                      py: 1.5,
+                                      fontWeight: 600,
+                                      flex: 1,
+                                      "&:hover": {
+                                        borderColor: "#ae1515ff",
+                                        backgroundColor:
+                                          "rgba(33, 150, 243, 0.04)",
+                                      },
+                                    }}
+                                    startIcon={<Edit />}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="outlined"
+                                    onClick={() => {
+                                      setApproved(true);
+                                      handleApproveVideo();
+                                    }}
+                                    sx={{
+                                      borderColor: "#ae1515ff",
+                                      color: "#ae1515ff",
+                                      borderRadius: "8px",
+                                      py: 1.5,
+                                      fontWeight: 600,
+                                      flex: 1,
+                                      "&:hover": {
+                                        borderColor: "#ae1515ff",
+                                        backgroundColor:
+                                          "rgba(33, 150, 243, 0.04)",
+                                      },
+                                    }}
+                                    startIcon={<CheckCircle />}
+                                  >
+                                    Approve
+                                  </Button>
+                                </Box>
+                                {media?.approved === true && (
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexDirection: "row",
+                                      justifyContent: "space-evenly",
+                                      marginTop: "10px",
                                     }}
                                   >
-                                    <WhatsAppIcon />
-                                  </IconButton>
-                                </div>
-                              </Box>
-                              {mediaType === "videophoto" && (
-                                <Button
-                                  variant="contained"
-                                  href={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
-                                  download="final-video.mp4"
-                                  sx={{
-                                    background:
-                                      "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
-                                    color: "white",
-                                    borderRadius: "8px",
-                                    py: 1.5,
-                                    mt: 2,
-                                    fontWeight: 600,
-                                    boxShadow: "none",
-                                    "&:hover": {
-                                      boxShadow:
-                                        "0 4px 15px rgba(183, 28, 28, 0.4)",
-                                    },
-                                    width: "100%",
-                                  }}
-                                  startIcon={<Download />}
-                                >
-                                  Download Poster
-                                </Button>
-                              )}
-                              {media?.qrCode && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <img
-                                    src={media?.qrCode}
-                                    alt="Download QR Code"
-                                  />
-                                </div>
-                              )}
+                                    <Button
+                                      variant="contained"
+                                      href={
+                                        mediaType === "videophoto"
+                                          ? `https://api.bilimbebrandactivations.com/api/upload/file/${media?.mergedVideoId}?download=true`
+                                          : `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`
+                                      }
+                                      download="final-video.mp4"
+                                      sx={{
+                                        background:
+                                          "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
+                                        color: "white",
+                                        borderRadius: "8px",
+                                        py: 1.5,
+                                        fontWeight: 600,
+                                        boxShadow: "none",
+                                        "&:hover": {
+                                          boxShadow:
+                                            "0 4px 15px rgba(183, 28, 28, 0.4)",
+                                        },
+                                        width: "100%",
+                                      }}
+                                      startIcon={<Download />}
+                                    >
+                                      Download Video
+                                    </Button>
+                                    <div style={{ margin: "10px" }}>
+                                      <IconButton
+                                        onClick={openModal}
+                                        style={{
+                                          color: "white",
+                                          backgroundColor: "green",
+                                        }}
+                                      >
+                                        <WhatsAppIcon />
+                                      </IconButton>
+                                    </div>
+                                  </Box>
+                                )}
+                                {mediaType === "videophoto" && (
+                                  <Button
+                                    variant="contained"
+                                    href={`https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterId}?download=true`}
+                                    download="final-video.mp4"
+                                    sx={{
+                                      background:
+                                        "linear-gradient(45deg, #D32F2F 0%, #B71C1C 100%)",
+                                      color: "white",
+                                      borderRadius: "8px",
+                                      py: 1.5,
+                                      mt: 2,
+                                      fontWeight: 600,
+                                      boxShadow: "none",
+                                      "&:hover": {
+                                        boxShadow:
+                                          "0 4px 15px rgba(183, 28, 28, 0.4)",
+                                      },
+                                      width: "100%",
+                                    }}
+                                    startIcon={<Download />}
+                                  >
+                                    Download Poster
+                                  </Button>
+                                )}
+                                {media?.qrCode && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <img
+                                      src={media?.qrCode}
+                                      alt="Download QR Code"
+                                    />
+                                  </div>
+                                )}
+                              </Grid>
                             </Grid>
-                          </Grid>
-                        </CardContent>
-                      </StyledCard>
-                    </Fade>
-                  )}
+                          </CardContent>
+                        </StyledCard>
+                      </Fade>
+                    )}
                 </Box>
               </Box>
             </Grid>
@@ -1462,7 +2550,6 @@ function CreatePosterPage() {
         <ThemeProvider theme={redTheme}>
           <Dialog
             open={showModal}
-            onClose={closeModal}
             PaperProps={{
               sx: {
                 borderRadius: "12px",
