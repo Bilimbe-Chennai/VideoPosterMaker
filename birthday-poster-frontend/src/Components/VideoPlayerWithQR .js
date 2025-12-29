@@ -25,7 +25,7 @@ const VideoPlayerWithQR = ({ videos }) => {
         position: "relative",
         // height: 500,
        // width:"100%",
-        gap: 2,
+        gap: 6,
       }}
     >
       <Card sx={{ borderRadius: 3,height:"70%",width:"70%"}}>

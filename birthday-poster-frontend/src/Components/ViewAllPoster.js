@@ -651,7 +651,7 @@ export default function ViewAllPoster() {
         </Box> */}
 
         {/* Search and Filter Section */}
-        <Box
+        {/* <Box
           sx={{
             display: "flex",
             gap: 2,
@@ -696,7 +696,7 @@ export default function ViewAllPoster() {
                 <MenuItem value="Photo Merge App">Photo Merge App</MenuItem>
             </Select>
           </FormControl>
-        </Box>
+        </Box> */}
 
         {/* Content Section */}
         {loading ? (
@@ -742,7 +742,7 @@ export default function ViewAllPoster() {
         ) : (
           <Box>
             <VideoPlayerWithQR videos={filteredMedia} />
-            <Box
+            {/* <Box
               sx={{ alignItems: "center", textAlign: "center", marginTop: 5 }}
             >
               <Button
@@ -755,14 +755,14 @@ export default function ViewAllPoster() {
               >
                 Download All
               </Button>
-            </Box>
+            </Box> */}
 
             <Grid
               container
               spacing={2}
               sx={{
                 display: "flex",
-                marginTop: 5,
+                marginTop: 15,
                 justifyContent: "space-evenly",
               }}
             >

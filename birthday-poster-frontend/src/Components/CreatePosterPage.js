@@ -170,7 +170,6 @@ function CreatePosterPage() {
     childboyvideo4: null,
     childgirlvideo4: null,
   });
-  console.log(formData.date)
   const [fileNames, setFileNames] = useState({
     photo: "",
     gif: "",
@@ -373,7 +372,7 @@ function CreatePosterPage() {
     setMedia(null);
   };
   const shareOnWhatsApp = async () => {
-    setLoading(true)
+    setLoading(true);
     const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media?.posterVideoId}?download=true`; // replace with your download link
 
     if (!phoneNumber.trim()) {
@@ -616,7 +615,10 @@ function CreatePosterPage() {
       // 1. ALWAYS SEND THESE BASIC FIELDS (All Media Types)
       // ================================
       uploadData.append("name", formData.name);
-      uploadData.append("date", formData.date.format("DD/MM/YYYY"));
+      if (mediaType === "videovideovideo") {
+        uploadData.append("date", formData?.date.format("DD/MM/YYYY"));
+      }
+
       uploadData.append("type", mediaType);
       // ================================
       // 2. ADD TYPE-SPECIFIC FIELDS
@@ -807,64 +809,65 @@ function CreatePosterPage() {
           "Content-Type": "multipart/form-data",
         },
       });
+      const isTripleVideo = mediaType === "videovideovideo";
 
-      // console.log("Response:", response.data);
+      const responseData = isTripleVideo
+        ? response.data.media
+        : response.data.settings;
 
-      if (response.data.media) {
-        setMedia(response.data.media);
+      if (!responseData) {
+        throw new Error("No valid data returned from server");
+      }
+      if (isTripleVideo) {
+        setMedia(responseData);
+      }
+      // Update QR code if provided
+      if (response.data.qrCode) {
+        setQrCode(response.data.qrCode);
+      }
+      if (isEditMode && isEditingExisting) {
+        setIsEditMode(false);
+        setIsEditingExisting(false);
+        // alert(
+        //   `${mediaType
+        //     .replace("video", "Video")
+        //     .replace("gif", "GIF")
+        //     .replace("photo", "Photo")} updated successfully!`
+        // );
 
-        // Update QR code if provided
-        if (response.data.qrCode) {
-          setQrCode(response.data.qrCode);
-        }
+        // Update file names with new IDs
+        const updatedFileNames = { ...fileNames };
+        const fileIdFields = [
+          "video1Id",
+          "video2Id",
+          "video3Id",
+          "audioId",
+          "photoId",
+          "gifId",
+          "videoId",
+        ];
 
-        if (isEditMode && isEditingExisting) {
-          setIsEditMode(false);
-          setIsEditingExisting(false);
-          // alert(
-          //   `${mediaType
-          //     .replace("video", "Video")
-          //     .replace("gif", "GIF")
-          //     .replace("photo", "Photo")} updated successfully!`
-          // );
+        fileIdFields.forEach((fieldId) => {
+          const fieldName = fieldId.replace("Id", "");
+          if (response.data.media[fieldId]) {
+            updatedFileNames[
+              fieldName
+            ] = `Existing: ${response.data.media[fieldId]}`;
+          }
+        });
 
-          // Update file names with new IDs
-          const updatedFileNames = { ...fileNames };
-          const fileIdFields = [
-            "video1Id",
-            "video2Id",
-            "video3Id",
-            "audioId",
-            "photoId",
-            "gifId",
-            "videoId",
-          ];
-
-          fileIdFields.forEach((fieldId) => {
-            const fieldName = fieldId.replace("Id", "");
-            if (response.data.media[fieldId]) {
-              updatedFileNames[
-                fieldName
-              ] = `Existing: ${response.data.media[fieldId]}`;
-            }
-          });
-
-          setFileNames(updatedFileNames);
-        } else {
-          // alert(
-          //   `${mediaType
-          //     .replace("video", "Video")
-          //     .replace("gif", "GIF")
-          //     .replace("photo", "Photo")} created successfully!`
-          // );
-        }
-
-        // Reset form if not in edit mode
-        if (!isEditMode) {
-          resetForm();
-        }
+        setFileNames(updatedFileNames);
       } else {
-        throw new Error("No media data returned from server");
+        // alert(
+        //   `${mediaType
+        //     .replace("video", "Video")
+        //     .replace("gif", "GIF")
+        //     .replace("photo", "Photo")} created successfully!`
+        // );
+      }
+      // Reset form if not in edit mode
+      if (!isEditMode) {
+        resetForm();
       }
     } catch (err) {
       console.error("Upload error:", err);
@@ -1781,7 +1784,7 @@ function CreatePosterPage() {
                         onChange={(newValue) => {
                           setFormData((prev) => ({
                             ...prev,
-                           date: newValue, 
+                            date: newValue,
                           }));
                         }}
                         slotProps={{
@@ -1790,12 +1793,12 @@ function CreatePosterPage() {
                             required: true,
                             variant: "outlined",
                             size: "medium",
-                             InputLabelProps: {
-        required: false,         // ✅ removes the star
-      },
-      FormHelperTextProps: {
-        sx: { display: "none" }, // ✅ hides helper star row if any
-      },
+                            InputLabelProps: {
+                              required: false, // ✅ removes the star
+                            },
+                            FormHelperTextProps: {
+                              sx: { display: "none" }, // ✅ hides helper star row if any
+                            },
                             sx: {
                               mb: 1,
                               "& .MuiOutlinedInput-root": {
@@ -2061,7 +2064,8 @@ function CreatePosterPage() {
                       ? // Different validation for edit mode
                         uploading ||
                         !formData.name ||
-                        !formData.date || !formData.date === null ||
+                        !formData.date ||
+                        !formData.date === null ||
                         (mediaType === "videovideovideo" &&
                           (!clientname || !brandname))
                       : uploading ||

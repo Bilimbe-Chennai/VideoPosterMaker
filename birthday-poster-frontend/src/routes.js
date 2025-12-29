@@ -5,6 +5,7 @@ import { Navigate } from 'react-router-dom';
 import EventLoginPage from './Components/EventLoginPage';
 import ClientPage from './Components/ClientPage';
 import ClientPageUser from './Components/ClientPageUser';
+import ShareScreen from './Components/ShareScreen';
 
 const CreatePosterPage = lazy(() => import('./Components/CreatePosterPage'));
 const ViewAllPoster = lazy(() => import('./Components/ViewAllPoster'));
@@ -43,6 +44,11 @@ path: '/',
   {
     path: '/adminsettings',
     element: <CreatePosterPage />,
+    exact: true
+  },
+  {
+    path: '/photomergeapp/share/:photoId',
+    element: <ShareScreen />,
     exact: true
   },
   {
