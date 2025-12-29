@@ -128,6 +128,53 @@ router.post("/settings", async (req, res) => {
           childgirlBuffer4 = body;
         }
       });
+//       const videoMap = {
+//   video1: video1Buffer,
+//   video2: video2Buffer,
+
+//   boyvideo1: boyvideoBuffer1,
+//   girlvideo1: girlvideoBuffer1,
+//   childboyvideo1: childboyBuffer1,
+//   childgirlvideo1: childgirlBuffer1,
+
+//   boyvideo2: boyvideoBuffer2,
+//   girlvideo2: girlvideoBuffer2,
+//   childboyvideo2: childboyBuffer2,
+//   childgirlvideo2: childgirlBuffer2,
+
+//   boyvideo3: boyvideoBuffer3,
+//   girlvideo3: girlvideoBuffer3,
+//   childboyvideo3: childboyBuffer3,
+//   childgirlvideo3: childgirlBuffer3,
+
+//   boyvideo4: boyvideoBuffer4,
+//   girlvideo4: girlvideoBuffer4,
+//   childboyvideo4: childboyBuffer4,
+//   childgirlvideo4: childgirlBuffer4,
+// };
+// const uploadedVideoIds = {};
+
+// for (const [key, buffer] of Object.entries(videoMap)) {
+//   if (Buffer.isBuffer(buffer) && buffer.length > 0) {
+//     uploadedVideoIds[`${key}Id`] = await uploadToGridFS(
+//       `${key}-${Date.now()}.mp4`,
+//       buffer,
+//       "video/mp4"
+//     );
+//   }
+// }
+// let audioId;
+// if (Buffer.isBuffer(audioBuffer) && audioBuffer.length > 0) {
+//   audioId = await uploadToGridFS(
+//     `audio-${Date.now()}.mp3`,
+//     audioBuffer,
+//     "audio/mp3"
+//   );
+// }
+// if (Object.keys(uploadedVideoIds).length > 16) {
+//   return res.status(400).json({ error: "Maximum 16 videos allowed" });
+// }
+
       // if (!audioBuffer) {
       //   return res.status(400).json({ error: "Missing audio or video" });
       // }
@@ -283,6 +330,16 @@ router.post("/settings", async (req, res) => {
         faceSwap,
         videosMergeOption,
       });
+//       const settings = new AdminSettings({
+//   name,
+//   date,
+//   type,
+//   faceSwap,
+//   videosMergeOption,
+//   audioId,
+//   ...uploadedVideoIds,
+// });
+
       await settings.save();
       res.json({ success: true, settings });
     });
@@ -291,6 +348,95 @@ router.post("/settings", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+// router.post("/settings", async (req, res) => {
+//   try {
+//     const contentType = req.headers["content-type"];
+//     if (!contentType || !contentType.includes("multipart/form-data")) {
+//       return res.status(400).json({ error: "Invalid content type" });
+//     }
+
+//     const boundary = "--" + contentType.split("boundary=")[1];
+//     let chunks = [];
+
+//     req.on("data", (chunk) => chunks.push(chunk));
+
+//     req.on("end", async () => {
+//       const buffer = Buffer.concat(chunks);
+//       const boundaryBuffer = Buffer.from(boundary);
+//       const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1);
+
+//       let name, date, type, faceSwap, videosMergeOption;
+//       let audioBuffer;
+
+//       // VIDEO BUFFERS (same keys)
+//       const buffers = {};
+
+//       parts.forEach((part) => {
+//         const [rawHeaders, rawBody] = splitBuffer(
+//           part,
+//           Buffer.from("\r\n\r\n")
+//         );
+//         const headersText = rawHeaders.toString();
+//         const body = rawBody.slice(0, rawBody.length - 2);
+
+//         if (headersText.includes('name="name"')) name = body.toString();
+//         else if (headersText.includes('name="date"')) date = body.toString();
+//         else if (headersText.includes('name="type"')) type = body.toString();
+//         else if (headersText.includes('name="faceSwap"')) faceSwap = body.toString();
+//         else if (headersText.includes('name="videosMergeOption"'))
+//           videosMergeOption = body.toString();
+//         else if (headersText.includes('name="audio"')) audioBuffer = body;
+
+//         // 👇 collect ALL video buffers dynamically
+//         const match = headersText.match(/name="(video\d+|boyvideo\d+|girlvideo\d+|childboyvideo\d+|childgirlvideo\d+)"/);
+//         if (match) {
+//           buffers[match[1]] = body;
+//         }
+//       });
+
+//       // UPLOAD VIDEOS
+//       const uploadedVideoIds = {};
+//       for (const [key, buf] of Object.entries(buffers)) {
+//         if (Buffer.isBuffer(buf) && buf.length > 0) {
+//           uploadedVideoIds[`${key}Id`] = await uploadToGridFS(
+//             `${key}-${Date.now()}.mp4`,
+//             buf,
+//             "video/mp4"
+//           );
+//         }
+//       }
+
+//       // UPLOAD AUDIO (optional)
+//       let audioId;
+//       if (Buffer.isBuffer(audioBuffer) && audioBuffer.length > 0) {
+//         audioId = await uploadToGridFS(
+//           `audio-${Date.now()}.mp3`,
+//           audioBuffer,
+//           "audio/mp3"
+//         );
+//       }
+
+//       // SAVE SETTINGS
+//       const settings = new AdminSettings({
+//         name,
+//         date,
+//         type,
+//         faceSwap,
+//         videosMergeOption,
+//         audioId,
+//         ...uploadedVideoIds,
+//       });
+
+//       await settings.save();
+
+//       res.json({ success: true, settings });
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
+
 //----->create option only for 3 video merge
 // router.post("/settings/videovideovideo", async (req, res) => {
 //   try {

@@ -158,7 +158,15 @@ const saveTempFile = async (buffer, extension) => {
 //download file function
 router.get("/file/:id", async (req, res) => {
   try {
-    const fileId = new mongoose.Types.ObjectId(req.params.id);
+    if (!ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({
+    error: "Invalid file ID",
+    received: req.params.id,
+  });
+}
+
+const fileId = new ObjectId(req.params.id);
+    //const fileId = new mongoose.Types.ObjectId(req.params.id);
     const bucket = getGridFSBucket();
 
     const downloadStream = bucket.openDownloadStream(fileId);
@@ -697,6 +705,7 @@ router.post("/videophoto", async (req, res) => {
         posterVideoId,
         mergedVideoId,
         whatsappstatus,
+        createdAt: new Date(),
       });
 
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.mergedVideoId}?download=true`;
@@ -895,6 +904,7 @@ router.post("/photogif", async (req, res) => {
         gifId,
         posterVideoId,
         whatsappstatus,
+        createdAt: new Date(),
       });
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
       const qrCodeData = await QRCode.toDataURL(downloadUrl);
@@ -1046,6 +1056,7 @@ router.post("/videovideo", async (req, res) => {
         video2Id,
         posterVideoId: new mongoose.Types.ObjectId(posterVideoId),
         whatsappstatus,
+        createdAt: new Date(),
       });
 
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;

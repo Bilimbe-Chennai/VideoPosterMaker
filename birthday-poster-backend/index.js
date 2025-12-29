@@ -42,6 +42,12 @@ app.use("/temp", express.static(path.join(os.tmpdir())));
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
+// app.get("/photomergeapp/share/:id", (req, res) => {
+//   const { id } = req.params;
+//   // Redirect to app deep link
+//   res.redirect(`photomergeapp://share/${id}`);
+// });
+
 // ? Health check route for quick debugging
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", origin: req.headers.origin || "no-origin" });

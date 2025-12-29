@@ -603,6 +603,77 @@ const shareOuput = async (whatsapp, downloadUrl, id, res) => {
     };
   }
 };
+const shareOuputApp = async (whatsapp, viewUrl, id, res) => {
+  try {
+    const toNumber = whatsapp;
+    const _id = id;
+    const linksend = viewUrl;
+    const token = process.env.CHATMYBOT_TOKEN;
+    if (!toNumber || !linksend || !_id) {
+      throw new Error("Phone, link, and _id are required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+      throw new Error("Invalid media ID");
+    }
+    if (!token) {
+      throw new Error("ChatMyBot token not configured");
+    }
+    const payload = [
+      {
+        to: toNumber,
+        type: "template",
+        template: {
+          id: process.env.WHATSAPP_TEMPLATE_ID_APP,
+          language: {
+            code: "en",
+          },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  text: linksend,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+    // Send to ChatMyBot API
+    const response = await axios.post(
+      `https://wa.chatmybot.in/gateway/wabuissness/v1/message/batchapi`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          accessToken: token,
+        },
+      }
+    );
+    if (response.status !== 200) {
+      return {
+        success: false,
+        message: error.message || "Failed to send message via ChatMyBot",
+      };
+    }
+    //Update media status if API call succeeded
+    const updatedMedia = await Media.findByIdAndUpdate(
+      _id,
+      { whatsappstatus: "yes" },
+      { new: true }
+    );
+
+    return { success: true, data: updatedMedia };
+  } catch (err) {
+    console.error("Server error in /share:", err.response?.data || err.message);
+    return {
+      success: false,
+      message: err.message || "Internal server error",
+    };
+  }
+};
 async function uploadToGridFS(filename, buffer, contentType) {
   const { bucket } = getConnection();
   return new Promise((resolve, reject) => {
@@ -830,10 +901,10 @@ router.post("/client-upload", async (req, res) => {
                 selectedVideoId = settings.video1Id; // fallback / default
               }
               if (settings.faceSwap && !settings.videosMergeOption) {
-                posterVideoId = await runFaceSwap(
-                  tempclientphotoPath,
-                  selectedVideoId
-                );
+                posterVideoId = await runFaceSwap(photoBuffer, selectedVideoId);
+                if (!posterVideoId) {
+                  throw new Error("FaceSwap failed: no output video generated");
+                }
               } else if (
                 settings.videosMergeOption &&
                 settings.video2Id &&
@@ -852,7 +923,7 @@ router.post("/client-upload", async (req, res) => {
                 });
               } else if (settings.videosMergeOption && settings.faceSwap) {
                 faceswapVideoId = await runFaceSwap(
-                  tempclientphotoPath,
+                  photoBuffer,
                   selectedVideoId
                 );
                 posterVideoId = await mergeTwoVideos({
@@ -877,6 +948,7 @@ router.post("/client-upload", async (req, res) => {
                 posterVideoId: posterVideoId,
                 whatsapp,
                 whatsappstatus: "pending",
+                createdAt: new Date(),
               });
               const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
               const qrCodeData = await QRCode.toDataURL(downloadUrl);
@@ -914,7 +986,6 @@ function splitBuffer2(buffer, delimiter) {
   parts.push(buffer.slice(start));
   return parts;
 }
-
 router.post("/client/:temp_name", async (req, res) => {
   try {
     const contentType = req.headers["content-type"];
@@ -924,17 +995,22 @@ router.post("/client/:temp_name", async (req, res) => {
 
     const boundary = contentType.split("boundary=")[1];
     const chunks = [];
-
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", async () => {
       try {
         const buffer = Buffer.concat(chunks);
-
         // Split buffer by boundary string
-        const rawParts = buffer.toString("binary").split(`--${boundary}`).slice(1, -1);
+        const rawParts = buffer
+          .toString("binary")
+          .split(`--${boundary}`)
+          .slice(1, -1);
 
         let photoBuffer = null;
-        let clientName = "", email = "", whatsapp = "", template_name = "", source = "";
+        let clientName = "",
+          email = "",
+          whatsapp = "",
+          template_name = "",
+          source = "";
 
         for (const rawPart of rawParts) {
           if (!rawPart) continue;
@@ -964,42 +1040,48 @@ router.post("/client/:temp_name", async (req, res) => {
           }
         }
 
-        console.log("Photo exists:", !!photoBuffer, "size:", photoBuffer?.length);
+        console.log(
+          "Photo exists:",
+          !!photoBuffer,
+          "size:",
+          photoBuffer?.length
+        );
 
-        if (!whatsapp) return res.status(400).json({ error: "Missing Whatsapp Number" });
-
-        res.status(202).json({
-          message: "Upload received. Processing in background.",
-          clientName,
-        });
-
+        if (!whatsapp)
+          return res.status(400).json({ error: "Missing Whatsapp Number" });
         // Background processing
         // (async () => {
-          try {
-            let clientphotoId = null;
-            if (photoBuffer) {
-               clientphotoId = await uploadToGridFS(
-                `Clientphoto-${Date.now()}.jpg`,
-                photoBuffer,
-                "image/jpeg"
-              );
-              console.log("Photo uploaded to GridFS:", clientphotoId);
-            }
-
-            const media = new Media({
-              _id: new mongoose.Types.ObjectId(),
-              name: clientName,
-              email,
-              template_name,
-              posterVideoId: clientphotoId,
-              source,
-              whatsapp,
-              whatsappstatus: "pending",
-            });
-            await media.save();
-          } catch (err) {
-            console.error("Background processing error:", err);
+        try {
+          let clientphotoId = null;
+          if (photoBuffer) {
+            clientphotoId = await uploadToGridFS(
+              `Clientphoto-${Date.now()}.jpg`,
+              photoBuffer,
+              "image/jpeg"
+            );
+            console.log("Photo uploaded to GridFS:", clientphotoId);
           }
+
+          const media = new Media({
+            _id: new mongoose.Types.ObjectId(),
+            name: clientName,
+            email,
+            template_name,
+            posterVideoId: clientphotoId,
+            source,
+            whatsapp,
+            whatsappstatus: "pending",
+            createdAt: new Date(),
+          });
+          await media.save();
+          res.status(202).json({
+            media,
+            // message: "Upload received. Processing in background.",
+            // clientName,
+          });
+        } catch (err) {
+          console.error("Background processing error:", err);
+        }
         // })();
       } catch (err) {
         console.error("Client upload error inside end:", err);
@@ -1010,6 +1092,34 @@ router.post("/client/:temp_name", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.post("/client/share/:whatsapp", async (req, res) => {
+  try {
+    const whatsapp = req.params.whatsapp;
+    const { viewUrl, id } = req.body;
 
+    if (!whatsapp || !viewUrl || !id) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    await shareOuputApp(whatsapp, viewUrl, id, {
+      json: () => {},
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Shared successfully",
+    });
+
+  } catch (err) {
+    console.error("WhatsApp sending error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
 
 module.exports = router;
