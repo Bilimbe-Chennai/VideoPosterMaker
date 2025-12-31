@@ -107,6 +107,45 @@ router.post("/share", async (req, res) => {
     });
   }
 });
+
+// Increment share or download count
+router.post("/update-count", async (req, res) => {
+  try {
+    const { id, field } = req.body;
+
+    if (!id || !field) {
+      return res.status(400).json({ error: "Missing ID or field" });
+    }
+
+    const validFields = [
+      "whatsappsharecount",
+      "facebooksharecount",
+      "twittersharecount",
+      "instagramsharecount",
+      "downloadcount"
+    ];
+
+    if (!validFields.includes(field)) {
+      return res.status(400).json({ error: "Invalid field" });
+    }
+
+    const updatedMedia = await Media.findOneAndUpdate(
+      { posterVideoId: id },
+      { $inc: { [field]: 1 } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedMedia) {
+      return res.status(404).json({ error: "Media not found" });
+    }
+
+    return res.json({ success: true, data: updatedMedia });
+  } catch (err) {
+    console.error("Error updating count:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Generate birthday message using AI
 async function generateBirthdayMessage(name) {
   const response = await openai.chat.completions.create({
@@ -159,13 +198,13 @@ const saveTempFile = async (buffer, extension) => {
 router.get("/file/:id", async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-  return res.status(400).json({
-    error: "Invalid file ID",
-    received: req.params.id,
-  });
-}
+      return res.status(400).json({
+        error: "Invalid file ID",
+        received: req.params.id,
+      });
+    }
 
-const fileId = new ObjectId(req.params.id);
+    const fileId = new ObjectId(req.params.id);
     //const fileId = new mongoose.Types.ObjectId(req.params.id);
     const bucket = getGridFSBucket();
 
@@ -182,7 +221,7 @@ const fileId = new ObjectId(req.params.id);
     //     `attachment; filename="${file.filename}"`
     //   );
     // });
- downloadStream.on("file", (file) => {
+    downloadStream.on("file", (file) => {
       res.setHeader("Content-Type", file.contentType || "video/mp4");
 
       if (req.query.download === "true") {
@@ -273,7 +312,7 @@ router.get("/download-all", async (req, res) => {
     archive.pipe(res);
 
     // Find files where filename includes "merged"
-    const files = await bucket.find({ filename: /merged/}).toArray();
+    const files = await bucket.find({ filename: /merged/ }).toArray();
 
     if (!files.length) {
       return res.status(404).send("No merged videos found");
@@ -577,10 +616,10 @@ router.post("/videophoto", async (req, res) => {
           day % 10 === 1 && day !== 11
             ? "st"
             : day % 10 === 2 && day !== 12
-            ? "nd"
-            : day % 10 === 3 && day !== 13
-            ? "rd"
-            : "th";
+              ? "nd"
+              : day % 10 === 3 && day !== 13
+                ? "rd"
+                : "th";
 
         return `${day}${suffix} ${month}`;
       }
@@ -716,10 +755,10 @@ router.post("/videophoto", async (req, res) => {
       const tempFiles = [tempOriginalVideo];
       for (const file of tempFiles) {
         if (file) {
-          fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
+          fs.unlink(file).catch(() => { }); // ignore if file is already deleted/missing
         }
       }
-      res.status(201).json({ success: true, media});
+      res.status(201).json({ success: true, media });
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -913,7 +952,7 @@ router.post("/photogif", async (req, res) => {
       const tempFiles = [tempGifPath];
       for (const file of tempFiles) {
         if (file) {
-          fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
+          fs.unlink(file).catch(() => { }); // ignore if file is already deleted/missing
         }
       }
       res.status(201).json({ success: true, media });
@@ -1066,7 +1105,7 @@ router.post("/videovideo", async (req, res) => {
       const tempFiles = [tempAudioPath];
       for (const file of tempFiles) {
         if (file) {
-          fs.unlink(file).catch(() => {}); // ignore if file is already deleted/missing
+          fs.unlink(file).catch(() => { }); // ignore if file is already deleted/missing
         }
       }
       res.status(201).json({ success: true, media });

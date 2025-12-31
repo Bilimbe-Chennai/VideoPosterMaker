@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./ShareScreen.css";
 import { Phone } from "@mui/icons-material";
 
@@ -88,11 +89,34 @@ const ShareScreen = () => {
     Alert("Error", "Failed to load image. Please try again.");
   };
 
+  const handleUpdateCount = async (field) => {
+    if (!photoId) return;
+    try {
+      await axios.post("https://api.bilimbebrandactivations.com/api/upload/update-count", {
+        id: photoId,
+        field: field
+      });
+    } catch (err) {
+      console.error(`Error updating ${field}:`, err);
+    }
+  };
+
   const handleShare = async (platform) => {
     const imageUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
     const text = "Check out my merged photo!";
     const currentUrl = window.location.href; // Sharing the page URL often gives better previews with meta tags
     const platformKey = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
+
+    // Increment share count
+    const fieldMap = {
+      facebook: "facebooksharecount",
+      twitter: "twittersharecount",
+      whatsapp: "whatsappsharecount",
+      instagram: "instagramsharecount"
+    };
+    if (fieldMap[platformKey]) {
+      handleUpdateCount(fieldMap[platformKey]);
+    }
 
     // ON MOBILE: Use Web Share API for ALL platforms to share the actual photo file
     if (navigator.share) {
@@ -146,6 +170,7 @@ const ShareScreen = () => {
   const { date, time } = getFormattedDateTime();
   const handleDownload = () => {
     if (!photoId) return;
+    handleUpdateCount("downloadcount");
 
     const imageUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
 
@@ -252,6 +277,7 @@ const ShareScreen = () => {
               <button
                 className="social-button"
                 onClick={() => {
+                  handleUpdateCount("downloadcount");
                   const link = document.createElement("a");
                   link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
                   link.download = `photo-${photoId}.jpg`; // Set download filename
@@ -302,78 +328,82 @@ const ShareScreen = () => {
             </button>
           </div> */}
         </div>
-      )}
-      {isMobile && (
-        <div className={`bottom-sheet ${sheetVisible ? "visible" : ""}`}>
-          <div className="drag-handle"></div>
+      )
+      }
+      {
+        isMobile && (
+          <div className={`bottom-sheet ${sheetVisible ? "visible" : ""}`}>
+            <div className="drag-handle"></div>
 
-          <div className="sheet-content">
-            <h3 className="share-title">Share to social media</h3>
-            <div className="social-share-section">
-              <div className="social-row">
-                {shareOptions.map((option, index) => (
-                  <button
-                    key={index}
-                    className="social-button"
-                    onClick={() => handleShare(option.name)}
-                    aria-label={`Share on ${option.name}`}
-                  >
-                    <div
-                      className="social-icon"
-                      style={{
-                        backgroundColor:
-                          option.name === "X"
-                            ? "#f0e9e9ff"
-                            : `${option.color}30`,
-                        border:
-                          option.name === "X"
-                            ? `1px solid #c6c2c2ff`
-                            : `1px solid ${option.color}30`,
-                      }}
+            <div className="sheet-content">
+              <h3 className="share-title">Share to social media</h3>
+              <div className="social-share-section">
+                <div className="social-row">
+                  {shareOptions.map((option, index) => (
+                    <button
+                      key={index}
+                      className="social-button"
+                      onClick={() => handleShare(option.name)}
+                      aria-label={`Share on ${option.name}`}
                     >
-                      <span
-                        className={`icon icon-${option.icon}`}
-                        style={{ color: option.color }}
+                      <div
+                        className="social-icon"
+                        style={{
+                          backgroundColor:
+                            option.name === "X"
+                              ? "#f0e9e9ff"
+                              : `${option.color}30`,
+                          border:
+                            option.name === "X"
+                              ? `1px solid #c6c2c2ff`
+                              : `1px solid ${option.color}30`,
+                        }}
                       >
-                        {getIconComponent(option.icon)}
-                      </span>
-                    </div>
-                    <span className="social-name">{option.name}</span>
-                  </button>
-                ))}
+                        <span
+                          className={`icon icon-${option.icon}`}
+                          style={{ color: option.color }}
+                        >
+                          {getIconComponent(option.icon)}
+                        </span>
+                      </div>
+                      <span className="social-name">{option.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="action-buttons">
-              <button
-                className="download-button"
-                onClick={() => {
-                  // Create a temporary link and trigger download
-                  const link = document.createElement("a");
-                  link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
-                  link.download = `photo-${photoId}.jpg`; // Set download filename
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-              //   href={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`}
-              //   onClick={handleDownload}
-              >
-                {/* <span className="button-icon">?</span> */}
-                Download Photo
-              </button>
+              <div className="action-buttons">
+                <button
+                  className="download-button"
+                  onClick={() => {
+                    handleUpdateCount("downloadcount");
+                    // Create a temporary link and trigger download
+                    const link = document.createElement("a");
+                    link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
+                    link.download = `photo-${photoId}.jpg`; // Set download filename
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                //   href={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`}
+                //   onClick={handleDownload}
+                >
+                  {/* <span className="button-icon">?</span> */}
+                  Download Photo
+                </button>
 
-              {/* <button 
+                {/* <button 
               className="new-photo-button"
               onClick={handleBackToHome}
             >
               <span className="button-icon">+</span>
               Create New Photo
             </button> */}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
