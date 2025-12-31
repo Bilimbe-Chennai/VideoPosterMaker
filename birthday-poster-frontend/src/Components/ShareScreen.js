@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./ShareScreen.css";
 import { Phone } from "@mui/icons-material";
 
@@ -88,24 +89,64 @@ const ShareScreen = () => {
     Alert("Error", "Failed to load image. Please try again.");
   };
 
-  const handleShare = (platform) => {
+  const handleUpdateCount = async (field) => {
+    if (!photoId) return;
+    try {
+      await axios.post("https://api.bilimbebrandactivations.com/api/upload/update-count", {
+        id: photoId,
+        field: field
+      });
+    } catch (err) {
+      console.error(`Error updating ${field}:`, err);
+    }
+  };
+
+  const handleShare = async (platform) => {
     const imageUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
     const text = "Check out my merged photo!";
+    const currentUrl = window.location.href; // Sharing the page URL often gives better previews with meta tags
+    const platformKey = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
 
+    // Increment share count
+    const fieldMap = {
+      facebook: "facebooksharecount",
+      twitter: "twittersharecount",
+      whatsapp: "whatsappsharecount",
+      instagram: "instagramsharecount"
+    };
+    if (fieldMap[platformKey]) {
+      handleUpdateCount(fieldMap[platformKey]);
+    }
+
+    // ON MOBILE: Use Web Share API for ALL platforms to share the actual photo file
+    if (navigator.share) {
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Merged Photo',
+            text: text,
+          });
+          return;
+        }
+      } catch (error) {
+        console.log('Native file sharing failed, falling back to link sharing:', error);
+      }
+    }
+
+    // ON DESKTOP or FALLBACK: Direct app/web navigation (Sharing the link)
     const shareUrls = {
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-        imageUrl
-      )}`,
-      twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-        imageUrl
-      )}&text=${encodeURIComponent(text)}&hashtags=PhotoMerge`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(
-        `${text} ${imageUrl}`
-      )}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`,
+      twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(text)}`,
+      whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${text} ${currentUrl}`)}`,
+      // Instagram doesn't have a direct "share image" web link
       instagram: "https://www.instagram.com/",
     };
 
-    const platformKey = platform.toLowerCase();
     if (shareUrls[platformKey]) {
       window.open(shareUrls[platformKey], "_blank", "noopener,noreferrer");
     }
@@ -129,6 +170,7 @@ const ShareScreen = () => {
   const { date, time } = getFormattedDateTime();
   const handleDownload = () => {
     if (!photoId) return;
+    handleUpdateCount("downloadcount");
 
     const imageUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
 
@@ -195,15 +237,13 @@ const ShareScreen = () => {
           onClick={handleBackToHome}
           aria-label="Go back"
         >
-          ←
+          ?
         </button> */}
       </div>
-{!isMobile &&  (
-   <div >
-          <h3 className="share-title">Share Your Photo</h3>
-
+      {!isMobile && (
+        <div>
+          <h3 className="share-title">Share to social media</h3>
           <div className="social-share-section">
-            <p className="share-subtitle">Share to social media</p>
             <div className="social-row">
               {shareOptions.map((option, index) => (
                 <button
@@ -221,8 +261,6 @@ const ShareScreen = () => {
                         option.name === "X"
                           ? `1px solid #c6c2c2ff`
                           : `1px solid ${option.color}30`,
-                      width: isMobile ? "60px" : "70px",
-                      height: isMobile ? "60px" : "70px",
                     }}
                   >
                     <span
@@ -232,87 +270,51 @@ const ShareScreen = () => {
                       {getIconComponent(option.icon)}
                     </span>
                   </div>
-                  <span className="social-name">{option.name}</span>
+                  {/* <span className="social-name">{option.name}</span> */}
                 </button>
               ))}
-            </div>
-          </div>
-
-          <div className="action-buttons">
-            <button
-              className="download-button"
-              onClick={() => {
-                // Create a temporary link and trigger download
-                const link = document.createElement("a");
-                link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
-                link.download = `photo-${photoId}.jpg`; // Set download filename
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              //   href={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`}
-              //   onClick={handleDownload}
-            >
-              {/* <span className="button-icon">↓</span> */}
-              Download Photo
-            </button>
-
-            {/* <button 
-              className="new-photo-button"
-              onClick={handleBackToHome}
-            >
-              <span className="button-icon">+</span>
-              Create New Photo
-            </button> */}
-          </div>
-        </div>)}
-      {isMobile && <div className={`bottom-sheet ${sheetVisible ? "visible" : ""}`}>
-        <div className="drag-handle"></div>
-
-        <div className="sheet-content">
-          <h3 className="share-title">Share Your Photo</h3>
-
-          <div className="social-share-section">
-            <p className="share-subtitle">Share to social media</p>
-            <div className="social-row">
-              {shareOptions.map((option, index) => (
-                <button
-                  key={index}
-                  className="social-button"
-                  onClick={() => handleShare(option.name)}
-                  aria-label={`Share on ${option.name}`}
+              {/* <div className="action-buttons"> */}
+              <button
+                className="social-button"
+                onClick={() => {
+                  handleUpdateCount("downloadcount");
+                  const link = document.createElement("a");
+                  link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
+                  link.download = `photo-${photoId}.jpg`; // Set download filename
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                <div
+                  className="social-icon"
+                  style={{
+                    backgroundColor: "#f0e9e9ff",
+                    border: "1px solid #c6c2c2ff",
+                  }}
                 >
-                  <div
-                    className="social-icon"
-                    style={{
-                      backgroundColor:
-                        option.name === "X" ? "#f0e9e9ff" : `${option.color}30`,
-                      border:
-                        option.name === "X"
-                          ? `1px solid #c6c2c2ff`
-                          : `1px solid ${option.color}30`,
-                      width: isMobile ? "60px" : "70px",
-                      height: isMobile ? "60px" : "70px",
-                    }}
-                  >
-                    <span
-                      className={`icon icon-${option.icon}`}
-                      style={{ color: option.color }}
+                  <span className="icon icon-download">
+                    {/* Download icon SVG */}
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      style={{ color: "#CD1C1C" }} // Red color matching your theme
                     >
-                      {getIconComponent(option.icon)}
-                    </span>
-                  </div>
-                  <span className="social-name">{option.name}</span>
-                </button>
-              ))}
+                      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                    </svg>
+                  </span>
+                </div>
+              </button>
+              {/* </div> */}
             </div>
           </div>
 
-          <div className="action-buttons">
+          {/* <div className="action-buttons">
             <button
               className="download-button"
               onClick={() => {
-                // Create a temporary link and trigger download
                 const link = document.createElement("a");
                 link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
                 link.download = `photo-${photoId}.jpg`; // Set download filename
@@ -320,24 +322,88 @@ const ShareScreen = () => {
                 link.click();
                 document.body.removeChild(link);
               }}
-              //   href={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`}
-              //   onClick={handleDownload}
             >
-              {/* <span className="button-icon">↓</span> */}
+             
               Download Photo
             </button>
-
-            {/* <button 
-              className="new-photo-button"
-              onClick={handleBackToHome}
-            >
-              <span className="button-icon">+</span>
-              Create New Photo
-            </button> */}
-          </div>
+          </div> */}
         </div>
-      </div>}
-    </div>
+      )
+      }
+      {
+        isMobile && (
+          <div className={`bottom-sheet ${sheetVisible ? "visible" : ""}`}>
+            <div className="drag-handle"></div>
+
+            <div className="sheet-content">
+              <h3 className="share-title">Share to social media</h3>
+              <div className="social-share-section">
+                <div className="social-row">
+                  {shareOptions.map((option, index) => (
+                    <button
+                      key={index}
+                      className="social-button"
+                      onClick={() => handleShare(option.name)}
+                      aria-label={`Share on ${option.name}`}
+                    >
+                      <div
+                        className="social-icon"
+                        style={{
+                          backgroundColor:
+                            option.name === "X"
+                              ? "#f0e9e9ff"
+                              : `${option.color}30`,
+                          border:
+                            option.name === "X"
+                              ? `1px solid #c6c2c2ff`
+                              : `1px solid ${option.color}30`,
+                        }}
+                      >
+                        <span
+                          className={`icon icon-${option.icon}`}
+                          style={{ color: option.color }}
+                        >
+                          {getIconComponent(option.icon)}
+                        </span>
+                      </div>
+                      <span className="social-name">{option.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="action-buttons">
+                <button
+                  className="download-button"
+                  onClick={() => {
+                    handleUpdateCount("downloadcount");
+                    // Create a temporary link and trigger download
+                    const link = document.createElement("a");
+                    link.href = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`;
+                    link.download = `photo-${photoId}.jpg`; // Set download filename
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                //   href={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`}
+                //   onClick={handleDownload}
+                >
+                  {/* <span className="button-icon">?</span> */}
+                  Download Photo
+                </button>
+
+                {/* <button 
+              className="new-photo-button"
+              onClick={handleBackToHome}
+            >
+              <span className="button-icon">+</span>
+              Create New Photo
+            </button> */}
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
 
