@@ -519,6 +519,7 @@
 // });
 // module.exports = router;
 const express = require("express");
+const nodemailer = require('nodemailer');
 const AdminSettings = require("../models/AdminSettings.js");
 const Media = require("../models/Media.js");
 const { Readable } = require("stream");
@@ -532,6 +533,74 @@ const os = require("os");
 const axios = require("axios");
 const { getConnection } = require("../InitDB");
 const router = express.Router();
+function imageShareEmailTemplate({ name, viewUrl }) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Your Photo Is Ready</title>
+</head>
+<body style="margin:0; padding:0; background:#f4f4f4; font-family: Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center" style="padding:30px 15px;">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:10px; overflow:hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#b3152c; padding:20px; color:#fff; text-align:center;">
+              <h1 style="margin:0; font-size:24px;">PhotoMerge</h1>
+              <p style="margin:5px 0 0; font-size:14px;">Your photo is ready to view</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:30px; text-align:center;">
+              <h2 style="margin-bottom:10px;">Hi ${name || "there"} </h2>
+              <p style="color:#555; font-size:15px;">
+                Your photo has been successfully created.
+                Click the button below to view and download it.
+              </p>
+
+              <!-- Button -->
+              <a
+                href="${viewUrl}"
+                target="_blank"
+                style="
+                  display:inline-block;
+                  margin-top:20px;
+                  background:#25D366;
+                  color:#ffffff;
+                  padding:14px 28px;
+                  text-decoration:none;
+                  border-radius:30px;
+                  font-size:16px;
+                  font-weight:bold;
+                "
+              >
+                View Your Photo
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8f8f8; padding:15px; text-align:center; font-size:12px; color:#777;">
+               PhotoMerge | All rights reserved | ${new Date().getFullYear()}
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+}
+
 const shareOuput = async (whatsapp, downloadUrl, id, res) => {
   try {
     const toNumber = whatsapp;
@@ -603,14 +672,15 @@ const shareOuput = async (whatsapp, downloadUrl, id, res) => {
     };
   }
 };
-const shareOuputApp = async (whatsapp, viewUrl, id, res) => {
+const shareOuputApp = async (whatsapp, viewUrl, id,name, res) => {
   try {
     const toNumber = whatsapp;
     const _id = id;
     const linksend = viewUrl;
+    const userName = name;
     const token = process.env.CHATMYBOT_TOKEN;
-    if (!toNumber || !linksend || !_id) {
-      throw new Error("Phone, link, and _id are required");
+    if (!toNumber || !linksend || !_id || !userName) {
+      throw new Error("Phone, link,name and _id are required");
     }
     if (!mongoose.Types.ObjectId.isValid(_id)) {
       throw new Error("Invalid media ID");
@@ -631,6 +701,10 @@ const shareOuputApp = async (whatsapp, viewUrl, id, res) => {
             {
               type: "body",
               parameters: [
+                 {
+                  type: "text",
+                  text: userName,
+                },
                 {
                   type: "text",
                   text: linksend,
@@ -1094,8 +1168,43 @@ router.post("/client/:temp_name", async (req, res) => {
 });
 router.post("/client/share/:whatsapp", async (req, res) => {
   try {
-    const whatsapp = req.params.whatsapp;
-    const { viewUrl, id } = req.body;
+    const typeSend = req.body.typeSend
+if(typeSend==="email"){
+ const email = req.params.whatsapp;
+    const { viewUrl, id ,name} = req.body;
+
+    if (!email || !viewUrl || !id) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'developmentbilimbedigital@gmail.com',//Replace with your Gmail 
+      pass: 'hyfu fjrs jaob fvrj' // Replace with your Gmail App Password
+    }
+  });
+
+  const mailOptions = {
+     from: '"PhotoMerge" <developmentbilimbedigital@gmail.com>',
+    to: email, 
+     subject: "Your Photo Is Ready - PhotoMerge",
+     html: imageShareEmailTemplate({
+          name,
+          viewUrl,
+        }),
+  };
+const info = await transporter.sendMail(mailOptions);
+    console.log('Contact email sent:', info.response);
+    res.status(200).json({
+      success: true,
+      message: "Shared successfully",
+    });
+}else{
+   const whatsapp = req.params.whatsapp;
+    const { viewUrl, id,name } = req.body;
 
     if (!whatsapp || !viewUrl || !id) {
       return res.status(400).json({
@@ -1104,7 +1213,7 @@ router.post("/client/share/:whatsapp", async (req, res) => {
       });
     }
 
-    await shareOuputApp(whatsapp, viewUrl, id, {
+    await shareOuputApp(whatsapp, viewUrl, id,name, {
       json: () => {},
     });
 
@@ -1112,7 +1221,7 @@ router.post("/client/share/:whatsapp", async (req, res) => {
       success: true,
       message: "Shared successfully",
     });
-
+}
   } catch (err) {
     console.error("WhatsApp sending error:", err);
     res.status(500).json({
