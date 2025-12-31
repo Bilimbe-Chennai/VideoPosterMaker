@@ -337,41 +337,50 @@ router.get("/download-all", async (req, res) => {
 });
 
 // GET all media items with advanced filtering and pagination
+// router.get("/all", async (req, res) => {
+//   try {
+//     const { branch, type, startDate, endDate, source, page = 1, limit = 20 } = req.query;
+//     let query = {};
+
+//     if (branch) query.branchName = branch;
+//     if (type) query.type = type;
+//     if (source) query.source = source;
+
+//     if (startDate || endDate) {
+//       query.createdAt = {};
+//       if (startDate) query.createdAt.$gte = new Date(startDate);
+//       if (endDate) query.createdAt.$lte = new Date(endDate);
+//     }
+
+//     const skip = (parseInt(page) - 1) * parseInt(limit);
+//     const total = await Media.countDocuments(query);
+//     const mediaItems = await Media.find(query)
+//       .sort({ updatedAt: -1 })
+//       .skip(skip)
+//       .limit(parseInt(limit));
+
+//     res.json({
+//       success: true,
+//       total,
+//       page: parseInt(page),
+//       totalPages: Math.ceil(total / parseInt(limit)),
+//       data: mediaItems
+//     });
+//   } catch (err) {
+//     console.error("Error fetching media items:", err);
+//     res.status(500).json({ error: "Server error while fetching media items" });
+//   }
+// });
+// GET all media items
 router.get("/all", async (req, res) => {
   try {
-    const { branch, type, startDate, endDate, source, page = 1, limit = 20 } = req.query;
-    let query = {};
-
-    if (branch) query.branchName = branch;
-    if (type) query.type = type;
-    if (source) query.source = source;
-
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await Media.countDocuments(query);
-    const mediaItems = await Media.find(query)
-      .sort({ updatedAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    res.json({
-      success: true,
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
-      data: mediaItems
-    });
+    const mediaItems = await Media.find().sort({ createdAt: -1 }); // Get all items, newest first
+    res.json(mediaItems.reverse());
   } catch (err) {
     console.error("Error fetching media items:", err);
     res.status(500).json({ error: "Server error while fetching media items" });
   }
 });
-
 // GET unique branches
 router.get("/branches", async (req, res) => {
   try {
