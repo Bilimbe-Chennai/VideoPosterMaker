@@ -212,7 +212,7 @@ const ShareScreen = () => {
           onClick={handleBackToHome}
           aria-label="Go back"
         >
-          ←
+          ?
         </button> */}
       </div>
       {!isMobile && (
@@ -358,7 +358,7 @@ const ShareScreen = () => {
               //   href={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}?download=true`}
               //   onClick={handleDownload}
               >
-                {/* <span className="button-icon">↓</span> */}
+                {/* <span className="button-icon">?</span> */}
                 Download Photo
               </button>
 
