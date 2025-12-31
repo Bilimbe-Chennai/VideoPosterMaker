@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const MediaSchema = new mongoose.Schema({
-  _id:mongoose.Schema.Types.ObjectId,
+  _id: mongoose.Schema.Types.ObjectId,
   name: String,
   date: String,
   type: String,
   whatsapp: String,
   source: String,
   email: String,
-  template_name:String,
+  template_name: String,
   photoId: mongoose.Schema.Types.ObjectId,
   videoId: mongoose.Schema.Types.ObjectId,
   posterId: mongoose.Schema.Types.ObjectId,
@@ -19,7 +19,7 @@ const MediaSchema = new mongoose.Schema({
   gifId: mongoose.Schema.Types.ObjectId,
   audioId: mongoose.Schema.Types.ObjectId,
   templateId: mongoose.Schema.Types.ObjectId,
-  whatsappstatus:String,
+  whatsappstatus: String,
   qrCode: { type: String },
   branchName: { type: String, default: "" },
   whatsappsharecount: { type: Number, default: 0 },
@@ -28,6 +28,7 @@ const MediaSchema = new mongoose.Schema({
   instagramsharecount: { type: Number, default: 0 },
   downloadcount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model('medias', MediaSchema);

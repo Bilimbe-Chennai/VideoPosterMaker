@@ -659,7 +659,10 @@ const shareOuput = async (whatsapp, downloadUrl, id, res) => {
     //Update media status if API call succeeded
     const updatedMedia = await Media.findByIdAndUpdate(
       _id,
-      { whatsappstatus: "yes" },
+      {
+        whatsappstatus: "yes",
+        updatedAt: new Date()
+      },
       { new: true }
     );
 
@@ -672,7 +675,7 @@ const shareOuput = async (whatsapp, downloadUrl, id, res) => {
     };
   }
 };
-const shareOuputApp = async (whatsapp, viewUrl, id,name, res) => {
+const shareOuputApp = async (whatsapp, viewUrl, id, name, res) => {
   try {
     const toNumber = whatsapp;
     const _id = id;
@@ -701,7 +704,7 @@ const shareOuputApp = async (whatsapp, viewUrl, id,name, res) => {
             {
               type: "body",
               parameters: [
-                 {
+                {
                   type: "text",
                   text: userName,
                 },
@@ -735,7 +738,10 @@ const shareOuputApp = async (whatsapp, viewUrl, id,name, res) => {
     //Update media status if API call succeeded
     const updatedMedia = await Media.findByIdAndUpdate(
       _id,
-      { whatsappstatus: "yes" },
+      {
+        whatsappstatus: "yes",
+        updatedAt: new Date()
+      },
       { new: true }
     );
 
@@ -883,7 +889,7 @@ router.post("/client-upload", async (req, res) => {
 
           // 6. Send to WhatsApp in background (don't wait for it)
           shareOuput(whatsapp, downloadUrl, media._id, {
-            json: () => {},
+            json: () => { },
           }).catch((err) => {
             console.error("WhatsApp sending error:", err);
             // Don't fail the request if WhatsApp fails
@@ -1029,7 +1035,7 @@ router.post("/client-upload", async (req, res) => {
               media.qrCode = qrCodeData;
               await media.save();
               await shareOuput(whatsapp, downloadUrl, media._id, {
-                json: () => {},
+                json: () => { },
               });
               //res.json({ success: true, media });
             } catch (err) {
@@ -1169,59 +1175,59 @@ router.post("/client/:temp_name", async (req, res) => {
 router.post("/client/share/:whatsapp", async (req, res) => {
   try {
     const typeSend = req.body.typeSend
-if(typeSend==="email"){
- const email = req.params.whatsapp;
-    const { viewUrl, id ,name} = req.body;
+    if (typeSend === "email") {
+      const email = req.params.whatsapp;
+      const { viewUrl, id, name } = req.body;
 
-    if (!email || !viewUrl || !id) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields",
+      if (!email || !viewUrl || !id) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields",
+        });
+      }
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'developmentbilimbedigital@gmail.com',//Replace with your Gmail 
+          pass: 'hyfu fjrs jaob fvrj' // Replace with your Gmail App Password
+        }
       });
-    }
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'developmentbilimbedigital@gmail.com',//Replace with your Gmail 
-      pass: 'hyfu fjrs jaob fvrj' // Replace with your Gmail App Password
-    }
-  });
 
-  const mailOptions = {
-     from: '"PhotoMerge" <developmentbilimbedigital@gmail.com>',
-    to: email, 
-     subject: "Your Photo Is Ready - PhotoMerge",
-     html: imageShareEmailTemplate({
+      const mailOptions = {
+        from: '"PhotoMerge" <developmentbilimbedigital@gmail.com>',
+        to: email,
+        subject: "Your Photo Is Ready - PhotoMerge",
+        html: imageShareEmailTemplate({
           name,
           viewUrl,
         }),
-  };
-const info = await transporter.sendMail(mailOptions);
-    console.log('Contact email sent:', info.response);
-    res.status(200).json({
-      success: true,
-      message: "Shared successfully",
-    });
-}else{
-   const whatsapp = req.params.whatsapp;
-    const { viewUrl, id,name } = req.body;
+      };
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Contact email sent:', info.response);
+      res.status(200).json({
+        success: true,
+        message: "Shared successfully",
+      });
+    } else {
+      const whatsapp = req.params.whatsapp;
+      const { viewUrl, id, name } = req.body;
 
-    if (!whatsapp || !viewUrl || !id) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields",
+      if (!whatsapp || !viewUrl || !id) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields",
+        });
+      }
+
+      await shareOuputApp(whatsapp, viewUrl, id, name, {
+        json: () => { },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Shared successfully",
       });
     }
-
-    await shareOuputApp(whatsapp, viewUrl, id,name, {
-      json: () => {},
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Shared successfully",
-    });
-}
   } catch (err) {
     console.error("WhatsApp sending error:", err);
     res.status(500).json({

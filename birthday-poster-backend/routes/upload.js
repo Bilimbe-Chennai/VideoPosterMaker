@@ -94,7 +94,10 @@ router.post("/share", async (req, res) => {
     //Update media status if API call succeeded
     const updatedMedia = await Media.findByIdAndUpdate(
       _id,
-      { whatsappstatus: "yes" },
+      {
+        whatsappstatus: "yes",
+        updatedAt: new Date()
+      },
       { new: true }
     );
 
@@ -131,7 +134,10 @@ router.post("/update-count", async (req, res) => {
 
     const updatedMedia = await Media.findOneAndUpdate(
       { posterVideoId: id },
-      { $inc: { [field]: 1 } },
+      {
+        $inc: { [field]: 1 },
+        $set: { updatedAt: new Date() }
+      },
       { new: true, runValidators: true }
     );
 
@@ -330,14 +336,208 @@ router.get("/download-all", async (req, res) => {
   }
 });
 
-// GET all media items
+// GET all media items with advanced filtering and pagination
 router.get("/all", async (req, res) => {
   try {
-    const mediaItems = await Media.find().sort({ createdAt: -1 }); // Get all items, newest first
-    res.json(mediaItems.reverse());
+    const { branch, type, startDate, endDate, source, page = 1, limit = 20 } = req.query;
+    let query = {};
+
+    if (branch) query.branchName = branch;
+    if (type) query.type = type;
+    if (source) query.source = source;
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Media.countDocuments(query);
+    const mediaItems = await Media.find(query)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      data: mediaItems
+    });
   } catch (err) {
     console.error("Error fetching media items:", err);
     res.status(500).json({ error: "Server error while fetching media items" });
+  }
+});
+
+// GET unique branches
+router.get("/branches", async (req, res) => {
+  try {
+    const branches = await Media.distinct("branchName");
+    res.json({ success: true, branches: branches.filter(b => b) });
+  } catch (err) {
+    console.error("Error fetching branches:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET export stats as CSV
+router.get("/export-stats", async (req, res) => {
+  try {
+    const media = await Media.find().sort({ createdAt: -1 });
+    let csv = "Name,Date,Type,WhatsApp,Branch,Shares(WA),Shares(FB),Shares(X),Shares(IG),Downloads\n";
+
+    media.forEach(m => {
+      csv += `"${m.name || ""}",${m.date || ""},${m.type || ""},"${m.whatsapp || ""}",` +
+        `"${m.branchName || ""}",${m.whatsappsharecount || 0},${m.facebooksharecount || 0},` +
+        `${m.twittersharecount || 0},${m.instagramsharecount || 0},${m.downloadcount || 0}\n`;
+    });
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename=poster_stats_${Date.now()}.csv`);
+    res.status(200).send(csv);
+  } catch (err) {
+    console.error("Export error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET dashboard statistics
+router.get("/stats", async (req, res) => {
+  try {
+    const totalPosters = await Media.countDocuments();
+    const stats = await Media.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalWhatsApp: { $sum: "$whatsappsharecount" },
+          totalFB: { $sum: "$facebooksharecount" },
+          totalX: { $sum: "$twittersharecount" },
+          totalInstagram: { $sum: "$instagramsharecount" },
+          totalDownloads: { $sum: "$downloadcount" },
+        },
+      },
+    ]);
+
+    const branchStats = await Media.aggregate([
+      { $group: { _id: "$branchName", count: { $sum: 1 } } },
+    ]);
+
+    const typeStats = await Media.aggregate([
+      { $group: { _id: "$type", count: { $sum: 1 } } },
+    ]);
+
+    res.json({
+      totalPosters,
+      engagement: stats[0] || {
+        totalWhatsApp: 0,
+        totalFB: 0,
+        totalX: 0,
+        totalInstagram: 0,
+        totalDownloads: 0,
+      },
+      branchStats,
+      typeStats,
+    });
+  } catch (err) {
+    console.error("Error fetching stats:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET search media by metadata
+router.get("/search", async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: "Search query required" });
+
+    const searchRegex = new RegExp(q, "i");
+    const results = await Media.find({
+      $or: [
+        { name: searchRegex },
+        { whatsapp: searchRegex },
+        { branchName: searchRegex },
+      ],
+    }).sort({ updatedAt: -1 });
+
+    res.json(results);
+  } catch (err) {
+    console.error("Search error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE single media item
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid ID" });
+
+    const media = await Media.findById(id);
+    if (!media) return res.status(404).json({ error: "Media not found" });
+
+    // Helper to delete from GridFS
+    const { bucket } = getConnection();
+    const fileFields = [
+      "photoId", "videoId", "posterId", "video1Id", "video2Id",
+      "posterVideoId", "mergedVideoId", "gifId", "audioId", "templateId"
+    ];
+
+    for (const field of fileFields) {
+      if (media[field]) {
+        try {
+          await bucket.delete(new ObjectId(media[field]));
+        } catch (e) {
+          console.error(`Failed to delete file ${media[field]} from GridFS:`, e.message);
+        }
+      }
+    }
+
+    await Media.findByIdAndDelete(id);
+    res.json({ success: true, message: "Media and associated files deleted" });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST bulk delete media items
+router.post("/bulk-delete", async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Invalid or empty IDs array" });
+    }
+
+    const { bucket } = getConnection();
+    const fileFields = [
+      "photoId", "videoId", "posterId", "video1Id", "video2Id",
+      "posterVideoId", "mergedVideoId", "gifId", "audioId", "templateId"
+    ];
+
+    for (const id of ids) {
+      if (!ObjectId.isValid(id)) continue;
+      const media = await Media.findById(id);
+      if (!media) continue;
+
+      for (const field of fileFields) {
+        if (media[field]) {
+          try {
+            await bucket.delete(new ObjectId(media[field]));
+          } catch (e) {
+            console.error(`Failed to delete file ${media[field]} in bulk:`, e.message);
+          }
+        }
+      }
+      await Media.findByIdAndDelete(id);
+    }
+
+    res.json({ success: true, message: `${ids.length} items processed for deletion` });
+  } catch (err) {
+    console.error("Bulk delete error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 // GET video info function

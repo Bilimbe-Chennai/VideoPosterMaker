@@ -128,52 +128,52 @@ router.post("/settings", async (req, res) => {
           childgirlBuffer4 = body;
         }
       });
-//       const videoMap = {
-//   video1: video1Buffer,
-//   video2: video2Buffer,
+      //       const videoMap = {
+      //   video1: video1Buffer,
+      //   video2: video2Buffer,
 
-//   boyvideo1: boyvideoBuffer1,
-//   girlvideo1: girlvideoBuffer1,
-//   childboyvideo1: childboyBuffer1,
-//   childgirlvideo1: childgirlBuffer1,
+      //   boyvideo1: boyvideoBuffer1,
+      //   girlvideo1: girlvideoBuffer1,
+      //   childboyvideo1: childboyBuffer1,
+      //   childgirlvideo1: childgirlBuffer1,
 
-//   boyvideo2: boyvideoBuffer2,
-//   girlvideo2: girlvideoBuffer2,
-//   childboyvideo2: childboyBuffer2,
-//   childgirlvideo2: childgirlBuffer2,
+      //   boyvideo2: boyvideoBuffer2,
+      //   girlvideo2: girlvideoBuffer2,
+      //   childboyvideo2: childboyBuffer2,
+      //   childgirlvideo2: childgirlBuffer2,
 
-//   boyvideo3: boyvideoBuffer3,
-//   girlvideo3: girlvideoBuffer3,
-//   childboyvideo3: childboyBuffer3,
-//   childgirlvideo3: childgirlBuffer3,
+      //   boyvideo3: boyvideoBuffer3,
+      //   girlvideo3: girlvideoBuffer3,
+      //   childboyvideo3: childboyBuffer3,
+      //   childgirlvideo3: childgirlBuffer3,
 
-//   boyvideo4: boyvideoBuffer4,
-//   girlvideo4: girlvideoBuffer4,
-//   childboyvideo4: childboyBuffer4,
-//   childgirlvideo4: childgirlBuffer4,
-// };
-// const uploadedVideoIds = {};
+      //   boyvideo4: boyvideoBuffer4,
+      //   girlvideo4: girlvideoBuffer4,
+      //   childboyvideo4: childboyBuffer4,
+      //   childgirlvideo4: childgirlBuffer4,
+      // };
+      // const uploadedVideoIds = {};
 
-// for (const [key, buffer] of Object.entries(videoMap)) {
-//   if (Buffer.isBuffer(buffer) && buffer.length > 0) {
-//     uploadedVideoIds[`${key}Id`] = await uploadToGridFS(
-//       `${key}-${Date.now()}.mp4`,
-//       buffer,
-//       "video/mp4"
-//     );
-//   }
-// }
-// let audioId;
-// if (Buffer.isBuffer(audioBuffer) && audioBuffer.length > 0) {
-//   audioId = await uploadToGridFS(
-//     `audio-${Date.now()}.mp3`,
-//     audioBuffer,
-//     "audio/mp3"
-//   );
-// }
-// if (Object.keys(uploadedVideoIds).length > 16) {
-//   return res.status(400).json({ error: "Maximum 16 videos allowed" });
-// }
+      // for (const [key, buffer] of Object.entries(videoMap)) {
+      //   if (Buffer.isBuffer(buffer) && buffer.length > 0) {
+      //     uploadedVideoIds[`${key}Id`] = await uploadToGridFS(
+      //       `${key}-${Date.now()}.mp4`,
+      //       buffer,
+      //       "video/mp4"
+      //     );
+      //   }
+      // }
+      // let audioId;
+      // if (Buffer.isBuffer(audioBuffer) && audioBuffer.length > 0) {
+      //   audioId = await uploadToGridFS(
+      //     `audio-${Date.now()}.mp3`,
+      //     audioBuffer,
+      //     "audio/mp3"
+      //   );
+      // }
+      // if (Object.keys(uploadedVideoIds).length > 16) {
+      //   return res.status(400).json({ error: "Maximum 16 videos allowed" });
+      // }
 
       // if (!audioBuffer) {
       //   return res.status(400).json({ error: "Missing audio or video" });
@@ -330,15 +330,15 @@ router.post("/settings", async (req, res) => {
         faceSwap,
         videosMergeOption,
       });
-//       const settings = new AdminSettings({
-//   name,
-//   date,
-//   type,
-//   faceSwap,
-//   videosMergeOption,
-//   audioId,
-//   ...uploadedVideoIds,
-// });
+      //       const settings = new AdminSettings({
+      //   name,
+      //   date,
+      //   type,
+      //   faceSwap,
+      //   videosMergeOption,
+      //   audioId,
+      //   ...uploadedVideoIds,
+      // });
 
       await settings.save();
       res.json({ success: true, settings });
@@ -508,7 +508,7 @@ router.post("/settings", async (req, res) => {
 //       // }
 //       // 2. Upload original photo and video to GridFS
 //       let video1Id;
-    
+
 //         video1Id = await uploadToGridFS(
 //           `video1-${Date.now()}.mp4`,
 //           video1Buffer,
@@ -532,7 +532,7 @@ router.post("/settings", async (req, res) => {
 //           audioBuffer,
 //           "audio/mp3"
 //         );
-        
+
 //    posterVideoId = await mergeThreeVideos({
 //                 name: name,
 //                 date: date,
@@ -590,17 +590,17 @@ router.post("/settings/videovideovideo", async (req, res) => {
       const buffer = Buffer.concat(chunks);
       const boundaryBuffer = Buffer.from(boundary);
       const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
-      
-      let name, date, type, faceSwap, videosMergeOption, clientname, brandname, 
-          congratsOption, video1TextOption, video2TextOption, video3TextOption, approved;
+
+      let name, date, type, faceSwap, videosMergeOption, clientname, brandname,
+        congratsOption, video1TextOption, video2TextOption, video3TextOption, approved;
       let video1Buffer, video2Buffer, video3Buffer, audioBuffer;
-      
+
       // NEW: Check if this is an edit
       let isEdit = false;
       let editId = null;
-      
+
       const whatsappstatus = "pending";
-      
+
       parts.forEach((part) => {
         const [rawHeaders, rawBody] = splitBuffer(
           part,
@@ -608,7 +608,7 @@ router.post("/settings/videovideovideo", async (req, res) => {
         );
         const headersText = rawHeaders.toString();
         const body = rawBody.slice(0, rawBody.length - 2); // remove trailing CRLF
-        
+
         if (headersText.includes('name="name"')) {
           name = body.toString().trim();
         } else if (headersText.includes('name="date"')) {
@@ -645,12 +645,12 @@ router.post("/settings/videovideovideo", async (req, res) => {
           audioBuffer = body.length > 0 ? body : null;
         } else if (headersText.includes('name="video3"')) {
           video3Buffer = body.length > 0 ? body : null;
-        } 
+        }
       });
-      
+
       // Upload files to GridFS
       let video1Id, video2Id, video3Id, audioId;
-      
+
       // Handle video1 - upload new or keep existing
       if (video1Buffer) {
         video1Id = await uploadToGridFS(
@@ -665,7 +665,7 @@ router.post("/settings/videovideovideo", async (req, res) => {
           video1Id = existingMedia.video1Id;
         }
       }
-      
+
       // Handle video2
       if (video2Buffer) {
         video2Id = await uploadToGridFS(
@@ -679,7 +679,7 @@ router.post("/settings/videovideovideo", async (req, res) => {
           video2Id = existingMedia.video2Id;
         }
       }
-      
+
       // Handle video3
       if (video3Buffer) {
         video3Id = await uploadToGridFS(
@@ -693,7 +693,7 @@ router.post("/settings/videovideovideo", async (req, res) => {
           video3Id = existingMedia.video3Id;
         }
       }
-      
+
       // Handle audio
       if (audioBuffer) {
         audioId = await uploadToGridFS(
@@ -707,7 +707,7 @@ router.post("/settings/videovideovideo", async (req, res) => {
           audioId = existingMedia.audioId;
         }
       }
-      
+
       // Generate merged video
       posterVideoId = await mergeThreeVideos({
         name: name,
@@ -722,9 +722,9 @@ router.post("/settings/videovideovideo", async (req, res) => {
         congratsOption,
         video1TextOption, video2TextOption, video3TextOption
       });
-      
+
       let media;
-      
+
       if (isEdit && editId) {
         // UPDATE EXISTING MEDIA
         media = await AdminSettings.findByIdAndUpdate(
@@ -749,7 +749,7 @@ router.post("/settings/videovideovideo", async (req, res) => {
           },
           { new: true } // Return the updated document
         );
-        
+
         if (!media) {
           return res.status(404).json({ error: "Media not found for update" });
         }
@@ -772,10 +772,10 @@ router.post("/settings/videovideovideo", async (req, res) => {
           video1TextOption, video2TextOption, video3TextOption,
           approved
         });
-        
+
         await media.save();
       }
-      
+
       res.json({ success: true, media });
     });
   } catch (err) {
@@ -802,55 +802,72 @@ router.get("/getone/:id", async (req, res) => {
 });
 // 4. GET ALL APPROVED VIDEOS API (optional)
 router.get('/approved', async (req, res) => {
-    try {
-        const approvedVideos = await AdminSettings.find({ approved: true })
-            .sort({ createdAt: -1 });
-        
-        res.json({ 
-            success: true, 
-            count: approvedVideos.length,
-            videos: approvedVideos 
-        });
-        
-    } catch (error) {
-        console.error('Get approved videos error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch approved videos',
-            error: error.message 
-        });
-    }
+  try {
+    const approvedVideos = await AdminSettings.find({ approved: true })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: approvedVideos.length,
+      videos: approvedVideos
+    });
+
+  } catch (error) {
+    console.error('Get approved videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch approved videos',
+      error: error.message
+    });
+  }
 });
+// Single approve video function
 router.post('/approve/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        // Find the media by ID
-        const media = await AdminSettings.findById({_id:id});
-        
-        if (!media) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Video not found' 
-            });
-        }       
-        // Update approved status
-        media.approved = true;
-        media.approvedAt = new Date();
-        await media.save();
-        res.json({ 
-            success: true, 
-            message: 'Video approved successfully',
-            media 
-        });
-        
-    } catch (error) {
-        console.error('Approve video error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to approve video',
-            error: error.message 
-        });
-    }
+  try {
+    const { id } = req.params;
+    const media = await AdminSettings.findById(id);
+    if (!media) return res.status(404).json({ success: false, message: 'Video not found' });
+    media.approved = true;
+    media.approvedAt = new Date();
+    await media.save();
+    res.json({ success: true, message: 'Video approved successfully', media });
+  } catch (error) {
+    console.error('Approve video error:', error);
+    res.status(500).json({ success: false, message: 'Failed to approve video', error: error.message });
+  }
 });
+
+// Bulk approve settings
+router.post('/bulk-approve', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ success: false, message: 'Invalid IDs array' });
+    }
+    await AdminSettings.updateMany(
+      { _id: { $in: ids } },
+      { $set: { approved: true, approvedAt: new Date() } }
+    );
+    res.json({ success: true, message: `${ids.length} items approved successfully` });
+  } catch (error) {
+    console.error('Bulk approve error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE a specific setting
+router.delete('/settings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedSetting = await AdminSettings.findByIdAndDelete(id);
+    if (!deletedSetting) {
+      return res.status(404).json({ success: false, message: 'Setting not found' });
+    }
+    res.json({ success: true, message: 'Setting deleted successfully' });
+  } catch (error) {
+    console.error('Delete setting error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

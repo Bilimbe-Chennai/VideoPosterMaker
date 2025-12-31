@@ -4,6 +4,7 @@ const cors = require('cors');
 const uploadRoutes = require('./routes/upload');
 const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
+const photomergeRoutes = require('./routes/photomerge');
 const initDb = require("./InitDB");
 const path = require('path');
 const os = require("os");
@@ -11,8 +12,8 @@ const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json({ limit: "50mb" })); // increase payload limit
 const allowedOrigins = [
-   "http://localhost:3000", 
-  "http://localhost:3001", 
+  "http://localhost:3000",
+  "http://localhost:3001",
   "http://localhost:7000",
   "https://bilimbe-bday-poster-frontend.onrender.com",
   "https://bilimbe-bday-poster-backend.onrender.com",
@@ -42,6 +43,7 @@ app.use("/temp", express.static(path.join(os.tmpdir())));
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
+app.use('/api/photomerge', photomergeRoutes);
 // app.get("/photomergeapp/share/:id", (req, res) => {
 //   const { id } = req.params;
 //   // Redirect to app deep link
