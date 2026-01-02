@@ -8,6 +8,8 @@ const PhotoMergeTemplateSchema = new mongoose.Schema({
     source: { type: String, default: 'photo merge app' },
     adminid: { type: String },
     branchid: { type: String },
+    accessType: { type: String, default: 'photomerge' },
+    status: { type: String, default: 'active' },
     createdAt: { type: Date, default: Date.now },
 });
 

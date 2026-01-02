@@ -36,7 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import useAxios from "../useAxios";
 
 const UserManager = () => {
-   const axiosData = useAxios();
+  const axiosData = useAxios();
   const [users, setUsers] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,8 +57,8 @@ const UserManager = () => {
         axiosData.get('/users'),
         axiosData.get('/templates'),
       ]);
-      setUsers(usersRes.data);
-      setTemplates(templatesRes.data);
+      setUsers(usersRes.data.data || []);
+      setTemplates(templatesRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -91,16 +91,16 @@ const UserManager = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.whatsappNumber?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-    
-    const matchesTemplate = filterTemplate === 'all' || 
+
+    const matchesTemplate = filterTemplate === 'all' ||
       (user.template && user.template._id === filterTemplate);
-    
+
     return matchesSearch && matchesStatus && matchesTemplate;
   });
 
@@ -115,10 +115,10 @@ const UserManager = () => {
 
   const handleExport = () => {
     // Implement export functionality
-    const csvContent = users.map(user => 
+    const csvContent = users.map(user =>
       `${user.name},${user.email},${user.whatsappNumber || ''},${user.status}`
     ).join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -144,7 +144,7 @@ const UserManager = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/users/create')}
+            onClick={() => navigate('/admin/users/create')}
           >
             Add User
           </Button>
@@ -223,10 +223,9 @@ const UserManager = () => {
             <TableRow>
               <TableCell>User</TableCell>
               <TableCell>Email</TableCell>
-              <TableCell>WhatsApp</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell>Place</TableCell>
-              <TableCell>Template</TableCell>
+              <TableCell>Branch</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Access Type</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -248,58 +247,38 @@ const UserManager = () => {
                   </Box>
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>{user.whatsappNumber || 'N/A'}</TableCell>
+                <TableCell>{user.branchName || 'N/A'}</TableCell>
+                <TableCell>{user.type}</TableCell>
                 <TableCell>
-                  {new Date(user.date).toLocaleDateString()}
-                </TableCell>
-                <TableCell>{user.place || 'N/A'}</TableCell>
-                <TableCell>
-                  {user.template ? (
-                    <Chip 
-                      label={user.template.name} 
-                      size="small"
-                      color="primary"
-                    />
-                  ) : (
-                    <Select
-                      size="small"
-                      value=""
-                      onChange={(e) => handleAssignTemplate(user._id, e.target.value)}
-                      displayEmpty
-                      sx={{ minWidth: 120 }}
-                    >
-                      <MenuItem value="" disabled>Assign Template</MenuItem>
-                      {templates.map(template => (
-                        <MenuItem key={template._id} value={template._id}>
-                          {template.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {user.accessType?.map((access) => (
+                      <Chip key={access} label={access} size="small" variant="outlined" />
+                    ))}
+                  </Box>
                 </TableCell>
                 <TableCell>
-                  <Chip 
-                    label={user.status} 
+                  <Chip
+                    label={user.status}
                     color={getStatusColor(user.status)}
                     size="small"
                   />
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton 
+                    <IconButton
                       size="small"
                       onClick={() => navigate(`/users/${user._id}`)}
                     >
                       <VisibilityIcon />
                     </IconButton>
-                    <IconButton 
+                    <IconButton
                       size="small"
-                      onClick={() => navigate(`/users/edit/${user._id}`)}
+                      onClick={() => navigate(`/admin/users/edit/${user._id}`)}
                     >
                       <EditIcon />
                     </IconButton>
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       onClick={() => handleDeleteClick(user)}
                       color="error"
                     >

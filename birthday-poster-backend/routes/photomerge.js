@@ -41,7 +41,18 @@ router.post('/template-upload', async (req, res) => {
             return res.status(400).json({ error: 'Invalid content type' });
         }
 
-        const boundary = '--' + contentType.split('boundary=')[1];
+        let boundary = contentType.split('boundary=')[1];
+        if (boundary) {
+            // Remove potential trailing parameters (separated by ;)
+            boundary = boundary.split(';')[0].trim();
+            // Remove surrounding quotes if present
+            if (boundary.startsWith('"') && boundary.endsWith('"')) {
+                boundary = boundary.slice(1, -1);
+            }
+            boundary = '--' + boundary;
+        } else {
+            return res.status(400).json({ error: 'Boundary not found' });
+        }
         let chunks = [];
         req.on('data', (chunk) => {
             chunks.push(chunk);
@@ -51,14 +62,15 @@ router.post('/template-upload', async (req, res) => {
             try {
                 const buffer = Buffer.concat(chunks);
                 const boundaryBuffer = Buffer.from(boundary);
-                const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1);
+                const parts = splitBuffer(buffer, boundaryBuffer).slice(0, -1);
 
                 let templatename = '';
-                let createdDate = '';
                 let type = 'template';
                 let source = 'photo merge app';
                 let adminid = '';
                 let branchid = '';
+                let accessType = 'photomerge';
+                let status = 'active';
                 let photosBuffers = [];
 
                 parts.forEach((part) => {
@@ -68,8 +80,6 @@ router.post('/template-upload', async (req, res) => {
 
                     if (headersText.includes('name="templatename"')) {
                         templatename = body.toString().trim();
-                    } else if (headersText.includes('name="createdDate"')) {
-                        createdDate = body.toString().trim();
                     } else if (headersText.includes('name="type"')) {
                         type = body.toString().trim();
                     } else if (headersText.includes('name="source"')) {
@@ -78,7 +88,12 @@ router.post('/template-upload', async (req, res) => {
                         adminid = body.toString().trim();
                     } else if (headersText.includes('name="branchid"')) {
                         branchid = body.toString().trim();
+                    } else if (headersText.includes('name="accessType"')) {
+                        accessType = body.toString().trim();
+                    } else if (headersText.includes('name="status"')) {
+                        status = body.toString().trim();
                     } else if (headersText.includes('name="photos"')) {
+                        console.log('Found photo part'); // DEBUG
                         photosBuffers.push({
                             buffer: body,
                             filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
@@ -100,12 +115,14 @@ router.post('/template-upload', async (req, res) => {
                 const template = new PhotoMergeTemplate({
                     templatename,
                     templatePhotos,
-                    createdDate,
+                    createdDate: new Date(),
                     updatedDate: new Date(),
                     type,
                     source,
                     adminid,
                     branchid,
+                    accessType,
+                    status
                 });
 
                 await template.save();
@@ -144,12 +161,13 @@ router.put('/templates/:id', async (req, res) => {
             try {
                 const buffer = Buffer.concat(chunks);
                 const boundaryBuffer = Buffer.from(boundary);
-                const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1);
+                const parts = splitBuffer(buffer, boundaryBuffer).slice(0, -1);
 
                 let updateData = {
                     updatedDate: new Date()
                 };
                 let photosBuffers = [];
+                let photoOrder = null;
 
                 parts.forEach((part) => {
                     const [rawHeaders, rawBody] = splitBuffer(part, Buffer.from('\r\n\r\n'));
@@ -168,16 +186,54 @@ router.put('/templates/:id', async (req, res) => {
                         updateData.adminid = body.toString().trim();
                     } else if (headersText.includes('name="branchid"')) {
                         updateData.branchid = body.toString().trim();
+                    } else if (headersText.includes('name="accessType"')) {
+                        updateData.accessType = body.toString().trim();
+                    } else if (headersText.includes('name="status"')) {
+                        updateData.status = body.toString().trim();
                     } else if (headersText.includes('name="photos"')) {
                         photosBuffers.push({
                             buffer: body,
                             filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
                             mimetype: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'image/jpeg'
                         });
+                    } else if (headersText.includes('name="photoOrder"')) {
+                        try {
+                            photoOrder = JSON.parse(body.toString().trim());
+                        } catch (e) {
+                            console.error('Failed to parse photoOrder', e);
+                        }
                     }
                 });
 
-                if (photosBuffers.length > 0) {
+                if (photoOrder && Array.isArray(photoOrder)) {
+                    // Hybrid Update Logic
+                    console.log('Processing photoOrder:', photoOrder);
+                    console.log('Available photo buffers:', photosBuffers.length);
+                    const templatePhotos = [];
+                    let fileIndex = 0;
+
+                    for (const item of photoOrder) {
+                        if (item === 'NEW_FILE') {
+                            if (fileIndex < photosBuffers.length) {
+                                const p = photosBuffers[fileIndex];
+                                const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
+                                console.log(`Uploaded new file at index ${fileIndex}:`, photoId);
+                                templatePhotos.push(photoId);
+                                fileIndex++;
+                            }
+                        } else {
+                            // Verify it's a valid ID to prevent injection/errors?
+                            if (mongoose.Types.ObjectId.isValid(item)) {
+                                console.log('Keeping existing photo:', item);
+                                templatePhotos.push(item);
+                            }
+                        }
+                    }
+                    console.log('Final templatePhotos array:', templatePhotos);
+                    updateData.templatePhotos = templatePhotos;
+
+                } else if (photosBuffers.length > 0) {
+                    // Legacy: Replace all
                     const templatePhotos = [];
                     for (const p of photosBuffers) {
                         const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);

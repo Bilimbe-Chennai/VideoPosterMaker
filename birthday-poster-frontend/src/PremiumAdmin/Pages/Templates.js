@@ -13,6 +13,8 @@ import {
     Activity,
     BarChart2,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     X,
     Check,
     ArrowUpRight,
@@ -515,14 +517,44 @@ const Templates = () => {
     // Modal States
     const [showModal, setShowModal] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState(null);
+    const [templateCount, setTemplateCount] = useState(3);
+    const [userAccess, setUserAccess] = useState([]);
+    const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
+
+    // Initialize user settings
+    useEffect(() => {
+        const adminData = localStorage.getItem('admin');
+        if (adminData) {
+            try {
+                const user = JSON.parse(adminData);
+                setTemplateCount(user.templateCount || 1);
+                setUserAccess(user.accessType || []);
+                setAdminInfo({
+                    id: user.id || user._id || '',
+                    branchid: user.branchid || ''
+                });
+            } catch (e) {
+                console.error('Error parsing user data', e);
+            }
+        }
+    }, []);
+
     const [formData, setFormData] = useState({
         name: '',
-        category: 'Casual',
         status: 'active',
-        overlayUrl: '',
-        faceAlignment: 'center',
-        cameraMode: 'standard'
+        accessType: 'photomerge',
+        photos: []
     });
+
+    const handleFileChange = (index) => (e) => {
+        const file = e.target.files[0];
+        const newPhotos = [...formData.photos];
+        newPhotos[index] = file;
+        setFormData({
+            ...formData,
+            photos: newPhotos
+        });
+    };
 
     // Default Categories based on spec
     const categories = ['Casual', 'Lehengas', 'Wedding', 'Sarees', 'Festive'];
@@ -544,51 +576,26 @@ const Templates = () => {
 
     const fetchData = async () => {
         try {
-            // 1. Fetch Template Definitions (Local for now, until API exists)
-            const localData = localStorage.getItem('photo_templates');
-            let templateList = localData ? JSON.parse(localData) : [
-                { id: 'T101', name: 'Royal Wedding Gold', category: 'Wedding', status: 'active', usage: 1250, lastUsed: '2025-12-30', createdAt: '2025-01-15', overlayUrl: 'https://via.placeholder.com/150/FFD700/000?text=Gold+Border' },
-                { id: 'T102', name: 'Silk Heritage', category: 'Sarees', status: 'active', usage: 850, lastUsed: '2025-12-28', createdAt: '2025-02-10', overlayUrl: 'https://via.placeholder.com/150/764BA2/FFF?text=Silk+Pattern' },
-                { id: 'T103', name: 'Festive Vibes Red', category: 'Festive', status: 'inactive', usage: 420, lastUsed: '2025-11-20', createdAt: '2025-05-05', overlayUrl: 'https://via.placeholder.com/150/E53935/FFF?text=Red+Festive' },
-                { id: 'T104', name: 'Casual Summer', category: 'Casual', status: 'active', usage: 2100, lastUsed: '2025-12-31', createdAt: '2025-03-20', overlayUrl: 'https://via.placeholder.com/150/4CAF50/FFF?text=Casual' },
-            ];
+            setLoading(true);
+            // Fetch templates from API
+            const response = await axiosData.get("/photomerge/templates");
+            const rawTemplates = response.data || [];
 
-            // 2. Fetch Real Usage Data
-            try {
-                const response = await axiosData.get("upload/all");
-                const rawItems = Array.isArray(response.data) ? response.data : (response.data.data || []);
-
-                const usageMap = {};
-                const lastUsedMap = {};
-
-                rawItems.forEach(item => {
-                    // Match posterVideoId to template ID (e.g. "67b31...883")
-                    // If template IDs in local storage are like 'T101', we might have a mismatch.
-                    // Assuming for now user will manually ensure IDs match or we rely on 'posterVideoId' 
-                    // matching the ID in the template list. 
-                    // If local IDs are 'T101' but API returns MongoIDs, this won't match perfectly without user alignment.
-                    // For this task, we will attempt to match exact string.
-                    const tid = item.posterVideoId;
-                    if (tid) {
-                        usageMap[tid] = (usageMap[tid] || 0) + 1;
-
-                        const itemDate = new Date(item.date || item.createdAt).getTime();
-                        if (!lastUsedMap[tid] || itemDate > lastUsedMap[tid]) {
-                            lastUsedMap[tid] = itemDate;
-                        }
-                    }
-                });
-
-                // Merge Usage Data
-                templateList = templateList.map(t => ({
-                    ...t,
-                    usage: usageMap[t.id] || 0, // Use real count if available (will be 0 if ID doesn't match API)
-                    lastUsed: lastUsedMap[t.id] ? new Date(lastUsedMap[t.id]).toLocaleDateString() : t.lastUsed
-                }));
-
-            } catch (apiErr) {
-                console.warn("Failed to fetch usage stats, using local mock data", apiErr);
-            }
+            // Map backend data to frontend structure
+            let templateList = rawTemplates.map(t => ({
+                id: t._id,
+                name: t.templatename,
+                category: 'Photo Merge', // defaulting for now, or derive from type/accessType
+                status: t.status || 'active',
+                usage: 0, // Mock usage for now, or fetch real usage
+                lastUsed: t.updatedDate ? new Date(t.updatedDate).toLocaleDateString() : 'Never',
+                createdAt: t.createdDate ? new Date(t.createdDate).toLocaleDateString() : new Date().toLocaleDateString(),
+                overlayUrl: (t.templatePhotos && t.templatePhotos.length > 0)
+                    ? `http://localhost:7000/api/upload/file/${t.templatePhotos[0]}`
+                    : 'https://via.placeholder.com/150?text=No+Image',
+                accessType: t.accessType || 'photomerge',
+                photos: t.templatePhotos || []
+            }));
 
             setTemplates(templateList);
             setLoading(false);
@@ -607,56 +614,130 @@ const Templates = () => {
         setEditingTemplate(null);
         setFormData({
             name: '',
-            category: 'Casual',
             status: 'active',
-
-            overlayUrl: '',
-            faceAlignment: 'center',
-            cameraMode: 'standard'
+            accessType: 'photomerge',
+            photos: []
         });
         setShowModal(true);
     };
 
     const handleEdit = (tmpl) => {
         setEditingTemplate(tmpl);
-        setFormData({ ...tmpl });
+        setFormData({
+            name: tmpl.name,
+            status: tmpl.status,
+            accessType: tmpl.accessType,
+            photos: tmpl.photos || []
+        });
         setShowModal(true);
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this template?')) {
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this template?")) return;
+        try {
+            await axiosData.delete(`/photomerge/templates/${id}`);
+            // Remove from local state
             const newList = templates.filter(t => t.id !== id);
-            saveTemplates(newList);
+            setTemplates(newList);
+            alert("Template deleted successfully");
+        } catch (error) {
+            console.error("Error deleting template", error);
+            alert("Failed to delete template");
         }
     };
 
-    const handleToggleStatus = (id) => {
-        const newList = templates.map(t =>
-            t.id === id ? { ...t, status: t.status === 'active' ? 'inactive' : 'active' } : t
-        );
-        saveTemplates(newList);
-    };
+    const handleToggleStatus = async (id) => {
+        const tmpl = templates.find(t => t.id === id);
+        if (!tmpl) return;
 
+        const newStatus = tmpl.status === 'active' ? 'inactive' : 'active';
 
+        try {
+            const formData = new FormData();
+            formData.append('status', newStatus);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (editingTemplate) {
+            await axiosData.put(`/photomerge/templates/${id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Update local state
             const newList = templates.map(t =>
-                t.id === editingTemplate.id ? { ...formData, updatedAt: new Date().toISOString() } : t
+                t.id === id ? { ...t, status: newStatus } : t
             );
-            saveTemplates(newList);
-        } else {
-            const newTmpl = {
-                ...formData,
-                id: 'T' + (Math.floor(Math.random() * 900) + 100),
-                usage: 0,
-                createdAt: new Date().toISOString(),
-                lastUsed: 'Never'
-            };
-            saveTemplates([...templates, newTmpl]);
+            setTemplates(newList);
+        } catch (error) {
+            console.error("Error updating status", error);
+            alert("Failed to update status");
         }
-        setShowModal(false);
+    };
+
+
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        try {
+            if (editingTemplate) {
+                const uploadData = new FormData();
+                uploadData.append('templatename', formData.name);
+                uploadData.append('accessType', formData.accessType);
+                uploadData.append('status', formData.status);
+
+                // Hybrid Update Logic: Construct photoOrder
+                const photoOrder = [];
+                formData.photos.forEach((photo, index) => {
+                    if (photo instanceof File) {
+                        // New file uploaded
+                        uploadData.append('photos', photo);
+                        photoOrder.push('NEW_FILE');
+                    } else if (typeof photo === 'string' && photo.trim() !== '') {
+                        // Existing photo ID - keep it
+                        photoOrder.push(photo);
+                    } else {
+                        // Empty or undefined - skip this slot
+                        // This shouldn't happen if handleEdit works correctly
+                        console.warn('Empty photo slot at index', index);
+                    }
+                });
+
+                uploadData.append('photoOrder', JSON.stringify(photoOrder));
+
+                await axiosData.put(`/photomerge/templates/${editingTemplate.id}`, uploadData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                fetchData();
+                alert('Template updated successfully!');
+
+            } else {
+                const uploadData = new FormData();
+                uploadData.append('templatename', formData.name);
+                uploadData.append('accessType', formData.accessType);
+                uploadData.append('status', formData.status);
+                // Add required metadata
+                uploadData.append('adminid', adminInfo.id);
+                uploadData.append('branchid', adminInfo.branchid);
+                uploadData.append('source', 'photo merge app');
+
+                // Append photos
+                formData.photos.forEach((photo, index) => {
+                    if (photo instanceof File) {
+                        uploadData.append('photos', photo);
+                    }
+                });
+
+                await axiosData.post('/photomerge/template-upload', uploadData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                fetchData();
+                alert('Template created successfully!');
+            }
+            setShowModal(false);
+        } catch (error) {
+            console.error('Error saving template:', error);
+            alert('Failed to save template: ' + (error.response?.data?.error || error.message));
+        }
     };
 
     const exportToExcel = (dataToExport = templates) => {
@@ -732,6 +813,69 @@ const Templates = () => {
             endY: 28
         },
     ];
+
+    const TemplateCarousel = ({ photos, name }) => {
+        const [currentIndex, setCurrentIndex] = useState(0);
+
+        const handleNext = (e) => {
+            e.stopPropagation();
+            setCurrentIndex((prev) => (prev + 1) % photos.length);
+        };
+
+        const handlePrev = (e) => {
+            e.stopPropagation();
+            setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
+        };
+
+        const currentPhotoUrl = `http://localhost:7000/api/upload/file/${photos[currentIndex]}`;
+
+        return (
+            <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={currentPhotoUrl} alt={`${name} - ${currentIndex + 1}`} style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }} />
+
+                {photos.length > 1 && (
+                    <>
+                        <button
+                            onClick={handlePrev}
+                            style={{
+                                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+                                background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%',
+                                width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', zIndex: 2
+                            }}
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            style={{
+                                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                                background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%',
+                                width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', zIndex: 2
+                            }}
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                        <div style={{
+                            position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+                            display: 'flex', gap: '4px', zIndex: 2
+                        }}>
+                            {photos.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        width: '6px', height: '6px', borderRadius: '50%',
+                                        background: idx === currentIndex ? '#1A1A1A' : 'rgba(0,0,0,0.2)'
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    };
 
     return (
         <PageContainer>
@@ -870,7 +1014,11 @@ const Templates = () => {
                         </SelectionCircle>
 
                         <TemplatePreview $active={tmpl.status === 'active'}>
-                            <img src={tmpl.overlayUrl} alt={tmpl.name} />
+                            {tmpl.photos && tmpl.photos.length > 1 ? (
+                                <TemplateCarousel photos={tmpl.photos} name={tmpl.name} />
+                            ) : (
+                                <img src={tmpl.overlayUrl} alt={tmpl.name} />
+                            )}
                             <div className="status-badge">{tmpl.status.toUpperCase()}</div>
                         </TemplatePreview>
 
@@ -959,15 +1107,6 @@ const Templates = () => {
 
                             <FormRow>
                                 <FormGroup>
-                                    <label>Category</label>
-                                    <select
-                                        value={formData.category}
-                                        onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                    >
-                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </FormGroup>
-                                <FormGroup>
                                     <label>Status</label>
                                     <select
                                         value={formData.status}
@@ -977,29 +1116,39 @@ const Templates = () => {
                                         <option value="inactive">Inactive</option>
                                     </select>
                                 </FormGroup>
-                            </FormRow>
-
-                            <FormRow>
                                 <FormGroup>
-                                    <label>Face Alignment</label>
+                                    <label>Access Type</label>
                                     <select
-                                        value={formData.faceAlignment}
-                                        onChange={e => setFormData({ ...formData, faceAlignment: e.target.value })}
+                                        value={formData.accessType}
+                                        onChange={e => setFormData({ ...formData, accessType: e.target.value })}
                                     >
-                                        <option value="center">Center</option>
-                                        <option value="offset">Offset</option>
+                                        {(userAccess.length === 0 || userAccess.includes('photomerge')) && <option value="photomerge">Photo Merge</option>}
+                                        {(userAccess.length === 0 || userAccess.includes('videovideo')) && <option value="videovideo">Video + Video</option>}
+                                        {(userAccess.length === 0 || userAccess.includes('videovideovideo')) && <option value="videovideovideo">Video + Video + Video</option>}
                                     </select>
                                 </FormGroup>
                             </FormRow>
 
                             <FormGroup>
-                                <label>Overlay PNG URL (Transparent)</label>
-                                <input
-                                    placeholder="https://api.yoursite.com/overlays/gold.png"
-                                    value={formData.overlayUrl}
-                                    onChange={e => setFormData({ ...formData, overlayUrl: e.target.value })}
-                                />
+                                <label>Template Photos ({templateCount} Required)</label>
+                                <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>
+                                    {[...Array(templateCount)].map((_, index) => (
+                                        <div key={index}>
+                                            <label style={{ fontSize: '12px', marginBottom: '4px' }}>
+                                                Photo {index + 1}
+                                                {typeof formData.photos[index] === 'string' && <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>}
+                                            </label>
+                                            <input
+                                                accept="image/*"
+                                                type="file"
+                                                onChange={handleFileChange(index)}
+                                                style={{ padding: '8px' }}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                             </FormGroup>
+
 
                             <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
                                 <Button type="button" onClick={() => setShowModal(false)} style={{ flex: 1 }}>Cancel</Button>

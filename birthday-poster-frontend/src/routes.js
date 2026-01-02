@@ -18,7 +18,8 @@ const ViewAllPoster = lazy(() => import('./Components/ViewAllPoster'));
 // const TemplateManager = lazy(() => import('./Components/TemplateManager'));
 // const CreateTemplate = lazy(() => import('./Components/CreateTemplate'));
 // const UserManager = lazy(() => import('./Components/UserManager'));
-// const UserDetails = lazy(() => import('./Components/UserDetails'));
+const UserForm = lazy(() => import('./Components/UserForm'));
+const UserDetails = lazy(() => import('./Components/UserDetails'));
 const PhotoUpload = lazy(() => import('./Components/PhotoUpload'));
 // Layout component (needs to be imported or created)
 const Layout = lazy(() => import('./Layout/Layout'));
@@ -31,13 +32,13 @@ const AdminLayout = ({ children }) => (
   <Layout>{children}</Layout>
 );
 const routes = [
-//   {
-// path: '/',
-//     element: <ClientPageUser />,
-//     exact: true
-//   },
-    {
-path: '/',
+  //   {
+  // path: '/',
+  //     element: <ClientPageUser />,
+  //     exact: true
+  //   },
+  {
+    path: '/',
     element: <EventLoginPage />,
     exact: true
   },
@@ -62,14 +63,14 @@ path: '/',
     exact: true
   },
   // Admin System Routes
-  
+
   // Auth Routes (No Layout)
   // {
   //   path: '/admin/login',
   //   element: <Login />,
   //   exact: true
   // },
-  
+
   // // Admin Routes with Layout and Private Route
   // {
   //   path: '/admin',
@@ -164,17 +165,28 @@ path: '/',
   //   ),
   //   exact: true
   // },
-  // {
-  //   path: '/admin/users/create',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <UserDetails /> {/* Reuse UserDetails for creating */}
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
+  {
+    path: '/admin/users/create',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <UserForm />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/admin/users/edit/:id',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <UserForm />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
   // {
   //   path: '/admin/users/:id',
   //   element: (
@@ -208,7 +220,7 @@ path: '/',
   //   ),
   //   exact: true
   // },
-  
+
   // Fallback routes
   // {
   //   path: '*',

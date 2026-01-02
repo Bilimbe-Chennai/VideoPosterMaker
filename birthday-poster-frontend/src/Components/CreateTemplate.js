@@ -31,13 +31,15 @@ import useAxios from "../useAxios";
 const steps = ['Basic Info', 'Settings', 'Preview'];
 
 const CreateTemplate = () => {
-   const axiosData = useAxios();
+  const axiosData = useAxios();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     type: 'basic',
+    accessType: 'photomerge',
+    status: 'active',
     settings: {
       allowUpload: true,
       maxFileSize: 5,
@@ -48,7 +50,23 @@ const CreateTemplate = () => {
       compression: 'medium',
     },
     customFields: [],
+    photos: [],
   });
+  const [templateCount, setTemplateCount] = useState(1);
+  const [userAccess, setUserAccess] = useState([]);
+
+  React.useEffect(() => {
+    const adminData = localStorage.getItem('admin');
+    if (adminData) {
+      try {
+        const user = JSON.parse(adminData);
+        setTemplateCount(user.templateCount || 1);
+        setUserAccess(user.accessType || []);
+      } catch (e) {
+        console.error('Error parsing user data', e);
+      }
+    }
+  }, []);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,6 +77,16 @@ const CreateTemplate = () => {
     setFormData({
       ...formData,
       [name]: value,
+    });
+  };
+
+  const handleFileChange = (index) => (e) => {
+    const file = e.target.files[0];
+    const newPhotos = [...formData.photos];
+    newPhotos[index] = file;
+    setFormData({
+      ...formData,
+      photos: newPhotos
     });
   };
 
@@ -108,9 +136,29 @@ const CreateTemplate = () => {
     setError('');
 
     try {
-      await axiosData.post('/templates', formData);
+      const uploadData = new FormData();
+      uploadData.append('templatename', formData.name);
+      uploadData.append('description', formData.description);
+      uploadData.append('type', formData.type);
+      uploadData.append('accessType', formData.accessType);
+      uploadData.append('status', formData.status);
+      uploadData.append('settings', JSON.stringify(formData.settings));
+      uploadData.append('customFields', JSON.stringify(formData.customFields));
+
+      // Append photos
+      formData.photos.forEach((photo, index) => {
+        if (photo) {
+          uploadData.append('photos', photo);
+        }
+      });
+
+      await axiosData.post('/photomerge/template-upload', uploadData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
       setSuccess('Template created successfully!');
-      
+
       setTimeout(() => {
         navigate('/templates');
       }, 2000);
@@ -166,6 +214,35 @@ const CreateTemplate = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Access Type</InputLabel>
+                <Select
+                  name="accessType"
+                  value={formData.accessType}
+                  onChange={handleChange}
+                  label="Access Type"
+                >
+                  {(userAccess.length === 0 || userAccess.includes('photomerge')) && <MenuItem value="photomerge">Photo Merge</MenuItem>}
+                  {(userAccess.length === 0 || userAccess.includes('videovideo')) && <MenuItem value="videovideo">Video + Video</MenuItem>}
+                  {(userAccess.length === 0 || userAccess.includes('videovideovideo')) && <MenuItem value="videovideovideo">Video + Video + Video</MenuItem>}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  label="Status"
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
           </Grid>
         );
 
@@ -176,6 +253,19 @@ const CreateTemplate = () => {
               <Typography variant="h6" gutterBottom>
                 Upload Settings
               </Typography>
+              <Grid container spacing={2}>
+                {[...Array(templateCount)].map((_, index) => (
+                  <Grid item xs={12} key={index}>
+                    <Typography variant="subtitle2">Photo {index + 1}</Typography>
+                    <input
+                      accept="image/*"
+                      type="file"
+                      onChange={handleFileChange(index)}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+              <Divider sx={{ my: 2 }} />
               <FormControlLabel
                 control={
                   <Switch
@@ -250,14 +340,14 @@ const CreateTemplate = () => {
                 <TextField
                   label="Field Name"
                   value={newField.name}
-                  onChange={(e) => setNewField({...newField, name: e.target.value})}
+                  onChange={(e) => setNewField({ ...newField, name: e.target.value })}
                   size="small"
                 />
                 <FormControl size="small" sx={{ minWidth: 120 }}>
                   <InputLabel>Type</InputLabel>
                   <Select
                     value={newField.type}
-                    onChange={(e) => setNewField({...newField, type: e.target.value})}
+                    onChange={(e) => setNewField({ ...newField, type: e.target.value })}
                     label="Type"
                   >
                     <MenuItem value="text">Text</MenuItem>
@@ -270,7 +360,7 @@ const CreateTemplate = () => {
                   Add Field
                 </Button>
               </Box>
-              
+
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {formData.customFields.map((field) => (
                   <Chip
@@ -303,9 +393,9 @@ const CreateTemplate = () => {
                   <Typography variant="body1">
                     <strong>Description:</strong> {formData.description}
                   </Typography>
-                  
+
                   <Divider sx={{ my: 2 }} />
-                  
+
                   <Typography variant="subtitle1" gutterBottom>
                     Settings:
                   </Typography>
@@ -403,7 +493,7 @@ const CreateTemplate = () => {
           >
             Back
           </Button>
-          
+
           <Box sx={{ display: 'flex', gap: 2 }}>
             {activeStep === steps.length - 1 ? (
               <Button
