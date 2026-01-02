@@ -591,7 +591,7 @@ const Templates = () => {
                 lastUsed: t.updatedDate ? new Date(t.updatedDate).toLocaleDateString() : 'Never',
                 createdAt: t.createdDate ? new Date(t.createdDate).toLocaleDateString() : new Date().toLocaleDateString(),
                 overlayUrl: (t.templatePhotos && t.templatePhotos.length > 0)
-                    ? `http://localhost:7000/api/upload/file/${t.templatePhotos[0]}`
+                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${t.templatePhotos[0]}`
                     : 'https://via.placeholder.com/150?text=No+Image',
                 accessType: t.accessType || 'photomerge',
                 photos: t.templatePhotos || []
@@ -827,7 +827,7 @@ const Templates = () => {
             setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
         };
 
-        const currentPhotoUrl = `http://localhost:7000/api/upload/file/${photos[currentIndex]}`;
+        const currentPhotoUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photos[currentIndex]}`;
 
         return (
             <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

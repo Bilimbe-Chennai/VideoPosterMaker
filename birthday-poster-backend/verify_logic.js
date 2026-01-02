@@ -2,7 +2,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 
-const API_URL = 'http://localhost:7000/api';
+const API_URL = 'https://api.bilimbebrandactivations.com/api';
 
 async function runTests() {
     try {
