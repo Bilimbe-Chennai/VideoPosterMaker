@@ -6,6 +6,7 @@ import AdminLayout from './Layout/AdminLayout';
 import Dashboard from './Pages/Dashboard';
 import Customers from './Pages/Customers';
 import Photos from './Pages/Photos';
+import Templates from './Pages/Templates';
 import Analytics from './Pages/Analytics';
 import Placeholder from './Components/Placeholder';
 
@@ -71,7 +72,7 @@ function PremiumAdminApp() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<Customers />} />
           <Route path="photos" element={<Photos />} />
-          <Route path="templates" element={<Placeholder title="Templates" />} />
+          <Route path="templates" element={<Templates />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="share-tracking" element={<Placeholder title="Share Tracking" />} />
           <Route path="campaigns" element={<Placeholder title="Campaigns" />} />

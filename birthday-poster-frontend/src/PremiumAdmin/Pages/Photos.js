@@ -446,10 +446,7 @@ const pulsate = keyframes`
 `;
 
 const ImageWrapper = styled.div`
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  margin-bottom: 16px;
+  margin:15px 0px;
   position: relative;
   border: 4px solid #F5F5F5;
   overflow: hidden;
@@ -897,14 +894,15 @@ const Photos = () => {
     return matchesSearch && matchesBranch && matchesTemplate && matchesDate && matchesVisits;
   });
 
-  const exportData = () => {
-    const csvContent = "data:text/csv;charset=utf-8,"
-      + "ID,Customer,Category,Date,Visit Count,Shares\n"
-      + photos.map(e => `${e.id},${e.customer},${e.category},${e.date},${e.views},${e.shares}`).join("\n");
-    const encodedUri = encodeURI(csvContent);
+  const exportToExcel = () => {
+    const csvContent = "ID,Customer,Category,Template,Date,Visit Count,Total Shares\n"
+      + filteredPhotos.map(e => `${e.id},${e.customer},${e.category},${e.template},${e.date},${e.views},${e.shares}`).join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "photos_data.csv");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Photos_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -993,9 +991,9 @@ const Photos = () => {
           <p>Manage customer photos, interactions, and engagement</p>
         </HeaderTitle>
         <HeaderActions>
-          <ActionButton $variant="outline" onClick={() => exportData()}>
+          <ActionButton $variant="outline" onClick={() => exportToExcel()}>
             <Download size={18} />
-            Export
+            Export as Excel
           </ActionButton>
           <ActionButton $variant="success" onClick={() => sendBulkWhatsApp()}>
             <MessageCircle size={18} />
@@ -1046,8 +1044,8 @@ const Photos = () => {
             points: "M10,38 C25,35 35,38 50,32 S80,20 90,25",
             endX: 85, endY: 23
           }
-        ].map((kpi, index) => (
-          <KPICard key={index} $bgColor={kpi.bgColor}>
+        ].map((kpi, idx) => (
+          <KPICard key={idx} $bgColor={kpi.bgColor}>
             <KPITop>
               <KPIIconWrapper>
                 {kpi.icon}

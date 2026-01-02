@@ -611,13 +611,21 @@ const Customers = () => {
               ...item,
               visitCount: 0,
               photoCount: 0,
+              shareCount: 0, // Initialize shareCount
               latestTimeStamp: validTime
             };
           }
 
           const entry = customersMap[key];
+          const itemShares = (item.whatsappsharecount || 0) +
+            (item.facebooksharecount || 0) +
+            (item.twittersharecount || 0) +
+            (item.instagramsharecount || 0) +
+            (item.downloadcount || 0);
+
           entry.visitCount += 1;
           entry.photoCount += 1;
+          entry.shareCount += itemShares; // Add itemShares to the aggregated shareCount
 
           // Update to show details from the most recent visit
           if (validTime > entry.latestTimeStamp) {
@@ -665,7 +673,7 @@ const Customers = () => {
     };
 
     fetchCustomers();
-  }, [axiosData]);
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -765,6 +773,20 @@ const Customers = () => {
     }
   };
 
+  const exportToExcel = (dataToExport = filteredCustomers) => {
+    const csvContent = "ID,Name,Phone,Email,Visits,Photos,Category,Branch,Last Visit\n"
+      + dataToExport.map(e => `${e.id},${e.name},${e.phone},${e.email},${e.visits},${e.photos},${e.template},${e.branch},${e.lastVisit}`).join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Customers_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <CustomersContainer>
       {/* 1. Page Header */}
@@ -774,8 +796,8 @@ const Customers = () => {
           <p>Manage customer data, interactions, and engagement</p>
         </PageInfo>
         <ActionButtons>
-          <PrimaryButton $variant="outline" onClick={() => alert('Exporting to Excel...')}>
-            <Download size={16} /> Export
+          <PrimaryButton $variant="outline" onClick={() => exportToExcel()}>
+            <Download size={16} /> Export as Excel
           </PrimaryButton>
           <PrimaryButton $variant="success" onClick={() => alert('Opening WhatsApp bulk tool...')}>
             <MessageCircle size={16} /> Bulk WhatsApp
@@ -1084,8 +1106,8 @@ const Customers = () => {
             <PrimaryButton $variant="primary" style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}>
               <MessageCircle size={14} /> Send WhatsApp
             </PrimaryButton>
-            <PrimaryButton $variant="primary" style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}>
-              <Download size={14} /> Export CSV
+            <PrimaryButton $variant="primary" onClick={() => exportToExcel(customers.filter(c => selectedCustomers.includes(c.id)))} style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}>
+              <Download size={14} /> Export as Excel
             </PrimaryButton>
             <PrimaryButton $variant="primary" style={{ padding: '8px 16px', fontSize: '12px', background: '#E53935' }}>
               Delete Selected
@@ -1117,7 +1139,7 @@ const Customers = () => {
                 <InfoBox><div className="label">Phone</div><div className="value">{viewingCustomer.phone}</div></InfoBox>
                 <InfoBox><div className="label">Email</div><div className="value">{viewingCustomer.email}</div></InfoBox>
                 <InfoBox><div className="label">Consent Status</div><div className="value">Accepted</div></InfoBox>
-                <InfoBox><div className="label">Joined Date</div><div className="value">12.01.2024</div></InfoBox>
+                <InfoBox><div className="label">Last Visit</div><div className="value">{viewingCustomer.lastVisit}</div></InfoBox>
               </div>
             </ProfileSection>
 
@@ -1126,15 +1148,16 @@ const Customers = () => {
               <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                 <InfoBox><div className="label">Visits</div><div className="value">{viewingCustomer.visits}</div></InfoBox>
                 <InfoBox><div className="label">Photos</div><div className="value">{viewingCustomer.photos}</div></InfoBox>
-                <InfoBox><div className="label">Shares</div><div className="value">18</div></InfoBox>
+                <InfoBox><div className="label">Shares</div><div className="value">{viewingCustomer.shareCount || 0}</div></InfoBox>
               </div>
             </ProfileSection>
 
             <ProfileSection>
               <h4>Value Summary</h4>
               <div className="grid">
-                <InfoBox><div className="label">Total Generated Value</div><div className="value">{viewingCustomer.value}</div></InfoBox>
-                <InfoBox><div className="label">Preferred Platform</div><div className="value">WhatsApp</div></InfoBox>
+                {/* Dynamically showing template used instead of generic value */}
+                <InfoBox><div className="label">Template Preference</div><div className="value">{viewingCustomer.template}</div></InfoBox>
+                <InfoBox><div className="label">Store Branch</div><div className="value">{viewingCustomer.branch}</div></InfoBox>
               </div>
             </ProfileSection>
 
