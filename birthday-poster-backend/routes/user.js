@@ -7,7 +7,7 @@ router.post('/login', async (req, res) => {
     try {
         const { email, password, type } = req.body;
 
-        if (!email || !password || !type) {
+        if (!email || !password) {
             return res.status(400).json({ success: false, error: 'Email, password and type are required' });
         }
 
@@ -22,10 +22,10 @@ router.post('/login', async (req, res) => {
                 success: false,
                 error: 'Login limit reached for this account. Only 1 login allowed for app users.'
             });
+        }else if(type === 'app user'&& user.loginCount === 0){
+           user.loginCount = (user.loginCount || 0) + 1;
         }
-
         // Update login info
-        user.loginCount = (user.loginCount || 0) + 1;
         user.lastLogin = new Date();
         await user.save();
 

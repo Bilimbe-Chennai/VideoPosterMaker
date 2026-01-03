@@ -11,7 +11,7 @@ const UserSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['admin', 'sub-admin', 'client', 'app user'],
+        enum: ['admin', 'sub-admin', 'client', 'app user', 'superadmin'],
         default: 'client'
     },
     loginCount: {
