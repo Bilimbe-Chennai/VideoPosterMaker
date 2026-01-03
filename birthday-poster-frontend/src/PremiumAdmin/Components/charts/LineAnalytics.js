@@ -42,17 +42,26 @@ const shareThisWeek = [
     { name: 'Sun', value: 5, type: 'normal' },
 ];
 
-const LineAnalytics = ({ activeTab = 'Photos', period = 'Last week' }) => {
-    let data = [];
-    if (activeTab === 'Photos') {
-        data = period === 'Last week' ? photoLastWeek : photoThisWeek;
-    } else {
-        data = period === 'Last week' ? shareLastWeek : shareThisWeek;
-    }
+const LineAnalytics = ({ data, range }) => {
+    // Transform processed trends object ({ "2023-10-01": {photos:1...} }) into sorted array
+    const chartData = React.useMemo(() => {
+        if (!data) return [];
+        return Object.keys(data)
+            .sort() // Sort by date string (YYYY-MM-DD works perfectly for sorting)
+            .map(date => {
+                const [y, m, d] = date.split('-');
+                return {
+                    name: `${d}/${m}`, // Display as DD/MM
+                    photos: data[date].photos,
+                    shares: data[date].shares,
+                    fullDate: date
+                };
+            });
+    }, [data]);
 
     return (
         <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 0, left: -20, bottom: 25 }}>
+            <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="0" vertical={true} horizontal={false} stroke="#F0F0F0" />
                 <XAxis
                     dataKey="name"
@@ -76,17 +85,19 @@ const LineAnalytics = ({ activeTab = 'Photos', period = 'Last week' }) => {
                     }}
                 />
                 <Bar
-                    dataKey="value"
-                    radius={[12, 12, 12, 12]}
-                    barSize={24}
-                >
-                    {data.map((entry, index) => (
-                        <Cell
-                            key={`cell-${index}`}
-                            fill={entry.type === 'highlight' ? '#E8DFF1' : '#1A1A1A'}
-                        />
-                    ))}
-                </Bar>
+                    dataKey="photos"
+                    name="Photos"
+                    fill="#1A1A1A"
+                    radius={[4, 4, 0, 0]}
+                    barSize={12}
+                />
+                <Bar
+                    dataKey="shares"
+                    name="Shares"
+                    fill="#E8DFF1"
+                    radius={[4, 4, 0, 0]}
+                    barSize={12}
+                />
             </BarChart>
         </ResponsiveContainer>
     );

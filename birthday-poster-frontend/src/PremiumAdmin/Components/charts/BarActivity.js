@@ -12,10 +12,19 @@ const data = [
     { name: 'Sun', orders: 72 },
 ];
 
-const BarActivity = () => {
+const BarActivity = ({ data }) => {
+    // Transform platforms object {WhatsApp: 10, ...} into array
+    const chartData = React.useMemo(() => {
+        if (!data) return [];
+        return Object.entries(data).map(([name, value]) => ({
+            name,
+            shares: value
+        }));
+    }, [data]);
+
     return (
         <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.colors.borderLight} />
                 <XAxis
                     dataKey="name"
@@ -36,8 +45,8 @@ const BarActivity = () => {
                         boxShadow: theme.shadows.card
                     }}
                 />
-                <Bar dataKey="orders" fill={theme.colors.primaryDark} radius={[4, 4, 0, 0]}>
-                    {data.map((entry, index) => (
+                <Bar dataKey="shares" fill={theme.colors.primaryDark} radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={index % 2 === 0 ? theme.colors.primaryDark : theme.colors.textSecondary} />
                     ))}
                 </Bar>

@@ -285,7 +285,7 @@ const TemplatePreview = styled.div`
 
   img {
     max-width: 90%;
-    max-height: 90%;
+    max-height: 80%;
     object-fit: contain;
     transition: transform 0.5s ease;
     filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1));
@@ -382,8 +382,7 @@ const ActionFooter = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px; // Removed border-top for cleaner look
-  padding-top: 0;
+  padding:10px;
 `;
 
 const SelectionCircle = styled.div`
@@ -831,7 +830,7 @@ const Templates = () => {
 
         return (
             <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={currentPhotoUrl} alt={`${name} - ${currentIndex + 1}`} style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }} />
+                <img src={currentPhotoUrl} alt={`${name} - ${currentIndex + 1}`} style={{ maxWidth: '90%', maxHeight: '75%', objectFit: 'contain' }} />
 
                 {photos.length > 1 && (
                     <>
@@ -999,52 +998,34 @@ const Templates = () => {
             <TemplateGrid>
                 {filteredTemplates.map(tmpl => (
                     <TemplateCard key={tmpl.id} $selected={selectedIds.includes(tmpl.id)}>
-                        <SelectionCircle
-                            $selected={selectedIds.includes(tmpl.id)}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (selectedIds.includes(tmpl.id)) {
-                                    setSelectedIds(selectedIds.filter(id => id !== tmpl.id));
-                                } else {
-                                    setSelectedIds([...selectedIds, tmpl.id]);
-                                }
-                            }}
-                        >
-                            <Check size={12} strokeWidth={4} />
-                        </SelectionCircle>
-
-                        <TemplatePreview $active={tmpl.status === 'active'}>
-                            {tmpl.photos && tmpl.photos.length > 1 ? (
-                                <TemplateCarousel photos={tmpl.photos} name={tmpl.name} />
-                            ) : (
-                                <img src={tmpl.overlayUrl} alt={tmpl.name} />
-                            )}
+                        <TemplatePreview $active={tmpl.status === 'active'} onClick={() => handleEdit(tmpl)}>
+                            <TemplateCarousel photos={tmpl.photos} name={tmpl.name} />
                             <div className="status-badge">{tmpl.status.toUpperCase()}</div>
+                            <SelectionCircle
+                                $selected={selectedIds.includes(tmpl.id)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedIds(prev => prev.includes(tmpl.id) ? prev.filter(id => id !== tmpl.id) : [...prev, tmpl.id]);
+                                }}
+                            />
                         </TemplatePreview>
-
                         <TemplateInfo>
                             <TemplateTitle>
                                 <h3>{tmpl.name}</h3>
                                 <div style={{ fontSize: '12px', color: '#AAA', fontWeight: 600 }}>{tmpl.id}</div>
                             </TemplateTitle>
-                            <TemplateCategory>{tmpl.category}</TemplateCategory>
-
-                            <UsageStats>
-                                <StatItem>
+                            <div className="category">{tmpl.category}</div>
+                            <div className="usage-stats">
+                                <div className="stat-item">
                                     <div className="label">Total Usage</div>
                                     <div className="value">{tmpl.usage.toLocaleString()}</div>
-                                </StatItem>
-                                <StatItem style={{ justifyContent: 'flex-end', textAlign: 'right' }}>
+                                </div>
+                                <div className="stat-item">
                                     <div className="label">Last Used</div>
                                     <div className="value">{tmpl.lastUsed}</div>
-                                </StatItem>
-                            </UsageStats>
-
-                            <div style={{ fontSize: '11px', color: '#BBB' }}>
-                                Created: {new Date(tmpl.createdAt).toLocaleDateString()}
+                                </div>
                             </div>
                         </TemplateInfo>
-
                         <ActionFooter>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <Button style={{ padding: '6px', minWidth: '32px' }} title="Edit" onClick={() => handleEdit(tmpl)}>
@@ -1066,101 +1047,105 @@ const Templates = () => {
                 ))}
             </TemplateGrid>
 
-            {selectedIds.length > 0 && (
-                <BulkBar>
-                    <div className="count">{selectedIds.length} Templates Selected</div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <Button $variant="primary" onClick={() => {
-                            const newList = templates.map(t => selectedIds.includes(t.id) ? { ...t, status: 'active' } : t);
-                            saveTemplates(newList);
-                            setSelectedIds([]);
-                        }}>Activate</Button>
-                        <Button $variant="primary" onClick={() => {
-                            const newList = templates.map(t => selectedIds.includes(t.id) ? { ...t, status: 'inactive' } : t);
-                            saveTemplates(newList);
-                            setSelectedIds([]);
-                        }}>Deactivate</Button>
-                        <Button $variant="primary" onClick={() => exportToExcel(templates.filter(t => selectedIds.includes(t.id)))}>Export</Button>
-                        <Button onClick={() => setSelectedIds([])} style={{ background: 'transparent', color: 'white' }}>Cancel</Button>
-                    </div>
-                </BulkBar>
-            )}
-
-            {showModal && (
-                <ModalOverlay onClick={() => setShowModal(false)}>
-                    <ModalContent onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                            <h2>{editingTemplate ? 'Edit Template' : 'Create New Template'}</h2>
-                            <X size={24} style={{ cursor: 'pointer' }} onClick={() => setShowModal(false)} />
+            {
+                selectedIds.length > 0 && (
+                    <BulkBar>
+                        <div className="count">{selectedIds.length} Templates Selected</div>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <Button $variant="primary" onClick={() => {
+                                const newList = templates.map(t => selectedIds.includes(t.id) ? { ...t, status: 'active' } : t);
+                                saveTemplates(newList);
+                                setSelectedIds([]);
+                            }}>Activate</Button>
+                            <Button $variant="primary" onClick={() => {
+                                const newList = templates.map(t => selectedIds.includes(t.id) ? { ...t, status: 'inactive' } : t);
+                                saveTemplates(newList);
+                                setSelectedIds([]);
+                            }}>Deactivate</Button>
+                            <Button $variant="primary" onClick={() => exportToExcel(templates.filter(t => selectedIds.includes(t.id)))}>Export</Button>
+                            <Button onClick={() => setSelectedIds([])} style={{ background: 'transparent', color: 'white' }}>Cancel</Button>
                         </div>
+                    </BulkBar>
+                )
+            }
 
-                        <form onSubmit={handleSubmit}>
-                            <FormGroup>
-                                <label>Template Name</label>
-                                <input
-                                    required
-                                    placeholder="e.g. Royal Wedding Gold"
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </FormGroup>
-
-                            <FormRow>
-                                <FormGroup>
-                                    <label>Status</label>
-                                    <select
-                                        value={formData.status}
-                                        onChange={e => setFormData({ ...formData, status: e.target.value })}
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
-                                </FormGroup>
-                                <FormGroup>
-                                    <label>Access Type</label>
-                                    <select
-                                        value={formData.accessType}
-                                        onChange={e => setFormData({ ...formData, accessType: e.target.value })}
-                                    >
-                                        {(userAccess.length === 0 || userAccess.includes('photomerge')) && <option value="photomerge">Photo Merge</option>}
-                                        {(userAccess.length === 0 || userAccess.includes('videovideo')) && <option value="videovideo">Video + Video</option>}
-                                        {(userAccess.length === 0 || userAccess.includes('videovideovideo')) && <option value="videovideovideo">Video + Video + Video</option>}
-                                    </select>
-                                </FormGroup>
-                            </FormRow>
-
-                            <FormGroup>
-                                <label>Template Photos ({templateCount} Required)</label>
-                                <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>
-                                    {[...Array(templateCount)].map((_, index) => (
-                                        <div key={index}>
-                                            <label style={{ fontSize: '12px', marginBottom: '4px' }}>
-                                                Photo {index + 1}
-                                                {typeof formData.photos[index] === 'string' && <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>}
-                                            </label>
-                                            <input
-                                                accept="image/*"
-                                                type="file"
-                                                onChange={handleFileChange(index)}
-                                                style={{ padding: '8px' }}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </FormGroup>
-
-
-                            <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                                <Button type="button" onClick={() => setShowModal(false)} style={{ flex: 1 }}>Cancel</Button>
-                                <Button type="submit" $variant="primary" style={{ flex: 1 }}>
-                                    {editingTemplate ? 'Update Template' : 'Create Template'}
-                                </Button>
+            {
+                showModal && (
+                    <ModalOverlay onClick={() => setShowModal(false)}>
+                        <ModalContent onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <h2>{editingTemplate ? 'Edit Template' : 'Create New Template'}</h2>
+                                <X size={24} style={{ cursor: 'pointer' }} onClick={() => setShowModal(false)} />
                             </div>
-                        </form>
-                    </ModalContent>
-                </ModalOverlay>
-            )}
-        </PageContainer>
+
+                            <form onSubmit={handleSubmit}>
+                                <FormGroup>
+                                    <label>Template Name</label>
+                                    <input
+                                        required
+                                        placeholder="e.g. Royal Wedding Gold"
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </FormGroup>
+
+                                <FormRow>
+                                    <FormGroup>
+                                        <label>Status</label>
+                                        <select
+                                            value={formData.status}
+                                            onChange={e => setFormData({ ...formData, status: e.target.value })}
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </FormGroup>
+                                    <FormGroup>
+                                        <label>Access Type</label>
+                                        <select
+                                            value={formData.accessType}
+                                            onChange={e => setFormData({ ...formData, accessType: e.target.value })}
+                                        >
+                                            {(userAccess.length === 0 || userAccess.includes('photomerge')) && <option value="photomerge">Photo Merge</option>}
+                                            {(userAccess.length === 0 || userAccess.includes('videovideo')) && <option value="videovideo">Video + Video</option>}
+                                            {(userAccess.length === 0 || userAccess.includes('videovideovideo')) && <option value="videovideovideo">Video + Video + Video</option>}
+                                        </select>
+                                    </FormGroup>
+                                </FormRow>
+
+                                <FormGroup>
+                                    <label>Template Photos ({templateCount} Required)</label>
+                                    <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>
+                                        {[...Array(templateCount)].map((_, index) => (
+                                            <div key={index}>
+                                                <label style={{ fontSize: '12px', marginBottom: '4px' }}>
+                                                    Photo {index + 1}
+                                                    {typeof formData.photos[index] === 'string' && <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>}
+                                                </label>
+                                                <input
+                                                    accept="image/*"
+                                                    type="file"
+                                                    onChange={handleFileChange(index)}
+                                                    style={{ padding: '8px' }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </FormGroup>
+
+
+                                <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
+                                    <Button type="button" onClick={() => setShowModal(false)} style={{ flex: 1 }}>Cancel</Button>
+                                    <Button type="submit" $variant="primary" style={{ flex: 1 }}>
+                                        {editingTemplate ? 'Update Template' : 'Create Template'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </ModalContent>
+                    </ModalOverlay>
+                )
+            }
+        </PageContainer >
     );
 };
 

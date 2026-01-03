@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import Card from '../Components/Card';
+import Pagination from '../Components/Pagination';
 import {
   Search,
   Download,
@@ -341,10 +342,10 @@ color: ${({ $status }) => $status === 'active' ? '#4CAF50' : '#888'};
 `;
 
 const IconButton = styled.button`
-width: 32px;
-height: 32px;
-border-radius: 8px;
-border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
   background: transparent;
   display: flex;
   align-items: center;
@@ -352,108 +353,33 @@ border: none;
   color: #666;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
-    background: #EEE;
+    background: #F5F5F5;
     color: #1A1A1A;
   }
-  
+
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
-    &:hover {
-      background: transparent;
-      color: #666;
-    }
-  }
-`;
-
-const TableFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 16px 24px;
-  border-top: 1px solid #F5F5F5;
-  background: #FFF;
-`;
-
-const Pagination = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-  
-  .rows-per-page {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .select-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  
-  select {
-    appearance: none;
-    -webkit-appearance: none;
-    background: #F8F9FA;
-    border: 1px solid transparent;
-    padding: 8px 36px 8px 16px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #1A1A1A;
-    cursor: pointer;
-    outline: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-    &:hover {
-      background: #F0F0F0;
-    }
-    
-    &:focus {
-      background: #FFF;
-      border-color: #E0E0E0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-  }
-
-  .select-arrow {
-    position: absolute;
-    right: 10px;
-    pointer-events: none;
-    color: #666;
-    display: flex;
-    align-items: center;
-    font-size: 0; 
-  }
-  
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
   }
 `;
 
 const ModalOverlay = styled.div`
-position: fixed;
-top: 0;
-left: 0;
-right: 0;
-bottom: 0;
-background: rgba(0, 0, 0, 0.5);
-display: flex;
-align-items: center;
-justify-content: center;
-z-index: 2000;
-backdrop-filter: blur(5px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(5px);
 `;
-
-const ModalContent = styled(Card)`
+const ModalContent = styled.div`
+background: white;
 width: 100%;
 max-width: 600px;
 padding: 32px;
@@ -571,15 +497,17 @@ const Customers = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('All Templates');
   const [selectedDateFilter, setSelectedDateFilter] = useState('All Time');
   const [viewingCustomer, setViewingCustomer] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState('All Status'); // Added this line
 
   // Pagination State
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Dropdown visibility states
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false); // Added this line
 
   const branchRef = useRef(null);
   const templateRef = useRef(null);
@@ -634,7 +562,7 @@ const Customers = () => {
             entry.name = item.name || entry.name;
             entry.email = item.email || entry.email;
             entry.branch = item.source || entry.branch;
-            entry.template = item.type || entry.template;
+            entry.template_name = item.template_name || item.templatename || item.type || entry.template_name;
           }
         });
 
@@ -651,7 +579,7 @@ const Customers = () => {
             visits: item.visitCount,
             photos: item.photoCount,
             lastVisit: formattedDate,
-            template: item.template || 'Custom Design',
+            template_name: item.template_name || 'Custom Design',
             branch: item.branch || 'Head Office',
             initial: (item.name || 'A').charAt(0).toUpperCase()
           };
@@ -694,7 +622,7 @@ const Customers = () => {
 
   // Get unique values for dropdowns
   const branches = ['All Branches', ...new Set(customers.map(c => c.branch))];
-  const templates = ['All Templates', ...new Set(customers.map(c => c.template))];
+  const templates = ['All Templates', ...new Set(customers.map(c => c.template_name))];
   const dateFilters = [
     'All Time',
     'Today',
@@ -716,7 +644,7 @@ const Customers = () => {
     const matchesBranch = selectedBranch === 'All Branches' || cust.branch === selectedBranch;
 
     // 3. Filter by Template
-    const matchesTemplate = selectedTemplate === 'All Templates' || cust.template === selectedTemplate;
+    const matchesTemplate = selectedTemplate === 'All Templates' || cust.template_name === selectedTemplate;
 
     // 4. Filter by Date Range
     let matchesDate = true;
@@ -775,7 +703,7 @@ const Customers = () => {
 
   const exportToExcel = (dataToExport = filteredCustomers) => {
     const csvContent = "ID,Name,Phone,Email,Visits,Photos,Category,Branch,Last Visit\n"
-      + dataToExport.map(e => `${e.id},${e.name},${e.phone},${e.email},${e.visits},${e.photos},${e.template},${e.branch},${e.lastVisit}`).join("\n");
+      + dataToExport.map(e => `${e.id},${e.name},${e.phone},${e.email},${e.visits},${e.photos},${e.template_name},${e.branch},${e.lastVisit}`).join("\n");
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -916,7 +844,7 @@ const Customers = () => {
           </DropdownMenu>
         </DropdownContainer>
 
-        <DropdownContainer ref={branchRef}>
+        {/* <DropdownContainer ref={branchRef}>
           <DropdownButton
             $isOpen={showBranchDropdown}
             onClick={() => setShowBranchDropdown(!showBranchDropdown)}
@@ -938,7 +866,7 @@ const Customers = () => {
               </DropdownItem>
             ))}
           </DropdownMenu>
-        </DropdownContainer>
+        </DropdownContainer> */}
 
         <DropdownContainer ref={templateRef}>
           <DropdownButton
@@ -982,7 +910,7 @@ const Customers = () => {
               <th>Engagement</th>
               <th>Activity</th>
               <th>Used Template</th>
-              <th>Store Branch</th>
+              {/* <th>Store Branch</th> */}
               <th>Actions</th>
             </tr>
           </thead>
@@ -1005,7 +933,7 @@ const Customers = () => {
                 </td>
               </tr>
             ) : filteredCustomers
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
               .map((cust) => (
                 <tr key={cust.id}>
                   <td>
@@ -1036,11 +964,11 @@ const Customers = () => {
                     <div>Latest visited date: {cust.lastVisit}</div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{cust.template}</div>
+                    <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{cust.template_name}</div>
                   </td>
-                  <td>
+                  {/* <td>
                     <div style={{ color: '#666', fontSize: '13px' }}>{cust.branch}</div>
-                  </td>
+                  </td> */}
                   <td>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <IconButton title="View Profile" onClick={() => setViewingCustomer(cust)}><Eye size={16} /></IconButton>
@@ -1053,49 +981,16 @@ const Customers = () => {
               ))}
           </tbody>
         </Table>
-        <TableFooter>
-          <Pagination>
-            <div className="rows-per-page">
-              Rows per page:
-              <div className="select-wrapper">
-                <select
-                  value={rowsPerPage}
-                  onChange={(e) => {
-                    setRowsPerPage(Number(e.target.value));
-                    setPage(0);
-                  }}
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                </select>
-                <div className="select-arrow">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
-            </div>
-
-            <div className="range">
-              {filteredCustomers.length === 0 ? '0-0 of 0' :
-                `${page * rowsPerPage + 1}-${Math.min((page + 1) * rowsPerPage, filteredCustomers.length)} of ${filteredCustomers.length}`}
-            </div>
-
-            <div className="controls">
-              <IconButton
-                disabled={page === 0}
-                onClick={() => setPage(page - 1)}
-              >
-                <ChevronLeft size={18} />
-              </IconButton>
-              <IconButton
-                disabled={page >= Math.ceil(filteredCustomers.length / rowsPerPage) - 1}
-                onClick={() => setPage(page + 1)}
-              >
-                <ChevronRight size={18} />
-              </IconButton>
-            </div>
-          </Pagination>
-        </TableFooter>
+        <Pagination
+          totalItems={filteredCustomers.length}
+          itemsPerPage={itemsPerPage}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(size) => {
+            setItemsPerPage(size);
+            setCurrentPage(1);
+          }}
+        />
       </TableCard>
 
       {/* 5. Bulk Actions */}

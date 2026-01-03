@@ -8,6 +8,7 @@ import Customers from './Pages/Customers';
 import Photos from './Pages/Photos';
 import Templates from './Pages/Templates';
 import Analytics from './Pages/Analytics';
+import ShareTracking from './Pages/ShareTracking';
 import Placeholder from './Components/Placeholder';
 
 const GlobalStyle = createGlobalStyle`
@@ -74,7 +75,7 @@ function PremiumAdminApp() {
           <Route path="photos" element={<Photos />} />
           <Route path="templates" element={<Templates />} />
           <Route path="analytics" element={<Analytics />} />
-          <Route path="share-tracking" element={<Placeholder title="Share Tracking" />} />
+          <Route path="share-tracking" element={<ShareTracking />} />
           <Route path="campaigns" element={<Placeholder title="Campaigns" />} />
           <Route path="reports" element={<Placeholder title="Reports" />} />
           <Route path="settings" element={<Placeholder title="Settings" />} />

@@ -5,6 +5,10 @@ import {
   MoreVertical, Calendar, Search, Trash2, ExternalLink, MessageCircle, Eye,
   BarChart2, ShoppingBag, X, ChevronLeft, ChevronRight, ChevronDown
 } from 'react-feather';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, BarChart, Bar
+} from 'recharts';
 import useAxios from '../../useAxios';
 import Card from '../Components/Card';
 
@@ -810,8 +814,8 @@ const Photos = () => {
           url: (item.photoId || item.posterVideoId)
             ? `https://api.bilimbebrandactivations.com/api/upload/file/${item.photoId || item.posterVideoId}`
             : 'https://via.placeholder.com/300',
-          category: item.type || 'Sarees',
-          template: item.type || 'Sarees',
+          category: item.template_name || item.templatename || item.type,
+          template_name: item.template_name || item.templatename || item.type,
           branch: item.source || 'Head Office',
           customer: item.name || 'Anonymous',
           date: new Date(item.date || item.createdAt).toLocaleDateString(),
@@ -852,15 +856,15 @@ const Photos = () => {
 
   // Derived Filter Options
   const branches = ['All Branches', ...new Set(photos.map(p => p.branch))];
-  const templates = ['All Templates', ...new Set(photos.map(p => p.template))];
+  const templates = ['All Templates', ...new Set(photos.map(p => p.template_name))];
   const dateFilters = ['All Time', 'Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days'];
   const visitFilters = ['All Visits', 'Most Visited (>10)', 'Low Engagement (<5)'];
 
   const filteredPhotos = photos.filter(photo => {
     const matchesSearch = photo.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      photo.template.toLowerCase().includes(searchQuery.toLowerCase());
+      photo.template_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesBranch = selectedBranch === 'All Branches' || photo.branch === selectedBranch;
-    const matchesTemplate = selectedTemplate === 'All Templates' || photo.template === selectedTemplate;
+    const matchesTemplate = selectedTemplate === 'All Templates' || photo.template_name === selectedTemplate;
 
     let matchesDate = true;
     if (selectedDateFilter !== 'All Time') {
@@ -1169,31 +1173,7 @@ const Photos = () => {
           </DropdownContainer>
 
           {/* Branch Filter */}
-          <DropdownContainer ref={branchRef}>
-            <DropdownButton
-              $isOpen={showBranchDropdown}
-              onClick={() => setShowBranchDropdown(!showBranchDropdown)}
-            >
-              <ShoppingBag size={16} style={{ marginRight: 8, color: '#666' }} />
-              {selectedBranch}
-              <ChevronDown size={16} />
-            </DropdownButton>
-            <DropdownMenu $isOpen={showBranchDropdown}>
-              {branches.map(b => (
-                <DropdownItem
-                  key={b}
-                  $active={selectedBranch === b}
-                  onClick={() => {
-                    setSelectedBranch(b);
-                    setShowBranchDropdown(false);
-                    setCurrentPage(1);
-                  }}
-                >
-                  {b}
-                </DropdownItem>
-              ))}
-            </DropdownMenu>
-          </DropdownContainer>
+
 
           <SearchBox>
             <Search size={18} />
@@ -1298,7 +1278,7 @@ const Photos = () => {
                 <ListCustomerName>{photo.customer}</ListCustomerName>
                 <ListCategory>{photo.category}</ListCategory>
               </CustomerInfo>
-              <div style={{ fontSize: '14px' }}>{photo.template}</div>
+              <div style={{ fontSize: '14px' }}>{photo.template_name}</div>
               <ListEngagement>
                 <span><Share2 size={14} /> {photo.shares}</span>
                 <span><Download size={14} /> {photo.downloads}</span>
