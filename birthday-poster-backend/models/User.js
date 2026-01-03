@@ -42,7 +42,7 @@ const UserSchema = new mongoose.Schema({
     },
     templateCount: {
         type: Number,
-        default: 1
+        default: 3
     }
 }, {
     timestamps: true
