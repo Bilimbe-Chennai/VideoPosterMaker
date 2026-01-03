@@ -2,6 +2,49 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
+// User Login with app-user restriction
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password, type } = req.body;
+
+        if (!email || !password || !type) {
+            return res.status(400).json({ success: false, error: 'Email, password and type are required' });
+        }
+
+        const user = await User.findOne({ email, password });
+
+        if (!user) {
+            return res.status(401).json({ success: false, error: 'Invalid email or password' });
+        }
+
+        if (user.type !== type) {
+            return res.status(403).json({ success: false, error: 'Invalid user type for this account' });
+        }
+
+        // Check restriction for app user
+        if (user.type === 'app user' && user.loginCount >= 1) {
+            return res.status(403).json({
+                success: false,
+                error: 'Login limit reached for this account. Only 1 login allowed for app users.'
+            });
+        }
+
+        // Update login info
+        user.loginCount = (user.loginCount || 0) + 1;
+        user.lastLogin = new Date();
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Login successful',
+            data: user
+        });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Create a new user
 router.post('/', async (req, res) => {
     try {
@@ -23,10 +66,13 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Get all users
+// Get all users (with optional type filter)
 router.get('/', async (req, res) => {
     try {
-        const users = await User.find().sort({ createdAt: -1 });
+        const { type } = req.query;
+        const query = type ? { type } : {};
+
+        const users = await User.find(query).sort({ createdAt: -1 });
         res.status(200).json({ success: true, count: users.length, data: users });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
