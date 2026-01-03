@@ -16,13 +16,8 @@ router.post('/login', async (req, res) => {
         if (!user) {
             return res.status(401).json({ success: false, error: 'Invalid email or password' });
         }
-
-        if (user.type !== type) {
-            return res.status(403).json({ success: false, error: 'Invalid user type for this account' });
-        }
-
         // Check restriction for app user
-        if (user.type === 'app user' && user.loginCount >= 1) {
+        if (type === 'app user' && user.loginCount >= 1) {
             return res.status(403).json({
                 success: false,
                 error: 'Login limit reached for this account. Only 1 login allowed for app users.'
