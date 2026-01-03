@@ -10,6 +10,7 @@ import Templates from './Pages/Templates';
 import Analytics from './Pages/Analytics';
 import ShareTracking from './Pages/ShareTracking';
 import Placeholder from './Components/Placeholder';
+import PrivateRoute from '../Components/PrivateRoute';
 
 const GlobalStyle = createGlobalStyle`
   * {
@@ -68,7 +69,11 @@ function PremiumAdminApp() {
     <ThemeProvider theme={theme}>
       <GlobalStyle />
       <Routes>
-        <Route path="/" element={<AdminLayout />}>
+        <Route path="/" element={
+          <PrivateRoute>
+            <AdminLayout />
+          </PrivateRoute>
+        }>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<Customers />} />

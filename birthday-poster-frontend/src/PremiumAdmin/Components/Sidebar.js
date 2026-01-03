@@ -121,6 +121,8 @@ const BottomSection = styled.div`
 `;
 
 const Sidebar = ({ isOpen, onToggle }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   const navItems = [
     { icon: <Home size={18} />, text: 'Dashboard', path: 'dashboard' },
     { icon: <Users size={18} />, text: 'Customers', path: 'customers' },
@@ -137,8 +139,8 @@ const Sidebar = ({ isOpen, onToggle }) => {
     <SidebarContainer $isOpen={isOpen}>
       <LogoSection>
         <Logo>
-          <LogoIcon>VS</LogoIcon>
-          <LogoText>Varamahalakshmi</LogoText>
+          <LogoIcon>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</LogoIcon>
+          <LogoText>{user.name || 'User'}</LogoText>
         </Logo>
         <ToggleButton onClick={onToggle}>
           {isOpen ? <X size={20} /> : <Menu size={20} />}
@@ -159,7 +161,12 @@ const Sidebar = ({ isOpen, onToggle }) => {
       </NavSection>
 
       <BottomSection>
-        <NavItem as="button" onClick={() => console.log('Logout')} style={{ padding: '8px 12px', margin: 0 }}>
+        <NavItem as="button" onClick={() => {
+          if (window.confirm('Are you sure you want to logout?')) {
+            localStorage.clear();
+            window.location.href = '/admin/login'; // Using href to ensure clean state or use navigate from hook
+          }
+        }} style={{ padding: '8px 12px', margin: 0 }}>
           <LogOut size={18} />
           <NavText>Logout</NavText>
         </NavItem>

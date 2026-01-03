@@ -4,25 +4,24 @@ import { Navigate } from 'react-router-dom';
 // Existing routes
 import EventLoginPage from './Components/EventLoginPage';
 import ClientPage from './Components/ClientPage';
-import ClientPageUser from './Components/ClientPageUser';
+// import ClientPageUser from './Components/ClientPageUser';
 import ShareScreen from './Components/ShareScreen';
 
+const Login = lazy(() => import('./Components/Login'));
 const CreatePosterPage = lazy(() => import('./Components/CreatePosterPage'));
 const ViewAllPoster = lazy(() => import('./Components/ViewAllPoster'));
-// Lazy load new admin system components
-// const Login = lazy(() => import('./Components/Login'));
-// const Dashboard = lazy(() => import('./Components/Dashboard'));
-// const AdminList = lazy(() => import('./Components/AdminList'));
-// const CreateAdmin = lazy(() => import('./Components/CreateAdmin'));
-// const Settings = lazy(() => import('./Components/Settings'));
-// const TemplateManager = lazy(() => import('./Components/TemplateManager'));
-// const CreateTemplate = lazy(() => import('./Components/CreateTemplate'));
-// const UserManager = lazy(() => import('./Components/UserManager'));
+const Dashboard = lazy(() => import('./SuperAdmin/Dashboard'));
+const AdminList = lazy(() => import('./SuperAdmin/AdminList'));
+const CreateAdmin = lazy(() => import('./SuperAdmin/CreateAdmin'));
+const Settings = lazy(() => import('./Components/Settings'));
+const TemplateManager = lazy(() => import('./SuperAdmin/TemplateManager'));
+const CreateTemplate = lazy(() => import('./Components/CreateTemplate'));
+const UserManager = lazy(() => import('./SuperAdmin/UserManager'));
 const UserForm = lazy(() => import('./Components/UserForm'));
 const UserDetails = lazy(() => import('./Components/UserDetails'));
 const PhotoUpload = lazy(() => import('./Components/PhotoUpload'));
 // Layout component (needs to be imported or created)
-const Layout = lazy(() => import('./Layout/Layout'));
+const Layout = lazy(() => import('./SuperAdmin/Layout/Layout'));
 
 // Private Route wrapper component
 const PrivateRoute = lazy(() => import('./Components/PrivateRoute'));
@@ -65,108 +64,108 @@ const routes = [
   // Admin System Routes
 
   // Auth Routes (No Layout)
-  // {
-  //   path: '/admin/login',
-  //   element: <Login />,
-  //   exact: true
-  // },
+  {
+    path: '/admin/login',
+    element: <Login />,
+    exact: true
+  },
 
-  // // Admin Routes with Layout and Private Route
-  // {
-  //   path: '/admin',
-  //   element: <Navigate to="/admin/dashboard" replace />,
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/dashboard',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <Dashboard />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/admins',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <AdminList />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/admins/create',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <CreateAdmin />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/admins/edit/:id',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <CreateAdmin /> {/* Reuse CreateAdmin for editing */}
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/templates',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <TemplateManager />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/templates/create',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <CreateTemplate />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/templates/edit/:id',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <CreateTemplate /> {/* Reuse CreateTemplate for editing */}
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/users',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <UserManager />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
+  // Admin Routes with Layout and Private Route
   {
-    path: '/admin/users/create',
+    path: '/superadmin',
+    element: <Navigate to="/superadmin/dashboard" replace />,
+    exact: true
+  },
+  {
+    path: '/superadmin/dashboard',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <Dashboard />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/admins',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <AdminList />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/admins/create',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <CreateAdmin />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/admins/edit/:id',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <CreateAdmin /> {/* Reuse CreateAdmin for editing */}
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/templates',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <TemplateManager />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/templates/create',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <CreateTemplate />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/templates/edit/:id',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <CreateTemplate /> {/* Reuse CreateTemplate for editing */}
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/users',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <UserManager />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/users/create',
     element: (
       <PrivateRoute>
         <AdminLayout>
@@ -177,7 +176,7 @@ const routes = [
     exact: true
   },
   {
-    path: '/admin/users/edit/:id',
+    path: '/superadmin/users/edit/:id',
     element: (
       <PrivateRoute>
         <AdminLayout>
@@ -187,51 +186,51 @@ const routes = [
     ),
     exact: true
   },
-  // {
-  //   path: '/admin/users/:id',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <UserDetails />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/upload',
-  //   element: (
-  //     // <PrivateRoute>
-  //       <AdminLayout>
-  //         <PhotoUpload />
-  //       </AdminLayout>
-  //     // </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/settings',
-  //   element: (
-  //     <PrivateRoute>
-  //       <AdminLayout>
-  //         <Settings />
-  //       </AdminLayout>
-  //     </PrivateRoute>
-  //   ),
-  //   exact: true
-  // },
+  {
+    path: '/superadmin/users/:id',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <UserDetails />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/upload',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <PhotoUpload />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
+  {
+    path: '/superadmin/settings',
+    element: (
+      <PrivateRoute>
+        <AdminLayout>
+          <Settings />
+        </AdminLayout>
+      </PrivateRoute>
+    ),
+    exact: true
+  },
 
   // Fallback routes
-  // {
-  //   path: '*',
-  //   element: <Navigate to="/" replace />,
-  //   exact: true
-  // },
-  // {
-  //   path: '/admin/*',
-  //   element: <Navigate to="/admin/dashboard" replace />,
-  //   exact: true
-  // }
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
+    exact: true
+  },
+  {
+    path: '/superadmin/*',
+    element: <Navigate to="/superadmin/dashboard" replace />,
+    exact: true
+  }
 ];
 
 export default routes;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import {
     Layers,
@@ -16,11 +16,10 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
-    Check,
     ArrowUpRight,
     ArrowDownRight
 } from 'react-feather';
-import Card from '../Components/Card';
+// import Card from '../Components/Card'; // Unused
 import useAxios from '../../useAxios';
 
 // --- Styled Components ---
@@ -500,7 +499,7 @@ const FormRow = styled.div`
 const Templates = () => {
     const axiosData = useAxios();
     const [templates, setTemplates] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // const [loading, setLoading] = useState(true); // Unused
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All Templates');
     const [selectedStatus, setSelectedStatus] = useState('All Status');
@@ -522,15 +521,15 @@ const Templates = () => {
 
     // Initialize user settings
     useEffect(() => {
-        const adminData = localStorage.getItem('admin');
+        const adminData = localStorage.getItem('user');
         if (adminData) {
             try {
                 const user = JSON.parse(adminData);
-                setTemplateCount(user.templateCount || 1);
+                setTemplateCount(user.templateCount || 3);
                 setUserAccess(user.accessType || []);
                 setAdminInfo({
                     id: user.id || user._id || '',
-                    branchid: user.branchid || ''
+                    branchid: user.branchName || ''
                 });
             } catch (e) {
                 console.error('Error parsing user data', e);
@@ -559,9 +558,59 @@ const Templates = () => {
     const categories = ['Casual', 'Lehengas', 'Wedding', 'Sarees', 'Festive'];
     const statusOptions = ['All Status', 'Active', 'Inactive'];
 
+    const fetchData = useCallback(async () => {
+        try {
+            // setLoading(true);
+            // Fetch templates and usage data in parallel
+            const [templatesResponse, photosResponse] = await Promise.all([
+                axiosData.get("/photomerge/templates"),
+                axiosData.get("/upload/all")
+            ]);
+
+            const rawTemplates = templatesResponse.data || [];
+            const rawPhotos = photosResponse.data || [];
+
+            // Calculate usage counts from photo creations
+            const usageCounts = {};
+            rawPhotos
+                .filter(item => item.source === 'Photo Merge App')
+                .forEach(item => {
+                    const templateName = item.template_name || item.templatename || item.type;
+                    if (templateName) {
+                        usageCounts[templateName] = (usageCounts[templateName] || 0) + 1;
+                    }
+                });
+
+            // Map backend data to frontend structure with real usage
+            let templateList = rawTemplates.map(t => {
+                const name = t.templatename;
+                return {
+                    id: t._id,
+                    name: name,
+                    category: 'Photo Merge', // defaulting for now, or derive from type/accessType
+                    status: t.status || 'active',
+                    usage: usageCounts[name] || 0, // Using real aggregated usage
+                    lastUsed: t.updatedDate ? new Date(t.updatedDate).toLocaleDateString() : 'Never',
+                    createdAt: t.createdDate ? new Date(t.createdDate).toLocaleDateString() : new Date().toLocaleDateString(),
+                    overlayUrl: (t.templatePhotos && t.templatePhotos.length > 0)
+                        ? `https://api.bilimbebrandactivations.com/api/upload/file/${t.templatePhotos[0]}`
+                        : 'https://via.placeholder.com/150?text=No+Image',
+                    accessType: t.accessType || 'photomerge',
+                    photos: t.templatePhotos || []
+                };
+            });
+
+            setTemplates(templateList);
+            // setLoading(false);
+        } catch (error) {
+            console.error("Error fetching templates:", error);
+            // setLoading(false);
+        }
+    }, [axiosData]);
+
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     // Handle outside clicks for dropdowns
     useEffect(() => {
@@ -572,37 +621,6 @@ const Templates = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            // Fetch templates from API
-            const response = await axiosData.get("/photomerge/templates");
-            const rawTemplates = response.data || [];
-
-            // Map backend data to frontend structure
-            let templateList = rawTemplates.map(t => ({
-                id: t._id,
-                name: t.templatename,
-                category: 'Photo Merge', // defaulting for now, or derive from type/accessType
-                status: t.status || 'active',
-                usage: 0, // Mock usage for now, or fetch real usage
-                lastUsed: t.updatedDate ? new Date(t.updatedDate).toLocaleDateString() : 'Never',
-                createdAt: t.createdDate ? new Date(t.createdDate).toLocaleDateString() : new Date().toLocaleDateString(),
-                overlayUrl: (t.templatePhotos && t.templatePhotos.length > 0)
-                    ? `https://api.bilimbebrandactivations.com/api/upload/file/${t.templatePhotos[0]}`
-                    : 'https://via.placeholder.com/150?text=No+Image',
-                accessType: t.accessType || 'photomerge',
-                photos: t.templatePhotos || []
-            }));
-
-            setTemplates(templateList);
-            setLoading(false);
-        } catch (error) {
-            console.error("Error fetching templates:", error);
-            setLoading(false);
-        }
-    };
 
     const saveTemplates = (newList) => {
         setTemplates(newList);
@@ -1014,17 +1032,17 @@ const Templates = () => {
                                 <h3>{tmpl.name}</h3>
                                 <div style={{ fontSize: '12px', color: '#AAA', fontWeight: 600 }}>{tmpl.id}</div>
                             </TemplateTitle>
-                            <div className="category">{tmpl.category}</div>
-                            <div className="usage-stats">
-                                <div className="stat-item">
+                            <TemplateCategory>{tmpl.category}</TemplateCategory>
+                            <UsageStats>
+                                <StatItem>
                                     <div className="label">Total Usage</div>
                                     <div className="value">{tmpl.usage.toLocaleString()}</div>
-                                </div>
-                                <div className="stat-item">
+                                </StatItem>
+                                <StatItem>
                                     <div className="label">Last Used</div>
                                     <div className="value">{tmpl.lastUsed}</div>
-                                </div>
-                            </div>
+                                </StatItem>
+                            </UsageStats>
                         </TemplateInfo>
                         <ActionFooter>
                             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1112,7 +1130,6 @@ const Templates = () => {
                                         </select>
                                     </FormGroup>
                                 </FormRow>
-
                                 <FormGroup>
                                     <label>Template Photos ({templateCount} Required)</label>
                                     <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>

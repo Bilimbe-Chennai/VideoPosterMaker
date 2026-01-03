@@ -531,6 +531,8 @@ const Dashboard = () => {
   });
   const [topCustomersData, setTopCustomersData] = useState([]);
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -703,8 +705,8 @@ const Dashboard = () => {
     <DashboardContainer>
       <DashboardHeader>
         <WelcomeMessage>
-          <h1>Dashboard Overview</h1>
-          <p>Welcome to Varamahalakshmi Silks Admin Panel</p>
+          <h1>Welcome back, {user.name || 'Admin'} 👋</h1>
+          <p>Here's what's happening with your store today.</p>
         </WelcomeMessage>
 
       </DashboardHeader>

@@ -19,7 +19,7 @@ function App() {
           />
         ))}
         {/* New Varamahalakshmi Silks Admin Panel */}
-        <Route path="/admin-v2/*" element={<PremiumAdminApp />} />
+        <Route path="/admin/*" element={<PremiumAdminApp />} />
       </Routes>
     </Router>
   );

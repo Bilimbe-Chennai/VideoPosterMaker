@@ -124,31 +124,33 @@ const UserRole = styled.div`
 `;
 
 const TopBar = ({ onMenuClick }) => {
-    return (
-        <TopBarContainer>
-            <SearchBar>
-                <Search size={18} color="#A0A0A0" />
-                <SearchInput placeholder="Search..." />
-            </SearchBar>
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-            <RightSection>
-                <IconButton>
-                    <Bell size={20} />
-                    <NotificationBadge />
-                </IconButton>
+  return (
+    <TopBarContainer>
+      <SearchBar>
+        <Search size={18} color="#A0A0A0" />
+        <SearchInput placeholder="Search..." />
+      </SearchBar>
 
-                <UserProfile>
-                    <UserAvatar>
-                        <User size={20} />
-                    </UserAvatar>
-                    <UserInfo>
-                        <UserName>Admin User</UserName>
-                        <UserRole>Store Manager</UserRole>
-                    </UserInfo>
-                </UserProfile>
-            </RightSection>
-        </TopBarContainer>
-    );
+      <RightSection>
+        <IconButton>
+          <Bell size={20} />
+          <NotificationBadge />
+        </IconButton>
+
+        <UserProfile>
+          <UserAvatar>
+            {user.name ? user.name.charAt(0).toUpperCase() : <User size={20} />}
+          </UserAvatar>
+          <UserInfo>
+            <UserName>{user.name || 'Admin User'}</UserName>
+            <UserRole>{user.type || 'Manager'}</UserRole>
+          </UserInfo>
+        </UserProfile>
+      </RightSection>
+    </TopBarContainer>
+  );
 };
 
 export default TopBar;

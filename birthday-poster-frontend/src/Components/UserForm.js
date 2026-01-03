@@ -40,7 +40,7 @@ const UserForm = () => {
         type: 'client',
         status: 'active',
         accessType: [],
-        templateCount: 1,
+        templateCount: 3,
     });
 
     const [error, setError] = useState('');
@@ -119,7 +119,7 @@ const UserForm = () => {
             }
 
             setTimeout(() => {
-                navigate('/admin/users');
+                navigate('/superadmin/users');
             }, 2000);
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to save user');
@@ -133,7 +133,7 @@ const UserForm = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <Button
                     startIcon={<ArrowBackIcon />}
-                    onClick={() => navigate('/admin/users')}
+                    onClick={() => navigate('/superadmin/users')}
                     sx={{ mr: 2 }}
                 >
                     Back
@@ -281,7 +281,7 @@ const UserForm = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
                         <Button
                             variant="outlined"
-                            onClick={() => navigate('/admin/users')}
+                            onClick={() => navigate('/superadmin/users')}
                             disabled={loading}
                         >
                             Cancel

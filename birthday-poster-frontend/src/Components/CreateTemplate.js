@@ -56,7 +56,7 @@ const CreateTemplate = () => {
   const [userAccess, setUserAccess] = useState([]);
 
   React.useEffect(() => {
-    const adminData = localStorage.getItem('admin');
+    const adminData = localStorage.getItem('user');
     if (adminData) {
       try {
         const user = JSON.parse(adminData);
