@@ -10,6 +10,8 @@ import Templates from './Pages/Templates';
 import Analytics from './Pages/Analytics';
 import ShareTracking from './Pages/ShareTracking';
 import Campaigns from './Pages/Campaigns';
+import Reports from './Pages/Reports';
+import Settings from './Pages/Settings';
 import Placeholder from './Components/Placeholder';
 import PrivateRoute from '../Components/PrivateRoute';
 
@@ -83,8 +85,8 @@ function PremiumAdminApp() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="share-tracking" element={<ShareTracking />} />
           <Route path="campaigns" element={<Campaigns />} />
-          <Route path="reports" element={<Placeholder title="Reports" />} />
-          <Route path="settings" element={<Placeholder title="Settings" />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </ThemeProvider>

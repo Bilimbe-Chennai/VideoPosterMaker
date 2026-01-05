@@ -10,6 +10,12 @@ const HeaderSection = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
 `;
 
 const CreateButton = styled.button`
@@ -34,8 +40,16 @@ const CreateButton = styled.button`
 
 const PromotionsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const PromotionCard = styled(Card)`
@@ -57,9 +71,9 @@ const PromotionBadge = styled.div`
   font-size: 12px;
   font-weight: 600;
   background: ${({ $active, theme }) =>
-        $active ? theme.colors.success : theme.colors.accentPurple};
+    $active ? theme.colors.success : theme.colors.accentPurple};
   color: ${({ $active, theme }) =>
-        $active ? 'white' : theme.colors.textPrimary};
+    $active ? 'white' : theme.colors.textPrimary};
 `;
 
 const PromotionHeader = styled.div`
@@ -132,141 +146,141 @@ const IconButton = styled.button`
 `;
 
 const promotionsData = [
-    {
-        id: 1,
-        title: 'Festival Discount',
-        description: 'Special discount for Diwali festival',
-        type: 'percentage',
-        value: '20%',
-        code: 'DIWALI20',
-        startDate: '2024-10-20',
-        endDate: '2024-11-05',
-        customers: '1,245',
-        status: 'active',
-        color: '#E8DFF1'
-    },
-    {
-        id: 2,
-        title: 'New Customer Offer',
-        description: 'Welcome discount for new customers',
-        type: 'fixed',
-        value: '₹500',
-        code: 'WELCOME500',
-        startDate: '2024-01-01',
-        endDate: '2024-12-31',
-        customers: '842',
-        status: 'active',
-        color: '#EEF6E8'
-    },
-    {
-        id: 3,
-        title: 'Clearance Sale',
-        description: 'End of season clearance',
-        type: 'percentage',
-        value: '40%',
-        code: 'CLEAR40',
-        startDate: '2024-08-15',
-        endDate: '2024-08-30',
-        customers: '2,184',
-        status: 'expired',
-        color: '#FCEADF'
-    },
-    {
-        id: 4,
-        title: 'Weekend Special',
-        description: 'Special weekend discounts',
-        type: 'percentage',
-        value: '15%',
-        code: 'WEEKEND15',
-        startDate: '2024-09-01',
-        endDate: '2024-12-31',
-        customers: '956',
-        status: 'active',
-        color: '#F4E6F0'
-    },
+  {
+    id: 1,
+    title: 'Festival Discount',
+    description: 'Special discount for Diwali festival',
+    type: 'percentage',
+    value: '20%',
+    code: 'DIWALI20',
+    startDate: '2024-10-20',
+    endDate: '2024-11-05',
+    customers: '1,245',
+    status: 'active',
+    color: '#E8DFF1'
+  },
+  {
+    id: 2,
+    title: 'New Customer Offer',
+    description: 'Welcome discount for new customers',
+    type: 'fixed',
+    value: '₹500',
+    code: 'WELCOME500',
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
+    customers: '842',
+    status: 'active',
+    color: '#EEF6E8'
+  },
+  {
+    id: 3,
+    title: 'Clearance Sale',
+    description: 'End of season clearance',
+    type: 'percentage',
+    value: '40%',
+    code: 'CLEAR40',
+    startDate: '2024-08-15',
+    endDate: '2024-08-30',
+    customers: '2,184',
+    status: 'expired',
+    color: '#FCEADF'
+  },
+  {
+    id: 4,
+    title: 'Weekend Special',
+    description: 'Special weekend discounts',
+    type: 'percentage',
+    value: '15%',
+    code: 'WEEKEND15',
+    startDate: '2024-09-01',
+    endDate: '2024-12-31',
+    customers: '956',
+    status: 'active',
+    color: '#F4E6F0'
+  },
 ];
 
 const Promotions = () => {
-    const [promotions] = useState(promotionsData);
+  const [promotions] = useState(promotionsData);
 
-    return (
-        <PromotionsContainer>
-            <HeaderSection>
-                <div>
-                    <h1>Promotions</h1>
-                    <p style={{ color: '#7A7A7A', marginTop: '8px' }}>
-                        Create and manage promotional campaigns
-                    </p>
-                </div>
+  return (
+    <PromotionsContainer>
+      <HeaderSection>
+        <div>
+          <h1>Promotions</h1>
+          <p style={{ color: '#7A7A7A', marginTop: '8px' }}>
+            Create and manage promotional campaigns
+          </p>
+        </div>
 
-                <CreateButton>
-                    <Plus size={18} />
-                    Create Promotion
-                </CreateButton>
-            </HeaderSection>
+        <CreateButton>
+          <Plus size={18} />
+          Create Promotion
+        </CreateButton>
+      </HeaderSection>
 
-            <PromotionsGrid>
-                {promotions.map((promo) => (
-                    <PromotionCard key={promo.id} bgColor={promo.color} hoverable>
-                        <PromotionBadge $active={promo.status === 'active'}>
-                            {promo.status === 'active' ? 'Active' : 'Expired'}
-                        </PromotionBadge>
+      <PromotionsGrid>
+        {promotions.map((promo) => (
+          <PromotionCard key={promo.id} bgColor={promo.color} hoverable>
+            <PromotionBadge $active={promo.status === 'active'}>
+              {promo.status === 'active' ? 'Active' : 'Expired'}
+            </PromotionBadge>
 
-                        <PromotionHeader>
-                            <PromotionTitle>{promo.title}</PromotionTitle>
-                            <PromotionDescription>{promo.description}</PromotionDescription>
-                        </PromotionHeader>
+            <PromotionHeader>
+              <PromotionTitle>{promo.title}</PromotionTitle>
+              <PromotionDescription>{promo.description}</PromotionDescription>
+            </PromotionHeader>
 
-                        <PromotionDetails>
-                            <DetailRow>
-                                <DetailItem>
-                                    <Percent size={16} />
-                                    Discount
-                                </DetailItem>
-                                <DetailValue>{promo.value}</DetailValue>
-                            </DetailRow>
+            <PromotionDetails>
+              <DetailRow>
+                <DetailItem>
+                  <Percent size={16} />
+                  Discount
+                </DetailItem>
+                <DetailValue>{promo.value}</DetailValue>
+              </DetailRow>
 
-                            <DetailRow>
-                                <DetailItem>
-                                    <Calendar size={16} />
-                                    Duration
-                                </DetailItem>
-                                <DetailValue>{promo.startDate} to {promo.endDate}</DetailValue>
-                            </DetailRow>
+              <DetailRow>
+                <DetailItem>
+                  <Calendar size={16} />
+                  Duration
+                </DetailItem>
+                <DetailValue>{promo.startDate} to {promo.endDate}</DetailValue>
+              </DetailRow>
 
-                            <DetailRow>
-                                <DetailItem>
-                                    <Users size={16} />
-                                    Customers Used
-                                </DetailItem>
-                                <DetailValue>{promo.customers}</DetailValue>
-                            </DetailRow>
+              <DetailRow>
+                <DetailItem>
+                  <Users size={16} />
+                  Customers Used
+                </DetailItem>
+                <DetailValue>{promo.customers}</DetailValue>
+              </DetailRow>
 
-                            <DetailRow>
-                                <DetailItem>Code:</DetailItem>
-                                <DetailValue>{promo.code}</DetailValue>
-                            </DetailRow>
-                        </PromotionDetails>
+              <DetailRow>
+                <DetailItem>Code:</DetailItem>
+                <DetailValue>{promo.code}</DetailValue>
+              </DetailRow>
+            </PromotionDetails>
 
-                        <ActionButtons>
-                            <IconButton>
-                                <Eye size={16} />
-                                View
-                            </IconButton>
-                            <IconButton>
-                                <Edit size={16} />
-                                Edit
-                            </IconButton>
-                            <IconButton>
-                                <Trash2 size={16} />
-                                Delete
-                            </IconButton>
-                        </ActionButtons>
-                    </PromotionCard>
-                ))}
-            </PromotionsGrid>
-        </PromotionsContainer>
-    );
+            <ActionButtons>
+              <IconButton>
+                <Eye size={16} />
+                View
+              </IconButton>
+              <IconButton>
+                <Edit size={16} />
+                Edit
+              </IconButton>
+              <IconButton>
+                <Trash2 size={16} />
+                Delete
+              </IconButton>
+            </ActionButtons>
+          </PromotionCard>
+        ))}
+      </PromotionsGrid>
+    </PromotionsContainer>
+  );
 };
 
 export default Promotions;

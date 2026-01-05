@@ -33,6 +33,11 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 24px;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const HeaderInfo = styled.div`
@@ -87,6 +92,14 @@ const KPIGrid = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-bottom: 32px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const KPICard = styled.div`
@@ -182,6 +195,12 @@ const ControlSection = styled.div`
   padding: 16px 24px;
   border-radius: 16px;
   border: 1px solid #F0F0F0;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
 `;
 
 const SearchBox = styled.div`

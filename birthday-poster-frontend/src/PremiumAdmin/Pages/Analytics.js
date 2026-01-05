@@ -14,13 +14,23 @@ const AnalyticsContainer = styled.div``;
 const HeaderSection = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const ActionButtons = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.md};
+
+  @media (max-width: 480px) {
+    width: 100%;
+    flex-direction: column;
+  }
 `;
 
 const ActionButton = styled.button`
@@ -512,7 +522,7 @@ const Analytics = () => {
           <FullWidthCard title="Platform Performance" subtitle="Shares across channels">
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
               gap: '24px',
               padding: '24px 0'
             }}>
@@ -540,7 +550,12 @@ const Analytics = () => {
           </FullWidthCard>
 
           <FullWidthCard title="Insights & Recommendations" subtitle="AI Derived Actions">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', padding: '20px 0' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '20px',
+              padding: '20px 0'
+            }}>
               <div>
                 <h4 style={{ marginBottom: '10px', color: '#1A1A1A' }}>🏆 Top Performance</h4>
                 <p style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>Best Category</p>
@@ -555,10 +570,10 @@ const Analytics = () => {
                 <p style={{ fontSize: '13px', color: '#666', marginTop: '12px', marginBottom: '4px' }}>Traffic Pattern</p>
                 <p style={{ fontWeight: 600, color: '#1A1A1A' }}>{analyticsData?.insights.trafficPattern}</p>
               </div>
-              <div style={{ gridColumn: 'span 2', background: '#F9FAFB', padding: '16px', borderRadius: '12px' }}>
+              <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '12px' }}>
                 <h4 style={{ marginBottom: '10px', color: '#1A1A1A' }}>💡 Smart Recommendation</h4>
                 <p style={{ color: '#4B5563', lineHeight: '1.5' }}>{analyticsData?.insights.recommendation}</p>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ padding: '4px 12px', background: '#E0E7FF', color: '#4F46E5', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>Campaign Optimization</span>
                   <span style={{ padding: '4px 12px', background: '#DCFCE7', color: '#16A34A', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>Engagement</span>
                 </div>

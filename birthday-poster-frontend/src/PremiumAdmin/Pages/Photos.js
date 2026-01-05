@@ -23,6 +23,11 @@ display: flex;
 justify-content: space-between;
 align-items: flex-start;
 margin-bottom: 32px;
+
+@media (max-width: 1024px) {
+  flex-direction: column;
+  gap: 20px;
+}
 `;
 
 const HeaderTitle = styled.div`
@@ -173,6 +178,12 @@ background: white;
 padding: 16px 24px;
 border-radius: 16px;
 border: 1px solid #F0F0F0;
+
+@media (max-width: 1024px) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
 `;
 
 const ControlBar = styled.div`

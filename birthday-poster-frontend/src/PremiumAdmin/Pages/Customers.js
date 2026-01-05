@@ -42,6 +42,11 @@ const HeaderSection = styled.div`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 24px;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const PageInfo = styled.div`
@@ -93,6 +98,14 @@ const MetricGrid = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-bottom: 32px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 
@@ -285,6 +298,7 @@ const TableCard = styled(Card)`
 padding: 0;
 overflow: hidden;
 border-radius: 32px;
+overflow-x: auto;
 `;
 
 const Table = styled.table`

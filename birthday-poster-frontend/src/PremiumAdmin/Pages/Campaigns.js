@@ -39,6 +39,11 @@ const PageHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const HeaderInfo = styled.div`
@@ -100,12 +105,21 @@ const MetricGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ContentCard = styled(Card)`
   padding: 0;
   border-radius: 32px;
   overflow: hidden;
+  overflow-x: auto;
 `;
 
 const FilterSection = styled.div`
@@ -114,6 +128,11 @@ const FilterSection = styled.div`
   gap: 16px;
   border-bottom: 1px solid #F5F5F5;
   align-items: center;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `;
 
 const SearchBox = styled.div`
