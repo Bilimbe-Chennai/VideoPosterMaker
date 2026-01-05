@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import styled from 'styled-components';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import styled, { keyframes, css } from 'styled-components';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Layers,
     Plus,
@@ -238,6 +239,20 @@ const DropdownBtn = styled.button`
   }
 `;
 
+const highlightAnimation = keyframes`
+  0% { transform: scale(1); box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+  50% { transform: scale(1.03); box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3); border-color: #667eea; background-color: rgba(102, 126, 234, 0.05); }
+  100% { transform: scale(1); box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+`;
+
+const HighlightedText = styled.span`
+  background: #ffd54f;
+  color: #1A1A1A;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 2px;
+`;
+
 const TemplateGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -248,15 +263,21 @@ const TemplateGrid = styled.div`
 const TemplateCard = styled.div`
   background: #FFF;
   border-radius: 24px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.05); // Soft, premium shadow
+  box-shadow: 0 10px 40px rgba(0,0,0,0.05);
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); // Smooth bezier transition
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  border: 1px solid rgba(0,0,0,0.03); // Very subtle border
+  border: 1px solid rgba(0,0,0,0.03);
+
+  ${props => props.$highlighted && css`
+    animation: ${highlightAnimation} 2s ease-in-out infinite;
+    border: 2px solid #667eea;
+    z-index: 10;
+  `}
 
   &:hover {
     transform: translateY(-8px);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.12); // Deeper shadow on hover
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
   }
 
   ${props => props.$selected && `
@@ -497,6 +518,7 @@ const FormRow = styled.div`
 // --- Main Component ---
 
 const Templates = () => {
+    const navigate = useNavigate();
     const axiosData = useAxios();
     const [templates, setTemplates] = useState([]);
     // const [loading, setLoading] = useState(true); // Unused
@@ -518,6 +540,18 @@ const Templates = () => {
     const [templateCount, setTemplateCount] = useState(3);
     const [userAccess, setUserAccess] = useState([]);
     const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
+    const location = useLocation();
+    const [highlightedId, setHighlightedId] = useState(null);
+    const cardRefs = useRef({});
+
+    const highlightText = (text, query) => {
+        if (!query || !text) return text;
+        const parts = String(text).split(new RegExp(`(${query})`, 'gi'));
+        return parts.map((part, index) =>
+            part.toLowerCase() === query.toLowerCase() ?
+                <HighlightedText key={index}>{part}</HighlightedText> : part
+        );
+    };
 
     // Initialize user settings
     useEffect(() => {
@@ -611,6 +645,36 @@ const Templates = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        const { highlightedTemplateId, query } = location.state || {};
+
+        if (highlightedTemplateId && templates.length > 0) {
+            const id = highlightedTemplateId;
+            setHighlightedId(id);
+
+            if (query) setSearchQuery(query);
+
+            // Wait for DOM to be ready
+            setTimeout(() => {
+                if (cardRefs.current[id]) {
+                    cardRefs.current[id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 500);
+
+            // Clear state asynchronously
+            setTimeout(() => {
+                navigate(location.pathname, { replace: true, state: {} });
+            }, 100);
+
+            // Remove highlight after 5 seconds
+            const timer = setTimeout(() => {
+                setHighlightedId(null);
+            }, 5000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [location.state, location.key, templates, navigate, location.pathname]);
 
     // Handle outside clicks for dropdowns
     useEffect(() => {
@@ -1015,7 +1079,12 @@ const Templates = () => {
 
             <TemplateGrid>
                 {filteredTemplates.map(tmpl => (
-                    <TemplateCard key={tmpl.id} $selected={selectedIds.includes(tmpl.id)}>
+                    <TemplateCard
+                        key={tmpl.id}
+                        ref={el => cardRefs.current[tmpl.id] = el}
+                        $selected={selectedIds.includes(tmpl.id)}
+                        $highlighted={tmpl.id === highlightedId}
+                    >
                         <TemplatePreview $active={tmpl.status === 'active'} onClick={() => handleEdit(tmpl)}>
                             <TemplateCarousel photos={tmpl.photos} name={tmpl.name} />
                             <div className="status-badge">{tmpl.status.toUpperCase()}</div>
@@ -1029,10 +1098,10 @@ const Templates = () => {
                         </TemplatePreview>
                         <TemplateInfo>
                             <TemplateTitle>
-                                <h3>{tmpl.name}</h3>
-                                <div style={{ fontSize: '12px', color: '#AAA', fontWeight: 600 }}>{tmpl.id}</div>
+                                <h3>{highlightText(tmpl.name, searchQuery)}</h3>
+                                <div style={{ fontSize: '12px', color: '#AAA', fontWeight: 600 }}>{highlightText(tmpl.id, searchQuery)}</div>
                             </TemplateTitle>
-                            <TemplateCategory>{tmpl.category}</TemplateCategory>
+                            <TemplateCategory>{highlightText(tmpl.category, searchQuery)}</TemplateCategory>
                             <UsageStats>
                                 <StatItem>
                                     <div className="label">Total Usage</div>

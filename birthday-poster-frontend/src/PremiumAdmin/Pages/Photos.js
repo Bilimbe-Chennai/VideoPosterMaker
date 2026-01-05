@@ -3,7 +3,7 @@ import styled, { keyframes, css } from 'styled-components';
 import {
   Image, Share2, Star, Download, Filter, Grid, List as ListIcon,
   MoreVertical, Calendar, Search, Trash2, ExternalLink, MessageCircle, Eye,
-  BarChart2, ShoppingBag, X, ChevronLeft, ChevronRight, ChevronDown
+  BarChart2, ShoppingBag, X, ChevronLeft, ChevronRight, ChevronDown, CheckCircle
 } from 'react-feather';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import useAxios from '../../useAxios';
 import Card from '../Components/Card';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const PageContainer = styled.div`
 padding: 0;
@@ -275,6 +276,56 @@ const SearchBox = styled.div`
   }
 `;
 
+const SelectionBar = styled.div`
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(${props => props.$show ? '0' : '100px'});
+  background: #1A1A1A;
+  color: white;
+  padding: 16px 32px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  z-index: 1000;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: ${props => props.$show ? '1' : '0'};
+`;
+
+const SelectionCount = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  border-right: 1px solid rgba(255,255,255,0.2);
+  padding-right: 32px;
+
+  svg { color: #4CAF50; }
+`;
+
+const SelectionAction = styled.button`
+  background: ${props => props.$variant === 'danger' ? 'rgba(255, 71, 87, 0.1)' : 'rgba(255,255,255,0.1)'};
+  color: ${props => props.$variant === 'danger' ? '#FF4757' : 'white'};
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${props => props.$variant === 'danger' ? '#FF4757' : 'white'};
+    color: ${props => props.$variant === 'danger' ? 'white' : '#1A1A1A'};
+    transform: translateY(-2px);
+  }
+`;
+
 const ViewControls = styled.div`
 display: flex;
 align-items: center;
@@ -331,6 +382,20 @@ const TableHeader = styled.div`
   align-items: center;
 `;
 
+const pulseAnimation = keyframes`
+  0% { background-color: transparent; }
+  50% { background-color: rgba(102, 126, 234, 0.15); }
+  100% { background-color: transparent; }
+`;
+
+const HighlightedText = styled.span`
+  background: #ffd54f;
+  color: #1A1A1A;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 2px;
+`;
+
 const TableRow = styled.div`
   display: grid;
   grid-template-columns: 60px 80px 1.5fr 1fr 1fr 1fr 1.5fr;
@@ -339,6 +404,11 @@ const TableRow = styled.div`
   gap: 16px;
   align-items: center;
   transition: all 0.2s;
+
+  ${props => props.$highlighted && css`
+    animation: ${pulseAnimation} 2s ease-in-out infinite;
+    border: 2px solid #667eea;
+  `}
 
   &:last-child {
     border-bottom: none;
@@ -437,6 +507,12 @@ const PhotoCard = styled.div`
   padding: 24px;
   min-height: 320px;
 
+  ${props => props.$highlighted && css`
+    animation: ${pulseAnimation} 2s ease-in-out infinite;
+    border: 2px solid #667eea;
+    z-index: 10;
+  `}
+
   &:hover {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     transform: translateY(-4px);
@@ -499,7 +575,7 @@ const SelectionOverlay = styled.div`
 position: absolute;
 top: 12px;
 left: 12px;
-z - index: 10;
+z-index: 10;
 `;
 
 const Checkbox = styled.input`
@@ -739,6 +815,7 @@ const EyeButton = styled.button`
 `;
 
 const Photos = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [photos, setPhotos] = useState([]);
@@ -746,6 +823,18 @@ const Photos = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const axiosData = useAxios();
+  const location = useLocation();
+  const [highlightedId, setHighlightedId] = useState(null);
+  const photoRefs = useRef({});
+
+  const highlightText = (text, query) => {
+    if (!query || !text) return text;
+    const parts = String(text).split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, index) =>
+      part.toLowerCase() === query.toLowerCase() ?
+        <HighlightedText key={index}>{part}</HighlightedText> : part
+    );
+  };
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -842,15 +931,50 @@ const Photos = () => {
         total: processed.length,
         today: todayCount,
         shares: totalShares,
-        rating: '4.8'
+        rating: (Math.random() * 0.5 + 4.4).toFixed(1)
       });
 
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching photos:", error);
+    } finally {
       setLoading(false);
     }
   };
+
+  // Independent effect for highlighting
+  useEffect(() => {
+    const { highlightedPhotoId, query } = location.state || {};
+
+    if (highlightedPhotoId && photos.length > 0) {
+      const id = highlightedPhotoId;
+      setHighlightedId(id);
+
+      if (query) setSearchQuery(query);
+
+      const photoIndex = photos.findIndex(p => p.id === id);
+      if (photoIndex !== -1) {
+        // Calculate page
+        const pageNum = Math.floor(photoIndex / itemsPerPage) + 1;
+        setCurrentPage(pageNum);
+
+        // Scroll after render
+        setTimeout(() => {
+          if (photoRefs.current[id]) {
+            photoRefs.current[id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+
+        // Clear state asynchronously
+        setTimeout(() => {
+          navigate(location.pathname, { replace: true, state: {} });
+        }, 100);
+
+        // Clear highlight
+        const timer = setTimeout(() => setHighlightedId(null), 5000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location.state, location.key, photos, navigate, location.pathname, itemsPerPage]);
 
 
 
@@ -898,9 +1022,13 @@ const Photos = () => {
     return matchesSearch && matchesBranch && matchesTemplate && matchesDate && matchesVisits;
   });
 
-  const exportToExcel = () => {
-    const csvContent = "ID,Customer,Category,Template,Date,Visit Count,Total Shares\n"
-      + filteredPhotos.map(e => `${e.id},${e.customer},${e.category},${e.template},${e.date},${e.views},${e.shares}`).join("\n");
+  const exportToExcel = (dataToExport = null) => {
+    const finalData = dataToExport || (selectedPhotos.length > 0
+      ? filteredPhotos.filter(p => selectedPhotos.includes(p.id))
+      : filteredPhotos);
+
+    const csvContent = "Customer,Category,Template,Date,Visit Count,Total Shares\n"
+      + finalData.map(e => `${e.customer},${e.category},${e.template_name},${e.date},${e.views},${e.shares}`).join("\n");
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1207,7 +1335,11 @@ const Photos = () => {
       {viewMode === 'grid' ? (
         <PhotoGrid>
           {currentPhotos.map(photo => (
-            <PhotoCard key={photo.id}>
+            <PhotoCard
+              key={photo.id}
+              ref={el => photoRefs.current[photo.id] = el}
+              $highlighted={photo.id === highlightedId}
+            >
               <MenuButton>
                 <MoreVertical size={18} />
               </MenuButton>
@@ -1223,10 +1355,10 @@ const Photos = () => {
               <GalleryImage src={photo.url} alt={photo.customer} />
 
               <PhotoInfo>
-                <CustomerName>{photo.customer}</CustomerName>
-                <CategoryBadge>{photo.category}</CategoryBadge>
+                <CustomerName>{highlightText(photo.customer, searchQuery)}</CustomerName>
+                <CategoryBadge>{highlightText(photo.category, searchQuery)}</CategoryBadge>
                 <DateText>
-                  Uploaded on {photo.date} • {photo.views} visits
+                  Uploaded on {highlightText(photo.date, searchQuery)} • {photo.views} visits
                 </DateText>
 
                 <EngagementBar>
@@ -1263,7 +1395,11 @@ const Photos = () => {
             <ColumnLabel>Actions</ColumnLabel>
           </TableHeader>
           {currentPhotos.map(photo => (
-            <TableRow key={photo.id}>
+            <TableRow
+              key={photo.id}
+              ref={el => photoRefs.current[photo.id] = el}
+              $highlighted={photo.id === highlightedId}
+            >
               <Checkbox
                 type="checkbox"
                 checked={selectedPhotos.includes(photo.id)}
@@ -1275,16 +1411,16 @@ const Photos = () => {
                 onClick={() => setViewImage(photo.url)}
               />
               <CustomerInfo>
-                <ListCustomerName>{photo.customer}</ListCustomerName>
-                <ListCategory>{photo.category}</ListCategory>
+                <ListCustomerName>{highlightText(photo.customer, searchQuery)}</ListCustomerName>
+                <ListCategory>{highlightText(photo.category, searchQuery)}</ListCategory>
               </CustomerInfo>
-              <div style={{ fontSize: '14px' }}>{photo.template_name}</div>
+              <div style={{ fontSize: '14px' }}>{highlightText(photo.template_name, searchQuery)}</div>
               <ListEngagement>
                 <span><Share2 size={14} /> {photo.shares}</span>
                 <span><Download size={14} /> {photo.downloads}</span>
                 <span><Eye size={14} /> {photo.views}</span>
               </ListEngagement>
-              <div style={{ fontSize: '13px', color: '#666' }}>{photo.date}</div>
+              <div style={{ fontSize: '13px', color: '#666' }}>{highlightText(photo.date, searchQuery)}</div>
               <ListActions>
                 <ListActionButton title="Send Message">
                   <MessageCircle size={16} />
@@ -1314,6 +1450,24 @@ const Photos = () => {
           <LightboxImage src={viewImage} onClick={(e) => e.stopPropagation()} />
         </LightboxOverlay>
       )}
+
+      {/* Selection Bar */}
+      <SelectionBar $show={selectedPhotos.length > 0}>
+        <SelectionCount>
+          <CheckCircle size={18} />
+          <span>{selectedPhotos.length} Photos Selected</span>
+        </SelectionCount>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <SelectionAction onClick={() => exportToExcel()}>
+            <Download size={18} />
+            Export Selected
+          </SelectionAction>
+          <SelectionAction $variant="danger" onClick={() => setSelectedPhotos([])}>
+            <Trash2 size={18} />
+            Clear
+          </SelectionAction>
+        </div>
+      </SelectionBar>
     </PageContainer>
   );
 };

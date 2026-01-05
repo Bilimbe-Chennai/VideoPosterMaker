@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import axios from "axios";
 
 const getAxiosInstance = () => {
@@ -7,25 +8,30 @@ const getAxiosInstance = () => {
   });
   return getAxios;
 };
+
 const useAxios = () => {
-  const useAxiosData = getAxiosInstance();
+  const axiosInstance = useMemo(() => {
+    const instance = getAxiosInstance();
 
-  useAxiosData.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-        // Only alert if we aren't already on the login page to avoid loops or redundant alerts
-        if (!window.location.pathname.includes('/admin/login')) {
-          alert('you are logged out kindly login and contiue browsing');
-          localStorage.clear();
-          window.location.href = '/admin/login';
+    instance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          // Only alert if we aren't already on the login page to avoid loops or redundant alerts
+          if (!window.location.pathname.includes('/admin/login')) {
+            alert('you are logged out kindly login and contiue browsing');
+            localStorage.clear();
+            window.location.href = '/admin/login';
+          }
         }
+        return Promise.reject(error);
       }
-      return Promise.reject(error);
-    }
-  );
+    );
 
-  return useAxiosData;
+    return instance;
+  }, []);
+
+  return axiosInstance;
 };
 
 export default useAxios;
