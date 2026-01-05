@@ -22,8 +22,8 @@ router.post('/login', async (req, res) => {
                 success: false,
                 error: 'Login limit reached for this account. Only 1 login allowed for app users.'
             });
-        }else if(type === 'app user'&& user.loginCount === 0){
-           user.loginCount = (user.loginCount || 0) + 1;
+        } else if (type === 'app user' && user.loginCount === 0) {
+            user.loginCount = (user.loginCount || 0) + 1;
         }
         // Update login info
         user.lastLogin = new Date();
@@ -36,6 +36,38 @@ router.post('/login', async (req, res) => {
         });
     } catch (err) {
         console.error('Login error:', err);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// User Logout - Decrement loginCount for app users
+router.post('/logout', async (req, res) => {
+    try {
+        const { _id, type } = req.body;
+
+        if (!_id) {
+            return res.status(400).json({ success: false, error: 'User ID is required' });
+        }
+
+        const user = await User.findById(_id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        // Decrement loginCount for app users only
+        if (type === 'app user' && user.loginCount > 0) {
+            user.loginCount = user.loginCount - 1;
+            await user.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Logout successful',
+            data: { loginCount: user.loginCount }
+        });
+    } catch (err) {
+        console.error('Logout error:', err);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
