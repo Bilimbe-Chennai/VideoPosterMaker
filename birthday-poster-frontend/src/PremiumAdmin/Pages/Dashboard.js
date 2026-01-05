@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import Card from '../Components/Card';
 import LineAnalytics from '../Components/charts/LineAnalytics';
+import MetricCircularCard from '../Components/charts/MetricCircularCard';
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import {
@@ -33,6 +34,11 @@ const DashboardHeader = styled.div`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+  }
 `;
 
 const WelcomeMessage = styled.div`
@@ -399,14 +405,16 @@ const TimeTag = styled.div`
 `;
 
 const ActivityIcon = styled.div`
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: ${({ theme }) => theme.colors.accentPurple + '30'};
+  background: #F8F9FA;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${({ theme }) => theme.colors.primaryDark};
+  color: #1A1A1A;
+  border: 1px solid #F0F0F0;
+  flex-shrink: 0;
 `;
 
 const ChartHeader = styled.div`
@@ -519,7 +527,23 @@ const Dashboard = () => {
     { name: 'Twitter', value: 0, color: '#DFF6FE', fill: '#DFF6FE' },
     { name: 'Download', value: 0, color: '#FCEADF', fill: '#FCEADF' }
   ]);
+  const [trends, setTrends] = useState({});
+  const [recentActivities, setRecentActivities] = useState([]);
   const navigate = useNavigate();
+
+  const formatRelativeTime = (date) => {
+    const now = new Date();
+    const past = new Date(date);
+    const diffInMs = now - past;
+    const diffInMin = Math.floor(diffInMs / (1000 * 60));
+    const diffInHrs = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMin < 1) return 'Just now';
+    if (diffInMin < 60) return `${diffInMin} min ago`;
+    if (diffInHrs < 24) return `${diffInHrs} hour${diffInHrs > 1 ? 's' : ''} ago`;
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
 
   const axiosData = useAxios();
   const [stats, setStats] = useState({
@@ -542,8 +566,9 @@ const Dashboard = () => {
         const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
         const totalPhotos = rawItems.length;
 
-        // 2. Aggregate Duplicate Customers
+        // 2 & 3. Aggregate Duplicate Customers & Trends
         const customersMap = {};
+        const dailyTrends = {};
         let todayCount = 0;
 
         // Get start of today for comparison
@@ -554,11 +579,16 @@ const Dashboard = () => {
           const phone = item.whatsapp || item.mobile || '';
           const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
 
-          // Check for valid date
+          // Date extraction & Trend isolation
           const rawDate = item.date || item.createdAt || new Date();
-          const itemTime = new Date(rawDate).getTime();
+          const itemDate = new Date(rawDate);
+          const dateKey = itemDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-          if (itemTime >= startOfToday.getTime()) {
+          if (!dailyTrends[dateKey]) {
+            dailyTrends[dateKey] = { photos: 0, shares: 0 };
+          }
+
+          if (itemDate.getTime() >= startOfToday.getTime()) {
             todayCount++;
           }
 
@@ -581,7 +611,12 @@ const Dashboard = () => {
           customersMap[key].visitCount += 1;
           customersMap[key].photoCount += 1;
           customersMap[key].shareCount += itemShares;
+
+          dailyTrends[dateKey].photos += 1;
+          dailyTrends[dateKey].shares += itemShares;
         });
+
+        setTrends(dailyTrends);
 
         // 3. Share Distribution Calculation
         let counts = {
@@ -636,6 +671,39 @@ const Dashboard = () => {
           }));
 
         setTopCustomersData(sortedCustomers);
+
+        // 4. Recent Activities Construction
+        const constructedActivities = rawItems
+          .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
+          .slice(0, 4)
+          .map(item => {
+            const name = item.name || 'Anonymous';
+            let actionText = '';
+            let icon = <Image size={18} />;
+
+            if (item.whatsappsharecount > 0) {
+              actionText = `Shared ${item.template_name || 'Design'} via WhatsApp`;
+              icon = <Share2 size={18} />;
+            } else if (item.facebooksharecount > 0) {
+              actionText = `Shared on Facebook`;
+              icon = <Facebook size={18} />;
+            } else if (item.downloadcount > 0) {
+              actionText = `Downloaded ${item.downloadcount > 1 ? item.downloadcount + ' photos' : 'a photo'}`;
+              icon = <Download size={18} />;
+            } else {
+              actionText = `Tried ${item.template_name || 'Design'} collection`;
+              icon = <Info size={18} />;
+            }
+
+            return {
+              user: name,
+              action: actionText,
+              time: formatRelativeTime(item.date || item.createdAt),
+              icon: icon
+            };
+          });
+
+        setRecentActivities(constructedActivities);
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -694,12 +762,6 @@ const Dashboard = () => {
 
 
 
-  const recentActivities = [
-    { user: 'Priya Sharma', action: 'Shared Kanchipuram Saree', time: '10 min ago', icon: <Share2 size={16} /> },
-    { user: 'Rajesh Kumar', action: 'Tried Lehenga collection', time: '25 min ago', icon: <Info size={16} /> },
-    { user: 'Anjali Patel', action: 'Downloaded 5 photos', time: '1 hour ago', icon: <Download size={16} /> },
-    { user: 'Suresh Nair', action: 'Shared on Facebook', time: '2 hours ago', icon: <Facebook size={16} /> },
-  ];
 
   return (
     <DashboardContainer>
@@ -768,8 +830,12 @@ const Dashboard = () => {
               </DropdownMenu>
             </DropdownContainer>
           </ChartHeader>
-          <div style={{ height: '300px' }}>
-            <LineAnalytics activeTab={activeChartTab} period={activePeriod} />
+          <div style={{ height: '350px' }}>
+            <LineAnalytics
+              data={trends}
+              period={activePeriod}
+              activeTab={activeChartTab.toLowerCase()}
+            />
           </div>
         </ChartCard>
 
@@ -796,7 +862,7 @@ const Dashboard = () => {
                   endAngle={-270}
                 >
                   {shareDistribution.map((entry, index) => (
-                    <Cell key={`cell - ${index} `} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} cursor={false} />
@@ -818,7 +884,7 @@ const Dashboard = () => {
         <ListCard>
           <SectionHeader>
             <h3>Top Customers</h3>
-            <div className="action" onClick={() => navigate('/admin-v2/customers')} style={{ cursor: 'pointer' }}>
+            <div className="action" onClick={() => navigate('/admin/customers')} style={{ cursor: 'pointer' }}>
               View All <ChevronRight size={14} />
             </div>
           </SectionHeader>
@@ -841,19 +907,34 @@ const Dashboard = () => {
 
         <ListCard>
           <SectionHeader>
-            <h3>Recent Activities</h3>
+            <h3 style={{ fontSize: '20px' }}>Recent Activities</h3>
+            <div className="action" onClick={() => navigate('/admin/share-tracking')} style={{ cursor: 'pointer' }}>
+              View All <ChevronRight size={14} />
+            </div>
           </SectionHeader>
-          {recentActivities.map((a, i) => (
-            <ListItem key={i}>
-              <ListMain>
-                <ActivityIcon>{a.icon}</ActivityIcon>
-                <ListInfo>
-                  <p style={{ fontSize: '14px' }}><strong>{a.user}</strong> {a.action}</p>
-                </ListInfo>
-              </ListMain>
-              <TimeTag>{a.time}</TimeTag>
-            </ListItem>
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {recentActivities.length > 0 ? recentActivities.map((a, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 0',
+                borderBottom: i === recentActivities.length - 1 ? 'none' : '1px solid #F0F0F0'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <ActivityIcon>{a.icon}</ActivityIcon>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <p style={{ margin: 0, fontSize: '15px', color: '#1A1A1A' }}>
+                      <strong style={{ fontWeight: 700 }}>{a.user}</strong> <span style={{ color: '#4B5563' }}>{a.action}</span>
+                    </p>
+                  </div>
+                </div>
+                <TimeTag style={{ color: '#A0A0A0', fontSize: '12px' }}>{a.time}</TimeTag>
+              </div>
+            )) : (
+              <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>No recent activities</p>
+            )}
+          </div>
         </ListCard>
       </MainGrid>
     </DashboardContainer>

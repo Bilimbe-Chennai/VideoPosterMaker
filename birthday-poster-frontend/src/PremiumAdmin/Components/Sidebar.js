@@ -8,7 +8,7 @@ import {
   Layers,
   PieChart,
   Share2,
-  Calendar,
+  Send,
   FileText,
   Settings,
   LogOut,
@@ -120,7 +120,7 @@ const BottomSection = styled.div`
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const Sidebar = ({ isOpen, onToggle }) => {
+const Sidebar = ({ isOpen, onToggle, onClose }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const navItems = [
@@ -130,10 +130,16 @@ const Sidebar = ({ isOpen, onToggle }) => {
     { icon: <Layers size={18} />, text: 'Templates', path: 'templates' },
     { icon: <PieChart size={18} />, text: 'Analytics', path: 'analytics' },
     { icon: <Share2 size={18} />, text: 'Share Tracking', path: 'share-tracking' },
-    { icon: <Calendar size={18} />, text: 'Campaigns', path: 'campaigns' },
+    { icon: <Send size={18} />, text: 'Campaigns', path: 'campaigns' },
     { icon: <FileText size={18} />, text: 'Reports', path: 'reports' },
     { icon: <Settings size={18} />, text: 'Settings', path: 'settings' },
   ];
+
+  const handleNavClick = () => {
+    if (window.innerWidth <= 1200) {
+      onClose();
+    }
+  };
 
   return (
     <SidebarContainer $isOpen={isOpen}>
@@ -143,7 +149,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           <LogoText>{user.name || 'User'}</LogoText>
         </Logo>
         <ToggleButton onClick={onToggle}>
-          {isOpen ? <X size={20} /> : <Menu size={20} />}
+          <X size={20} />
         </ToggleButton>
       </LogoSection>
 
@@ -153,6 +159,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
             key={item.path}
             to={item.path}
             end={item.path === 'dashboard'}
+            onClick={handleNavClick}
           >
             {item.icon}
             <NavText>{item.text}</NavText>
@@ -161,12 +168,16 @@ const Sidebar = ({ isOpen, onToggle }) => {
       </NavSection>
 
       <BottomSection>
-        <NavItem as="button" onClick={() => {
-          if (window.confirm('Are you sure you want to logout?')) {
-            localStorage.clear();
-            window.location.href = '/admin/login'; // Using href to ensure clean state or use navigate from hook
-          }
-        }} style={{ padding: '8px 12px', margin: 0 }}>
+        <NavItem
+          as="button"
+          onClick={() => {
+            if (window.confirm('Are you sure you want to logout?')) {
+              localStorage.clear();
+              window.location.href = '/admin/login';
+            }
+          }}
+          style={{ padding: '8px 12px', margin: 0 }}
+        >
           <LogOut size={18} />
           <NavText>Logout</NavText>
         </NavItem>

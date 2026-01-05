@@ -24,8 +24,13 @@ const PageContainer = styled.div`
 const HeaderSection = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 40px;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const PageInfo = styled.div`
@@ -83,6 +88,14 @@ const MetricGrid = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-bottom: 40px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const MetricCard = styled(Card)`
@@ -153,6 +166,10 @@ const ChartContainer = styled.div`
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   margin-bottom: 40px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ControlBar = styled.div`
@@ -160,6 +177,15 @@ const ControlBar = styled.div`
   gap: 16px;
   margin-bottom: 24px;
   align-items: center;
+
+  @media (max-width: 1024px) {
+    flex-wrap: wrap;
+    
+    & > * {
+        flex: 1;
+        min-width: 200px;
+    }
+  }
 `;
 
 const SearchBox = styled.div`
@@ -263,6 +289,7 @@ const TableCard = styled(Card)`
   border-radius: 32px;
   overflow: hidden;
   background: #FFF;
+  overflow-x: auto;
 `;
 
 const Table = styled.table`
@@ -298,23 +325,6 @@ const Table = styled.table`
   }
 `;
 
-const StatusBadge = styled.span`
-  padding: 6px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  ${props => {
-    switch (props.$type) {
-      case 'Success': return `background: #ECFDF5; color: #059669;`;
-      case 'Failed': return `background: #FEF2F2; color: #DC2626;`;
-      default: return `background: #F3F4F6; color: #4B5563;`;
-    }
-  }}
-`;
 
 const PlatformIcon = styled.div`
   width: 32px;
@@ -432,6 +442,7 @@ const ShareTracking = () => {
       return {
         id: item._id,
         customer: item.name || 'Anonymous',
+        email: item.email || item.mail || 'N/A',
         customerId: item.whatsapp || 'N/A',
         photo: item.template_name || item.templatename || 'Custom Poster',
         platform: w > 0 ? 'WhatsApp' : (i > 0 ? 'Instagram' : (f > 0 ? 'Facebook' : (d > 0 ? 'Download' : 'None'))),
@@ -626,7 +637,6 @@ const ShareTracking = () => {
               <th>Platform</th>
               <th>Engagement</th>
               <th>Date & Time</th>
-              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -651,16 +661,24 @@ const ShareTracking = () => {
                 <td><input type="checkbox" /></td>
                 <td>
                   <div style={{ fontWeight: 700 }}>{row.customer}</div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>ID: {row.customerId}</div>
+                  <div style={{ fontSize: '12px', color: '#999' }}>{row.email}</div>
                 </td>
                 <td>
                   <div style={{ fontWeight: 600 }}>{row.photo}</div>
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <PlatformIcon $color={row.platform === 'WhatsApp' ? '#25D366' : (row.platform === 'Instagram' ? '#E4405F' : '#1877F2')}>
-                      {row.platform === 'WhatsApp' ? <MessageCircle size={16} /> : (row.platform === 'Instagram' ? <Instagram size={16} /> : <Facebook size={16} />)}
-                    </PlatformIcon>
+                    {row.platform !== 'None' && (
+                      <PlatformIcon $color={
+                        row.platform === 'WhatsApp' ? '#25D366' :
+                          (row.platform === 'Instagram' ? '#E4405F' :
+                            (row.platform === 'Facebook' ? '#1877F2' : '#F59E0B'))
+                      }>
+                        {row.platform === 'WhatsApp' ? <MessageCircle size={16} /> :
+                          (row.platform === 'Instagram' ? <Instagram size={16} /> :
+                            (row.platform === 'Facebook' ? <Facebook size={16} /> : <Download size={16} />))}
+                      </PlatformIcon>
+                    )}
                     <span style={{ fontWeight: 600 }}>{row.platform}</span>
                   </div>
                 </td>
@@ -669,9 +687,6 @@ const ShareTracking = () => {
                   <div style={{ fontSize: '12px', color: '#999' }}>{row.clicks} Clicks</div>
                 </td>
                 <td>{row.formattedDate}</td>
-                <td>
-                  <StatusBadge $type={row.status}>{row.status}</StatusBadge>
-                </td>
                 <td>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <IconButton title="View Details"><Eye size={18} /></IconButton>

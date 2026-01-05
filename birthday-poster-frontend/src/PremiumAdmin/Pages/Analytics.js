@@ -2,23 +2,35 @@ import React from 'react';
 import styled from 'styled-components';
 import Card from '../Components/Card';
 import LineAnalytics from '../Components/charts/LineAnalytics';
+import TrendAnalytics from '../Components/charts/TrendAnalytics';
 import DonutActivity from '../Components/charts/DonutActivity';
 import BarActivity from '../Components/charts/BarActivity';
+import MetricCircularCard from '../Components/charts/MetricCircularCard';
 import useAxios from '../../useAxios';
-import { PieChart, TrendingUp, Filter, Download, Image, Calendar, Share2, Star, User } from 'react-feather';
+import { PieChart, TrendingUp, Filter, Download, Image, Calendar, Share2, Star, User, Facebook } from 'react-feather';
 
 const AnalyticsContainer = styled.div``;
 
 const HeaderSection = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const ActionButtons = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.md};
+
+  @media (max-width: 480px) {
+    width: 100%;
+    flex-direction: column;
+  }
 `;
 
 const ActionButton = styled.button`
@@ -240,11 +252,14 @@ const Analytics = () => {
     // --- 4. Trend Data (Daily)
     const trends = {};
 
-    // Initialize trends with empty data for all days in range to ensure continuity
-    for (let i = 0; i < timeRange; i++) {
-      const d = new Date();
+    // Initialize trends with local dates to avoid timezone shifts
+    for (let i = timeRange - 1; i >= 0; i--) {
+      const d = new Date(now);
       d.setDate(now.getDate() - i);
-      const dateKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${dayNum}`;
       trends[dateKey] = { photos: 0, shares: 0, users: new Set() };
     }
 
@@ -252,8 +267,12 @@ const Analytics = () => {
       let dateKey;
       try {
         const dateObj = new Date(item.date || item.createdAt);
-        if (isNaN(dateObj.getTime())) return; // Skip invalid dates
-        dateKey = dateObj.toISOString().split('T')[0];
+        if (isNaN(dateObj.getTime())) return;
+
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dayNum = String(dateObj.getDate()).padStart(2, '0');
+        dateKey = `${year}-${month}-${dayNum}`;
       } catch (e) {
         return;
       }
@@ -490,7 +509,7 @@ const Analytics = () => {
 
           <LargeChartCard title="Performance Trends" subtitle={`Daily activity for last ${timeRange} days`}>
             <div style={{ height: '400px', marginTop: '20px' }}>
-              <LineAnalytics data={analyticsData?.trends} range={timeRange} />
+              <TrendAnalytics data={analyticsData?.trends} range={timeRange} />
             </div>
           </LargeChartCard>
 
@@ -501,13 +520,42 @@ const Analytics = () => {
           </SmallChartCard>
 
           <FullWidthCard title="Platform Performance" subtitle="Shares across channels">
-            <div style={{ height: '350px', marginTop: '20px' }}>
-              <BarActivity data={analyticsData?.platforms} />
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '24px',
+              padding: '24px 0'
+            }}>
+              {(() => {
+                const totalShares = Object.values(analyticsData?.platforms || {}).reduce((a, b) => a + b, 0) || 1;
+                return [
+                  { label: 'WhatsApp', key: 'WhatsApp', color: '#6B8E23', bgColor: '#F4F9E9', icon: <Share2 size={20} /> },
+                  { label: 'Facebook', key: 'Facebook', color: '#D47D52', bgColor: '#FFF0E5', icon: <Facebook size={20} /> },
+                  { label: 'Instagram', key: 'Instagram', color: '#8E44AD', bgColor: '#F7F2FA', icon: <Image size={20} /> },
+                  { label: 'Download', key: 'Direct', color: '#B58B00', bgColor: '#FFF9E5', icon: <Download size={20} /> }
+                ].map(p => (
+                  <MetricCircularCard
+                    key={p.key}
+                    label={p.label}
+                    value={analyticsData?.platforms[p.key] || 0}
+                    percentage={Math.round(((analyticsData?.platforms[p.key] || 0) / totalShares) * 100)}
+                    trend={5.0}
+                    color={p.color}
+                    bgColor={p.bgColor}
+                    icon={p.icon}
+                  />
+                ));
+              })()}
             </div>
           </FullWidthCard>
 
           <FullWidthCard title="Insights & Recommendations" subtitle="AI Derived Actions">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', padding: '20px 0' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '20px',
+              padding: '20px 0'
+            }}>
               <div>
                 <h4 style={{ marginBottom: '10px', color: '#1A1A1A' }}>🏆 Top Performance</h4>
                 <p style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>Best Category</p>
@@ -522,10 +570,10 @@ const Analytics = () => {
                 <p style={{ fontSize: '13px', color: '#666', marginTop: '12px', marginBottom: '4px' }}>Traffic Pattern</p>
                 <p style={{ fontWeight: 600, color: '#1A1A1A' }}>{analyticsData?.insights.trafficPattern}</p>
               </div>
-              <div style={{ gridColumn: 'span 2', background: '#F9FAFB', padding: '16px', borderRadius: '12px' }}>
+              <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '12px' }}>
                 <h4 style={{ marginBottom: '10px', color: '#1A1A1A' }}>💡 Smart Recommendation</h4>
                 <p style={{ color: '#4B5563', lineHeight: '1.5' }}>{analyticsData?.insights.recommendation}</p>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ padding: '4px 12px', background: '#E0E7FF', color: '#4F46E5', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>Campaign Optimization</span>
                   <span style={{ padding: '4px 12px', background: '#DCFCE7', color: '#16A34A', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>Engagement</span>
                 </div>

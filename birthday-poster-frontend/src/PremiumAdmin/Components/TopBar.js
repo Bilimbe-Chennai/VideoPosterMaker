@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { Search, Bell, User } from 'react-feather';
+import { Search, Bell, User, Menu } from 'react-feather';
 import { useNavigate } from 'react-router-dom';
 import useAxios from '../../useAxios';
 import NotificationPanel from './NotificationPanel';
@@ -17,6 +17,37 @@ const TopBarContainer = styled.header`
   top: 0;
   z-index: 100;
   box-shadow: ${({ theme }) => theme.shadows.card};
+
+  @media (max-width: 768px) {
+    padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
+  }
+`;
+
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const MenuButton = styled.button`
+  display: none;
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  padding: 8px;
+  margin-right: 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  @media (max-width: 1200px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 `;
 
 const SearchBarWrapper = styled.div`
@@ -41,6 +72,10 @@ const SearchBar = styled.div`
   @media (max-width: 768px) {
     width: 200px;
   }
+
+  @media (max-width: 480px) {
+    display: none; /* Hide search on very small screens to save space */
+  }
 `;
 
 const SearchInput = styled.input`
@@ -61,6 +96,10 @@ const RightSection = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: 480px) {
+    gap: 12px;
+  }
 `;
 
 const IconButton = styled.button`
@@ -80,6 +119,11 @@ const IconButton = styled.button`
   &:hover {
     background: ${({ theme }) => theme.colors.accentPurple};
     color: ${({ theme }) => theme.colors.textPrimary};
+  }
+
+  @media (max-width: 480px) {
+    width: 36px;
+    height: 36px;
   }
 `;
 
@@ -117,6 +161,11 @@ const UserAvatar = styled.div`
   justify-content: center;
   color: white;
   font-weight: 600;
+
+  @media (max-width: 480px) {
+    width: 36px;
+    height: 36px;
+  }
 `;
 
 const UserInfo = styled.div`
@@ -238,21 +287,29 @@ const TopBar = ({ onMenuClick }) => {
   return (
     <>
       <TopBarContainer>
-        <SearchBarWrapper ref={searchRef}>
-          <SearchBar>
-            <Search size={18} color="#A0A0A0" />
-            <SearchInput
+
+          <LeftSection>
+        <MenuButton onClick={onMenuClick} title="Open Menu">
+          <Menu size={24} />
+        </MenuButton>
+                <SearchBarWrapper ref={searchRef}>
+        <SearchBar>
+              <Search size={18} color="#A0A0A0" />
+              <SearchInput
               placeholder="Search templates, users, photos..."
               value={searchQuery}
               onChange={handleSearchChange}
             />
-          </SearchBar>
+            </SearchBar>
           <SearchResults
             query={searchQuery}
             show={showSearchResults}
             onResultClick={handleSearchResultClick}
           />
-        </SearchBarWrapper>
+          </SearchBarWrapper>
+           </LeftSection>
+        
+     
 
         <RightSection>
           <IconButton onClick={handleNotificationClick}>

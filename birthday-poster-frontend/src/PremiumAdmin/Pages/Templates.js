@@ -34,6 +34,11 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 24px;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 `;
 
 const HeaderInfo = styled.div`
@@ -88,6 +93,14 @@ const KPIGrid = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-bottom: 32px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const KPICard = styled.div`
@@ -183,6 +196,12 @@ const ControlSection = styled.div`
   padding: 16px 24px;
   border-radius: 16px;
   border: 1px solid #F0F0F0;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
 `;
 
 const SearchBox = styled.div`
@@ -514,6 +533,100 @@ const FormRow = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 `;
+
+// --- Sub-components ---
+
+const TemplateCarousel = ({ photos, name }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const handleNext = (e) => {
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev + 1) % photos.length);
+    };
+
+    const handlePrev = (e) => {
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
+    };
+
+    const handleDotClick = (e, index) => {
+        e.stopPropagation();
+        setCurrentIndex(index);
+    };
+
+    if (!photos || photos.length === 0) {
+        return (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+                <span style={{ color: '#999', fontSize: '12px' }}>No Image</span>
+            </div>
+        );
+    }
+
+    const currentPhotoUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photos[currentIndex]}`;
+
+    return (
+        <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+                key={currentIndex}
+                src={currentPhotoUrl}
+                alt={`${name} - ${currentIndex + 1}`}
+                style={{ maxWidth: '90%', maxHeight: '75%', objectFit: 'contain' }}
+            />
+
+            {photos.length > 1 && (
+                <>
+                    <button
+                        onClick={handlePrev}
+                        style={{
+                            position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+                            background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
+                            width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 2,
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#fff'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        style={{
+                            position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                            background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
+                            width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 2,
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#fff'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                    <div style={{
+                        position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
+                        display: 'flex', gap: '6px', zIndex: 2,
+                        background: 'rgba(255,255,255,0.5)', padding: '4px 8px', borderRadius: '10px',
+                        backdropFilter: 'blur(4px)'
+                    }}>
+                        {photos.map((_, idx) => (
+                            <div
+                                key={idx}
+                                onClick={(e) => handleDotClick(e, idx)}
+                                style={{
+                                    width: '8px', height: '8px', borderRadius: '50%',
+                                    background: idx === currentIndex ? '#1A1A1A' : 'rgba(0,0,0,0.2)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            />
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
 
 // --- Main Component ---
 
@@ -894,69 +1007,6 @@ const Templates = () => {
             endY: 28
         },
     ];
-
-    const TemplateCarousel = ({ photos, name }) => {
-        const [currentIndex, setCurrentIndex] = useState(0);
-
-        const handleNext = (e) => {
-            e.stopPropagation();
-            setCurrentIndex((prev) => (prev + 1) % photos.length);
-        };
-
-        const handlePrev = (e) => {
-            e.stopPropagation();
-            setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
-        };
-
-        const currentPhotoUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photos[currentIndex]}`;
-
-        return (
-            <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={currentPhotoUrl} alt={`${name} - ${currentIndex + 1}`} style={{ maxWidth: '90%', maxHeight: '75%', objectFit: 'contain' }} />
-
-                {photos.length > 1 && (
-                    <>
-                        <button
-                            onClick={handlePrev}
-                            style={{
-                                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
-                                background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%',
-                                width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', zIndex: 2
-                            }}
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-                        <button
-                            onClick={handleNext}
-                            style={{
-                                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-                                background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%',
-                                width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', zIndex: 2
-                            }}
-                        >
-                            <ChevronRight size={16} />
-                        </button>
-                        <div style={{
-                            position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-                            display: 'flex', gap: '4px', zIndex: 2
-                        }}>
-                            {photos.map((_, idx) => (
-                                <div
-                                    key={idx}
-                                    style={{
-                                        width: '6px', height: '6px', borderRadius: '50%',
-                                        background: idx === currentIndex ? '#1A1A1A' : 'rgba(0,0,0,0.2)'
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-        );
-    };
 
     return (
         <PageContainer>
