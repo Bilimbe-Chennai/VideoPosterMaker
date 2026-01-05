@@ -93,7 +93,6 @@ router.post('/template-upload', async (req, res) => {
                     } else if (headersText.includes('name="status"')) {
                         status = body.toString().trim();
                     } else if (headersText.includes('name="photos"')) {
-                        console.log('Found photo part'); // DEBUG
                         photosBuffers.push({
                             buffer: body,
                             filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
@@ -207,8 +206,6 @@ router.put('/templates/:id', async (req, res) => {
 
                 if (photoOrder && Array.isArray(photoOrder)) {
                     // Hybrid Update Logic
-                    console.log('Processing photoOrder:', photoOrder);
-                    console.log('Available photo buffers:', photosBuffers.length);
                     const templatePhotos = [];
                     let fileIndex = 0;
 
@@ -217,19 +214,16 @@ router.put('/templates/:id', async (req, res) => {
                             if (fileIndex < photosBuffers.length) {
                                 const p = photosBuffers[fileIndex];
                                 const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
-                                console.log(`Uploaded new file at index ${fileIndex}:`, photoId);
                                 templatePhotos.push(photoId);
                                 fileIndex++;
                             }
                         } else {
                             // Verify it's a valid ID to prevent injection/errors?
                             if (mongoose.Types.ObjectId.isValid(item)) {
-                                console.log('Keeping existing photo:', item);
                                 templatePhotos.push(item);
                             }
                         }
                     }
-                    console.log('Final templatePhotos array:', templatePhotos);
                     updateData.templatePhotos = templatePhotos;
 
                 } else if (photosBuffers.length > 0) {
@@ -273,6 +267,11 @@ router.get('/templates', async (req, res) => {
         if (adminid) query.adminid = adminid;
         if (branchid) query.branchid = branchid;
         if (q) query.templatename = new RegExp(q, 'i');
+
+        // Only return active templates when filtering by adminid and branchid
+        if (adminid && branchid) {
+            query.status = 'active';
+        }
 
         const templates = await PhotoMergeTemplate.find(query).sort({ createdAt: -1 });
         res.json(templates);
