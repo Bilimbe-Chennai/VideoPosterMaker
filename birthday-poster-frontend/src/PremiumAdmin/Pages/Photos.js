@@ -1351,9 +1351,9 @@ const Photos = () => {
               ref={el => photoRefs.current[photo.id] = el}
               $highlighted={photo.id === highlightedId}
             >
-              <MenuButton>
+              {/* <MenuButton>
                 <MoreVertical size={18} />
-              </MenuButton>
+              </MenuButton> */}
 
               <SelectionOverlay>
                 <Checkbox
