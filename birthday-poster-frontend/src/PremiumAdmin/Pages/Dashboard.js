@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import Card from '../Components/Card';
 import LineAnalytics from '../Components/charts/LineAnalytics';
+import MetricCircularCard from '../Components/charts/MetricCircularCard';
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import {
@@ -519,6 +520,7 @@ const Dashboard = () => {
     { name: 'Twitter', value: 0, color: '#DFF6FE', fill: '#DFF6FE' },
     { name: 'Download', value: 0, color: '#FCEADF', fill: '#FCEADF' }
   ]);
+  const [trends, setTrends] = useState({});
   const navigate = useNavigate();
 
   const axiosData = useAxios();
@@ -542,8 +544,9 @@ const Dashboard = () => {
         const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
         const totalPhotos = rawItems.length;
 
-        // 2. Aggregate Duplicate Customers
+        // 2 & 3. Aggregate Duplicate Customers & Trends
         const customersMap = {};
+        const dailyTrends = {};
         let todayCount = 0;
 
         // Get start of today for comparison
@@ -554,11 +557,16 @@ const Dashboard = () => {
           const phone = item.whatsapp || item.mobile || '';
           const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
 
-          // Check for valid date
+          // Date extraction & Trend isolation
           const rawDate = item.date || item.createdAt || new Date();
-          const itemTime = new Date(rawDate).getTime();
+          const itemDate = new Date(rawDate);
+          const dateKey = itemDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-          if (itemTime >= startOfToday.getTime()) {
+          if (!dailyTrends[dateKey]) {
+            dailyTrends[dateKey] = { photos: 0, shares: 0 };
+          }
+
+          if (itemDate.getTime() >= startOfToday.getTime()) {
             todayCount++;
           }
 
@@ -581,7 +589,12 @@ const Dashboard = () => {
           customersMap[key].visitCount += 1;
           customersMap[key].photoCount += 1;
           customersMap[key].shareCount += itemShares;
+
+          dailyTrends[dateKey].photos += 1;
+          dailyTrends[dateKey].shares += itemShares;
         });
+
+        setTrends(dailyTrends);
 
         // 3. Share Distribution Calculation
         let counts = {
@@ -768,8 +781,12 @@ const Dashboard = () => {
               </DropdownMenu>
             </DropdownContainer>
           </ChartHeader>
-          <div style={{ height: '300px' }}>
-            <LineAnalytics activeTab={activeChartTab} period={activePeriod} />
+          <div style={{ height: '350px' }}>
+            <LineAnalytics
+              data={trends}
+              period={activePeriod}
+              activeTab={activeChartTab.toLowerCase()}
+            />
           </div>
         </ChartCard>
 
@@ -796,7 +813,7 @@ const Dashboard = () => {
                   endAngle={-270}
                 >
                   {shareDistribution.map((entry, index) => (
-                    <Cell key={`cell - ${index} `} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} cursor={false} />
