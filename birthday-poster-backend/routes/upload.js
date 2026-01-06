@@ -545,17 +545,29 @@ router.get("/stats", async (req, res) => {
 // GET search media by metadata
 router.get("/search", async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, adminid } = req.query;
     if (!q) return res.status(400).json({ error: "Search query required" });
 
     const searchRegex = new RegExp(q, "i");
-    const results = await Media.find({
+    const searchConditions = {
       $or: [
         { name: searchRegex },
         { whatsapp: searchRegex },
         { branchName: searchRegex },
       ],
-    }).sort({ updatedAt: -1 });
+    };
+
+    let query = searchConditions;
+    if (adminid) {
+      query = {
+        $and: [
+          { adminid: adminid },
+          searchConditions
+        ]
+      };
+    }
+
+    const results = await Media.find(query).sort({ updatedAt: -1 });
 
     res.json(results);
   } catch (err) {
