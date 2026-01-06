@@ -847,7 +847,7 @@ const Customers = () => {
       });
 
       if (response.data.success) {
-        alert(`Message sent to ${activeCustomer.name} successfully!`);
+        // alert(`Message sent to ${activeCustomer.name} successfully!`);
         setShowMsgModal(false);
       } else {
         throw new Error("Failed to send message via API");
@@ -902,9 +902,9 @@ const Customers = () => {
           <PrimaryButton $variant="outline" onClick={() => exportToExcel()}>
             <Download size={16} /> Export as Excel
           </PrimaryButton>
-          <PrimaryButton $variant="success" onClick={handleBulkWhatsApp}>
+          {/* <PrimaryButton $variant="success" onClick={handleBulkWhatsApp}>
             <MessageCircle size={16} /> Bulk WhatsApp
-          </PrimaryButton>
+          </PrimaryButton> */}
           {/* <PrimaryButton $variant="primary" onClick={() => alert('Opening Add Customer form...')}>
             <Plus size={16} /> Add Customer
           </PrimaryButton> */}
@@ -1167,9 +1167,9 @@ const Customers = () => {
             </PrimaryButton>
             <IconButton style={{ color: 'white' }} onClick={() => setSelectedCustomers([])}>✕</IconButton>
           </div>
-          <PrimaryButton $variant="success" style={{ padding: '8px 16px', fontSize: '12px' }} onClick={handleBulkWhatsApp}>
+          {/* <PrimaryButton $variant="success" style={{ padding: '8px 16px', fontSize: '12px' }} onClick={handleBulkWhatsApp}>
             <MessageCircle size={14} /> Bulk WhatsApp
-          </PrimaryButton>
+          </PrimaryButton> */}
         </BulkActionBar>
       )}
 

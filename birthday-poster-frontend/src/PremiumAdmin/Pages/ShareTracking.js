@@ -532,9 +532,9 @@ const ShareTracking = () => {
           <PrimaryButton $variant="outline" onClick={exportToExcel}>
             <Download size={18} /> Export as Excel
           </PrimaryButton>
-          <PrimaryButton $variant="success">
+          {/* <PrimaryButton $variant="success">
             <MessageCircle size={18} /> Bulk Whatsapp
-          </PrimaryButton>
+          </PrimaryButton> */}
         </ActionButtons>
       </HeaderSection>
 

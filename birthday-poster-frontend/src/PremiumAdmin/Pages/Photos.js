@@ -1292,10 +1292,10 @@ const Photos = () => {
             <Download size={18} />
             Export as Excel
           </ActionButton>
-          <ActionButton $variant="success" onClick={() => sendBulkWhatsApp()}>
+          {/* <ActionButton $variant="success" onClick={() => sendBulkWhatsApp()}>
             <MessageCircle size={18} />
             Bulk WhatsApp
-          </ActionButton>
+          </ActionButton> */}
         </HeaderActions>
       </HeaderSection>
 

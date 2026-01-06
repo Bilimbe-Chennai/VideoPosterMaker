@@ -22,7 +22,8 @@ import {
   AlertCircle,
   BarChart2,
   Share2,
-  Users
+  Users,
+  MessageCircle
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
@@ -76,7 +77,10 @@ const PrimaryButton = styled.button`
   gap: 10px;
   transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-
+  background: ${({ $variant, theme }) =>
+    $variant === 'success' ? '#25D366' :
+      $variant === 'primary' ? theme.colors.primaryDark :
+        '#1A1A1A'};
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0,0,0,0.15);
@@ -415,6 +419,9 @@ const Campaigns = () => {
           </SecondaryButton>
           <PrimaryButton>
             <Plus size={18} /> Create New Campaign
+          </PrimaryButton>
+           <PrimaryButton $variant="success">
+            <MessageCircle size={18} /> Bulk Whatsapp
           </PrimaryButton>
         </ActionGroup>
       </PageHeader>
