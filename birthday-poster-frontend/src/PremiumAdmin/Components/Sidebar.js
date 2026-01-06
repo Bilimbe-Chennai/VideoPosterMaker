@@ -133,7 +133,7 @@ const Sidebar = ({ isOpen, onToggle, onClose }) => {
     { icon: <Share2 size={18} />, text: 'Share Tracking', path: 'share-tracking' },
     { icon: <Send size={18} />, text: 'Campaigns', path: 'campaigns' },
     { icon: <FileText size={18} />, text: 'Reports', path: 'reports' },
-    { icon: <Bell size={18} />, text: 'Notifications', path: 'notifications' },
+    // { icon: <Bell size={18} />, text: 'Notifications', path: 'notifications' },
     { icon: <Settings size={18} />, text: 'Settings', path: 'settings' },
   ];
 

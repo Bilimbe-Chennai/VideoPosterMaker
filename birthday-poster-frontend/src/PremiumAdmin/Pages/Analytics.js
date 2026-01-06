@@ -165,6 +165,7 @@ const Analytics = () => {
   const [timeRange, setTimeRange] = React.useState(7); // Default 7 days
   const [loading, setLoading] = React.useState(true);
   const [analyticsData, setAnalyticsData] = React.useState(null);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const axiosData = useAxios();
 
@@ -172,7 +173,7 @@ const Analytics = () => {
   const fetchAnalyticsData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axiosData.get("upload/all");
+      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
       const rawData = response.data.filter(item => item.source === 'Photo Merge App');
       processAnalytics(rawData);
       setLoading(false);
