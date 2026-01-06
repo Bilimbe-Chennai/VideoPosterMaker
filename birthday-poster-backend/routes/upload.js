@@ -64,7 +64,7 @@ router.post("/share", async (req, res) => {
               parameters: [
                 {
                   type: "text",
-                  text: linksend,
+                  text: req.body.message || linksend,
                 },
               ],
             },
@@ -108,6 +108,86 @@ router.post("/share", async (req, res) => {
       error: "Internal server error",
       details: err.response?.data || err.message,
     });
+  }
+});
+
+// New route for custom messages
+router.post("/custom-share", async (req, res) => {
+  try {
+    const toNumber = req.body.mobile;
+    const _id = req.body._id;
+    const userName = req.body.userName;
+    const message = req.body.message;
+    const token = process.env.CHATMYBOT_TOKEN;
+
+    if (!toNumber || !message || !_id) {
+      return res.status(400).json({ error: "Phone, message, and _id are required" });
+    }
+
+    if (!token) {
+      return res.status(500).json({ error: "ChatMyBot token not configured" });
+    }
+  const payload = [
+      {
+        to: toNumber,
+        type: "template",
+        template: {
+          id: process.env.WHATSAPP_TEMPLATE_ID_APP,
+          language: {
+            code: "en",
+          },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  text: userName,
+                },
+                {
+                  type: "text",
+                  text: message,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+    const response = await axios.post(
+      `https://wa.chatmybot.in/gateway/wabuissness/v1/message/batchapi`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          accessToken: token,
+        },
+      }
+    );
+
+    console.log("ChatMyBot Response:", JSON.stringify(response.data, null, 2));
+
+    if (response.status !== 200 || (response.data && response.data.status === "error")) {
+      return res.status(response.status || 500).json({
+        error: "Failed to send message via ChatMyBot",
+        details: response.data
+      });
+    }
+
+    // Optional: Update media status as well
+    const updatedMedia = await Media.findByIdAndUpdate(
+      _id,
+      {
+        whatsappstatus: "yes",
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    res.json({ success: true, data: updatedMedia });
+  } catch (error) {
+    console.error("Server error in /custom-share:", error.response?.data || error.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -820,7 +900,6 @@ router.post("/videophoto", async (req, res) => {
 
         const day = dateObj.getDate();
         const month = dateObj.toLocaleString("default", { month: "long" });
-
         const suffix =
           day % 10 === 1 && day !== 11
             ? "st"
