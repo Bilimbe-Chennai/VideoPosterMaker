@@ -202,21 +202,22 @@ const TopBar = ({ onMenuClick }) => {
     const fetchNotificationCount = async () => {
       try {
         const [templatesRes, photosRes] = await Promise.all([
-          axiosData.get('/photomerge/templates'),
-          axiosData.get('/upload/all')
+          axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
+          axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
         ]);
 
-        // Count recent items that are UNREAD
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        // Count all items that are UNREAD
         const savedReadIds = JSON.parse(localStorage.getItem('readNotificationIds') || '[]');
 
         const unreadTemplates = (templatesRes.data || [])
-          .filter(t => new Date(t.createdDate) > oneDayAgo && !savedReadIds.includes(`template-${t._id}`));
+          .filter(t => !savedReadIds.includes(`template-${t._id}`));
 
         const unreadPhotos = (photosRes.data || [])
-          .filter(p => p.source === 'Photo Merge App' && new Date(p.createdAt || p.date) > oneDayAgo && !savedReadIds.includes(`photo-${p._id}`));
+          .filter(p => p.source === 'Photo Merge App' && !savedReadIds.includes(`photo-${p._id}`));
 
-        setNotificationCount(unreadTemplates.length + unreadPhotos.length);
+        const count = unreadTemplates.length + unreadPhotos.length;
+        setNotificationCount(count);
+        document.title = count > 0 ? `(${count}) Premium Admin` : 'Premium Admin';
       } catch (error) {
         console.error('Error fetching notification count:', error);
       }
@@ -226,17 +227,19 @@ const TopBar = ({ onMenuClick }) => {
     // Refresh count every 5 minutes
     const interval = setInterval(fetchNotificationCount, 5 * 60 * 1000);
 
-    // Listen for storage changes from NotificationPanel
+    // Listen for storage changes AND custom event from NotificationPanel
     const handleStorageChange = (e) => {
-      if (e.key === 'readNotificationIds') {
+      if (e.key === 'readNotificationIds' || e.type === 'notificationStateChange') {
         fetchNotificationCount();
       }
     };
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('notificationStateChange', handleStorageChange);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('notificationStateChange', handleStorageChange);
     };
   }, [axiosData]);
 
@@ -288,28 +291,28 @@ const TopBar = ({ onMenuClick }) => {
     <>
       <TopBarContainer>
 
-          <LeftSection>
-        <MenuButton onClick={onMenuClick} title="Open Menu">
-          <Menu size={24} />
-        </MenuButton>
-                <SearchBarWrapper ref={searchRef}>
-        <SearchBar>
+        <LeftSection>
+          <MenuButton onClick={onMenuClick} title="Open Menu">
+            <Menu size={24} />
+          </MenuButton>
+          <SearchBarWrapper ref={searchRef}>
+            <SearchBar>
               <Search size={18} color="#A0A0A0" />
               <SearchInput
-              placeholder="Search templates, users, photos..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
+                placeholder="Search templates, users, photos..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
             </SearchBar>
-          <SearchResults
-            query={searchQuery}
-            show={showSearchResults}
-            onResultClick={handleSearchResultClick}
-          />
+            <SearchResults
+              query={searchQuery}
+              show={showSearchResults}
+              onResultClick={handleSearchResultClick}
+            />
           </SearchBarWrapper>
-           </LeftSection>
-        
-     
+        </LeftSection>
+
+
 
         <RightSection>
           <IconButton onClick={handleNotificationClick}>

@@ -337,6 +337,87 @@ const SelectionAction = styled.button`
   }
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+`;
+
+const ModalContainer = styled.div`
+  background: #FFF;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  position: relative;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #1A1A1A;
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  height: 150px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+  font-family: inherit;
+  font-size: 15px;
+  margin-bottom: 24px;
+  resize: none;
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    background: #FFF;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  }
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
+const IconButton = styled.button`
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #F3F4F6;
+    color: #1A1A1A;
+  }
+`;
+
 const ViewControls = styled.div`
 display: flex;
 align-items: center;
@@ -385,7 +466,7 @@ const PhotoTable = styled.div`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 60px 80px 1.5fr 1fr 1fr 1fr 1.5fr;
+  grid-template-columns: 60px 80px 1.5fr 1fr 1fr 1fr 1fr;
   padding: 16px 24px;
   background: #FAFAFA;
   border-bottom: 1px solid #F0F0F0;
@@ -409,7 +490,7 @@ const HighlightedText = styled.span`
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 60px 80px 1.5fr 1fr 1fr 1fr 1.5fr;
+  grid-template-columns: 60px 80px 1.5fr 1fr 1fr 1fr 1fr;
   padding: 16px 24px;
   border-bottom: 1px solid #F5F5F5;
   gap: 16px;
@@ -829,12 +910,18 @@ const Photos = () => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [customMsg, setCustomMsg] = useState('');
+  const [activePhoto, setActivePhoto] = useState(null);
+  const [isSending, setIsSending] = useState(false);
   const [photos, setPhotos] = useState([]);
   const [viewImage, setViewImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const axiosData = useAxios();
   const location = useLocation();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [highlightedId, setHighlightedId] = useState(null);
   const photoRefs = useRef({});
 
@@ -893,8 +980,10 @@ const Photos = () => {
 
   const fetchPhotos = async () => {
     try {
-      const response = await axiosData.get("upload/all");
-      const data = response.data.filter(item => item.source === 'Photo Merge App');
+      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+      const data = response.data.filter(item =>
+        item.source === 'Photo Merge App'
+      );
 
       // 1. Group by Customer to count total uploads (Visits)
       const customerCounts = {};
@@ -918,6 +1007,7 @@ const Photos = () => {
           template_name: item.template_name || item.templatename || item.type,
           branch: item.source || 'Head Office',
           customer: item.name || 'Anonymous',
+          phone: phone, // Added phone field
           date: new Date(item.date || item.createdAt).toLocaleDateString(),
           timestamp: new Date(item.date || item.createdAt).getTime(),
           views: customerCounts[key] || 0,
@@ -1051,9 +1141,73 @@ const Photos = () => {
     document.body.removeChild(link);
   };
 
-  const sendBulkWhatsApp = () => {
-    const message = `Check out our latest collection! We have ${stats.today} new photos today.`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  const handleMessage = (photo) => {
+    setActivePhoto(photo);
+    setCustomMsg(`Hello ${photo.customer}, check out your photo from ${photo.template_name}: ${photo.url}`);
+    setShowMsgModal(true);
+  };
+
+  const confirmSendMessage = async () => {
+    if (!activePhoto) return;
+    if (!activePhoto.phone || activePhoto.phone === 'N/A') {
+      alert("Customer phone number not available.");
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      // Call the NEW custom-share endpoint
+      const response = await axiosData.post('/upload/custom-share', {
+        mobile: activePhoto.phone,
+        _id: activePhoto.id,
+        message: customMsg,
+        userName: activePhoto.customer,
+      });
+
+      if (response.data.success) {
+        // alert("Message sent successfully via ChatMyBot!");
+        setShowMsgModal(false);
+      } else {
+        throw new Error("Failed to send message");
+      }
+    } catch (error) {
+      console.error("Messaging Error:", error);
+      alert("Failed to send message via WhatsApp.");
+      setShowMsgModal(false);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const sendBulkWhatsApp = async () => {
+    const photosToMessage = selectedPhotos.length > 0
+      ? filteredPhotos.filter(p => selectedPhotos.includes(p.id))
+      : [];
+
+    if (photosToMessage.length === 0) {
+      alert("Please select photos to send bulk messages.");
+      return;
+    }
+
+    const bulkMsg = prompt("Enter bulk message (photo link will be appended):", "Check out our latest collection! ");
+    if (!bulkMsg) return;
+
+    if (window.confirm(`Send messages to ${photosToMessage.length} customers?`)) {
+      for (const photo of photosToMessage) {
+        try {
+          await axiosData.post('/upload/custom-share', {
+            mobile: photo.phone,
+            _id: photo.id,
+            message: `${bulkMsg}\n\nPhoto: ${photo.url}`
+          });
+        } catch (err) {
+          console.error("Bulk Send Error for", photo.customer, err);
+        }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      alert("Bulk messaging process completed.");
+    }
   };
 
   const toggleSelect = (id) => {
@@ -1343,7 +1497,56 @@ const Photos = () => {
         </ViewControls>
       </FilterSection>
 
-      {viewMode === 'grid' ? (
+      {filteredPhotos.length === 0 ? (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '80px 20px',
+          flexDirection: 'column',
+          alignItems: 'center',
+          background: '#FFF',
+          borderRadius: '32px',
+          border: '1px solid #F0F0F0',
+          marginTop: '24px'
+        }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            background: '#F9FAFB',
+            borderRadius: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '20px',
+            color: '#6B7280'
+          }}>
+            <Image size={40} />
+          </div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
+            No photos found
+          </div>
+          <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+            {searchQuery || selectedTemplate !== 'All Templates' || selectedBranch !== 'All Branches' || selectedDateFilter !== 'All Time' || selectedVisitFilter !== 'All Visits'
+              ? `We couldn't find any photos matching your current search or filter criteria.`
+              : "Your gallery is currently empty. Photos will appear here once customers start creating them."}
+          </div>
+          {(searchQuery || selectedTemplate !== 'All Templates' || selectedBranch !== 'All Branches' || selectedDateFilter !== 'All Time' || selectedVisitFilter !== 'All Visits') && (
+            <ActionButton
+              style={{ marginTop: '24px', background: '#F3F4F6', color: '#374151' }}
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedTemplate('All Templates');
+                setSelectedBranch('All Branches');
+                setSelectedDateFilter('All Time');
+                setSelectedVisitFilter('All Visits');
+                setCurrentPage(1);
+              }}
+            >
+              Reset All Filters
+            </ActionButton>
+          )}
+        </div>
+      ) : viewMode === 'grid' ? (
         <PhotoGrid>
           {currentPhotos.map(photo => (
             <PhotoCard
@@ -1382,7 +1585,7 @@ const Photos = () => {
                 </EngagementBar>
 
                 <ActionRow>
-                  <SendMessageButton>
+                  <SendMessageButton onClick={() => handleMessage(photo)}>
                     <MessageCircle size={16} />
                     Message
                   </SendMessageButton>
@@ -1433,7 +1636,7 @@ const Photos = () => {
               </ListEngagement>
               <div style={{ fontSize: '13px', color: '#666' }}>{highlightText(photo.date, searchQuery)}</div>
               <ListActions>
-                <ListActionButton title="Send Message">
+                <ListActionButton title="Send Message" onClick={() => handleMessage(photo)}>
                   <MessageCircle size={16} />
                 </ListActionButton>
                 <ListActionButton
@@ -1442,25 +1645,28 @@ const Photos = () => {
                 >
                   <Eye size={16} />
                 </ListActionButton>
-                <ListActionButton title="More">
+                {/*<ListActionButton title="More">
                   <MoreVertical size={16} />
-                </ListActionButton>
+                </ListActionButton>*/}
               </ListActions>
             </TableRow>
           ))}
         </PhotoTable>
-      )}
+      )
+      }
 
       {totalPages > 1 && renderPagination()}
 
-      {viewImage && (
-        <LightboxOverlay onClick={() => setViewImage(null)}>
-          <CloseButton onClick={() => setViewImage(null)}>
-            <X size={24} />
-          </CloseButton>
-          <LightboxImage src={viewImage} onClick={(e) => e.stopPropagation()} />
-        </LightboxOverlay>
-      )}
+      {
+        viewImage && (
+          <LightboxOverlay onClick={() => setViewImage(null)}>
+            <CloseButton onClick={() => setViewImage(null)}>
+              <X size={24} />
+            </CloseButton>
+            <LightboxImage src={viewImage} onClick={(e) => e.stopPropagation()} />
+          </LightboxOverlay>
+        )
+      }
 
       {/* Selection Bar */}
       <SelectionBar $show={selectedPhotos.length > 0}>
@@ -1479,7 +1685,37 @@ const Photos = () => {
           </SelectionAction>
         </div>
       </SelectionBar>
-    </PageContainer>
+
+      {
+        showMsgModal && (
+          <ModalOverlay onClick={() => setShowMsgModal(false)}>
+            <ModalContainer onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Compose Message</ModalTitle>
+                <IconButton onClick={() => setShowMsgModal(false)}>
+                  <X size={20} />
+                </IconButton>
+              </ModalHeader>
+              <TextArea
+                value={customMsg}
+                onChange={e => setCustomMsg(e.target.value)}
+                placeholder="Type your message here..."
+              />
+              <ModalFooter>
+                <ActionButton onClick={() => setShowMsgModal(false)}>Cancel</ActionButton>
+                <ActionButton
+                  $variant="success"
+                  onClick={confirmSendMessage}
+                  disabled={isSending}
+                >
+                  {isSending ? 'Sending...' : 'Send Message'}
+                </ActionButton>
+              </ModalFooter>
+            </ModalContainer>
+          </ModalOverlay>
+        )
+      }
+    </PageContainer >
   );
 };
 

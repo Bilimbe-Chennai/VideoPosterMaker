@@ -21,7 +21,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Loader
+  Loader,
+  X
 } from 'react-feather';
 import useAxios from '../../useAxios';
 
@@ -400,6 +401,32 @@ const ModalOverlay = styled.div`
   backdrop-filter: blur(5px);
 `;
 
+const MessageTextArea = styled.textarea`
+  width: 100%;
+  height: 150px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+  font-family: inherit;
+  font-size: 15px;
+  margin-bottom: 24px;
+  resize: none;
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    background: #FFF;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  }
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+`;
+
 const ModalContent = styled.div`
   background: white;
   width: 100%;
@@ -409,6 +436,20 @@ const ModalContent = styled.div`
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #1A1A1A;
 `;
 
 const ProfileHeader = styled.div`
@@ -517,6 +558,10 @@ const Customers = () => {
   const [viewingCustomer, setViewingCustomer] = useState(null);
   const location = useLocation();
   const [highlightedId, setHighlightedId] = useState(null);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [customMsg, setCustomMsg] = useState('');
+  const [activeCustomer, setActiveCustomer] = useState(null);
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
   const rowRefs = useRef({});
 
   // Pagination State
@@ -541,12 +586,16 @@ const Customers = () => {
   const templateRef = useRef(null);
   const dateRef = useRef(null);
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   // Fetch real data from API
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await axiosData.get("upload/all");
-        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        const rawItems = response.data.filter(item =>
+          item.source === 'Photo Merge App'
+        );
 
         const customersMap = {};
 
@@ -579,12 +628,16 @@ const Customers = () => {
           entry.photoCount += 1;
           entry.shareCount += itemShares;
 
-          if (validTime > entry.latestTimeStamp) {
+          if (validTime >= entry.latestTimeStamp) {
             entry.latestTimeStamp = validTime;
             entry.name = item.name || entry.name;
             entry.email = item.email || entry.email;
-            entry.branch = item.source || entry.branch;
+            entry.branchName = item.branchName || entry.branchName;
             entry.template_name = item.template_name || item.templatename || item.type || entry.template_name;
+            // Capture latest photo IDs for messaging
+            entry.photoId = item.photoId;
+            entry.posterVideoId = item.posterVideoId;
+            entry.latestMediaId = item._id;
           }
         });
 
@@ -599,11 +652,17 @@ const Customers = () => {
             phone: item.whatsapp || item.mobile || 'N/A',
             visits: item.visitCount,
             photos: item.photoCount,
-            shareCount: item.shareCount,
+            shares: item.shareCount,
+            template_name: item.template_name || 'N/A',
+            branchName: item.branchName || 'N/A',
             lastVisit: formattedDate,
-            template_name: item.template_name || 'Custom Design',
-            branch: item.branch || 'Head Office',
-            initial: (item.name || 'A').charAt(0).toUpperCase()
+            timestamp: item.latestTimeStamp,
+            initial: (item.name || 'A')[0].toUpperCase(),
+            // Pass along media info for messaging
+            latestMediaId: item.latestMediaId,
+            latestPhotoUrl: (item.photoId || item.posterVideoId)
+              ? `https://api.bilimbebrandactivations.com/api/upload/file/${item.photoId || item.posterVideoId}`
+              : null
           };
         });
 
@@ -678,6 +737,7 @@ const Customers = () => {
   }, []);
 
   const templates = ['All Templates', ...new Set(customers.map(c => c.template_name))];
+  const branches = ['All Branches', ...new Set(customers.map(c => c.branchName).filter(b => b !== 'N/A'))];
   const dateFilters = [
     'All Time', 'Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'This Month', 'Last Month'
   ];
@@ -688,26 +748,39 @@ const Customers = () => {
       cust.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       cust.lastVisit.includes(searchQuery);
 
-    const matchesBranch = selectedBranch === 'All Branches' || cust.branch === selectedBranch;
+    const matchesBranch = selectedBranch === 'All Branches' || cust.branchName === selectedBranch;
     const matchesTemplate = selectedTemplate === 'All Templates' || cust.template_name === selectedTemplate;
 
     let matchesDate = true;
     if (selectedDateFilter !== 'All Time') {
       const custDate = new Date(cust.lastVisit.split('.').reverse().join('-'));
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
 
-      if (selectedDateFilter === 'Today') matchesDate = custDate.getTime() === today.getTime();
-      else if (selectedDateFilter === 'Yesterday') {
+      // Normalize dates to YYYY-MM-DD local string for comparison
+      const toDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const custDateStr = toDateString(custDate);
+      const todayDateStr = toDateString(today);
+
+      if (selectedDateFilter === 'Today') {
+        matchesDate = custDateStr === todayDateStr;
+      } else if (selectedDateFilter === 'Yesterday') {
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
-        matchesDate = custDate.getTime() === yesterday.getTime();
+        matchesDate = custDateStr === toDateString(yesterday);
       } else if (selectedDateFilter === 'Last 7 Days') {
         const last7 = new Date(today);
+        last7.setHours(0, 0, 0, 0);
         last7.setDate(last7.getDate() - 7);
         matchesDate = custDate >= last7;
       } else if (selectedDateFilter === 'Last 30 Days') {
         const last30 = new Date(today);
+        last30.setHours(0, 0, 0, 0);
         last30.setDate(last30.getDate() - 30);
         matchesDate = custDate >= last30;
       } else if (selectedDateFilter === 'This Month') {
@@ -749,6 +822,75 @@ const Customers = () => {
     document.body.removeChild(link);
   };
 
+  const handleWhatsApp = (cust) => {
+    setActiveCustomer(cust);
+    const defaultMsg = cust.latestPhotoUrl
+      ? `Hello ${cust.name}, check out your photo from ${cust.template_name}: ${cust.latestPhotoUrl}`
+      : `Hello ${cust.name}, thank you for choosing us! Hope you enjoyed your experience.`;
+    setCustomMsg(defaultMsg);
+    setShowMsgModal(true);
+  };
+
+  const confirmSendMessage = async () => {
+    if (!activeCustomer) return;
+    if (!activeCustomer.phone || activeCustomer.phone === 'N/A') {
+      alert("Phone number not available for this customer.");
+      return;
+    }
+
+    setIsSendingMsg(true);
+    try {
+      const response = await axiosData.post('/upload/custom-share', {
+        mobile: activeCustomer.phone,
+        _id: activeCustomer.latestMediaId || activeCustomer.id,
+        message: customMsg
+      });
+
+      if (response.data.success) {
+        alert(`Message sent to ${activeCustomer.name} successfully!`);
+        setShowMsgModal(false);
+      } else {
+        throw new Error("Failed to send message via API");
+      }
+    } catch (error) {
+      console.error("WhatsApp Error:", error);
+      alert("Failed to send message via WhatsApp API.");
+      setShowMsgModal(false);
+    } finally {
+      setIsSendingMsg(false);
+    }
+  };
+
+  const handleBulkWhatsApp = async () => {
+    const targets = selectedCustomers.length > 0
+      ? customers.filter(c => selectedCustomers.includes(c.id))
+      : [];
+
+    if (targets.length === 0) {
+      alert("Please select customers to send bulk messages.");
+      return;
+    }
+
+    const bulkMsg = prompt("Enter bulk message (links will be appended if available):", "Thank you for choosing us! ");
+    if (!bulkMsg) return;
+
+    if (window.confirm(`Send individual messages to ${targets.length} customers?`)) {
+      for (const cust of targets) {
+        try {
+          await axiosData.post('/upload/custom-share', {
+            mobile: cust.phone,
+            _id: cust.latestMediaId || cust.id,
+            message: cust.latestPhotoUrl ? `${bulkMsg}\n\nPhoto: ${cust.latestPhotoUrl}` : bulkMsg
+          });
+        } catch (err) {
+          console.error("Bulk Send Error for", cust.name, err);
+        }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      alert("Bulk messaging process finished.");
+    }
+  };
+
   return (
     <CustomersContainer>
       <HeaderSection>
@@ -760,12 +902,12 @@ const Customers = () => {
           <PrimaryButton $variant="outline" onClick={() => exportToExcel()}>
             <Download size={16} /> Export as Excel
           </PrimaryButton>
-          <PrimaryButton $variant="success" onClick={() => alert('Opening WhatsApp bulk tool...')}>
+          <PrimaryButton $variant="success" onClick={handleBulkWhatsApp}>
             <MessageCircle size={16} /> Bulk WhatsApp
           </PrimaryButton>
-          <PrimaryButton $variant="primary" onClick={() => alert('Opening Add Customer form...')}>
+          {/* <PrimaryButton $variant="primary" onClick={() => alert('Opening Add Customer form...')}>
             <Plus size={16} /> Add Customer
-          </PrimaryButton>
+          </PrimaryButton> */}
         </ActionButtons>
       </HeaderSection>
 
@@ -909,8 +1051,48 @@ const Customers = () => {
             ) : filteredCustomers.length === 0 ? (
               <tr>
                 <td colSpan="7">
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: '100px', fontWeight: 600, color: '#666' }}>
-                    No customers found based on current filters.
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: '80px 20px',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: '#FAFAFA'
+                  }}>
+                    <div style={{
+                      width: '64px',
+                      height: '64px',
+                      background: '#EEE',
+                      borderRadius: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '16px',
+                      color: '#999'
+                    }}>
+                      <Users size={32} />
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>
+                      No customers found
+                    </div>
+                    <div style={{ color: '#666', textAlign: 'center', maxWidth: '300px', fontSize: '14px', lineHeight: '1.5' }}>
+                      {selectedDateFilter !== 'All Time'
+                        ? `We couldn't find any customers recorded for ${selectedDateFilter.toLowerCase()}.`
+                        : "No data matches your current search or filter criteria."}
+                    </div>
+                    {(searchQuery || selectedBranch !== 'All Branches' || selectedTemplate !== 'All Templates' || selectedDateFilter !== 'All Time') && (
+                      <PrimaryButton
+                        style={{ marginTop: '20px', background: '#EEE', color: '#1A1A1A', fontSize: '13px' }}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSelectedBranch('All Branches');
+                          setSelectedTemplate('All Templates');
+                          setSelectedDateFilter('All Time');
+                        }}
+                      >
+                        Reset All Filters
+                      </PrimaryButton>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -953,7 +1135,7 @@ const Customers = () => {
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <IconButton title="View Profile" onClick={() => setViewingCustomer(cust)}><Eye size={16} /></IconButton>
                       <IconButton title="Activity History"><RotateCcw size={16} /></IconButton>
-                      <IconButton title="WhatsApp Message" style={{ color: '#25D366' }}><Send size={16} /></IconButton>
+                      <IconButton title="WhatsApp Message" style={{ color: '#25D366' }} onClick={() => handleWhatsApp(cust)}><Send size={16} /></IconButton>
                       <IconButton title="More"><MoreHorizontal size={16} /></IconButton>
                     </div>
                   </td>
@@ -980,11 +1162,14 @@ const Customers = () => {
             <PrimaryButton onClick={() => exportToExcel(customers.filter(c => selectedCustomers.includes(c.id)))} style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}>
               <Download size={14} /> Export
             </PrimaryButton>
-            <PrimaryButton style={{ padding: '8px 16px', fontSize: '12px', background: '#E53935' }}>
+            <PrimaryButton style={{ padding: '8px 16px', fontSize: '12px', background: '#E53935' }} onClick={() => alert('Delete feature coming soon')}>
               Delete
             </PrimaryButton>
             <IconButton style={{ color: 'white' }} onClick={() => setSelectedCustomers([])}>✕</IconButton>
           </div>
+          <PrimaryButton $variant="success" style={{ padding: '8px 16px', fontSize: '12px' }} onClick={handleBulkWhatsApp}>
+            <MessageCircle size={14} /> Bulk WhatsApp
+          </PrimaryButton>
         </BulkActionBar>
       )}
 
@@ -1022,13 +1207,39 @@ const Customers = () => {
             </ProfileSection>
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-              <PrimaryButton $variant="success" style={{ flex: 1 }}>
+              <PrimaryButton $variant="success" style={{ flex: 1 }} onClick={() => { setViewingCustomer(null); handleWhatsApp(viewingCustomer); }}>
                 <MessageCircle size={16} /> WhatsApp
               </PrimaryButton>
               <PrimaryButton $variant="outline" style={{ flex: 1 }} onClick={() => setViewingCustomer(null)}>
                 Close
               </PrimaryButton>
             </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {showMsgModal && (
+        <ModalOverlay onClick={() => setShowMsgModal(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <ModalTitle style={{ margin: 0 }}>Compose Message</ModalTitle>
+              <IconButton onClick={() => setShowMsgModal(false)}><X size={20} /></IconButton>
+            </ModalHeader>
+            <MessageTextArea
+              value={customMsg}
+              onChange={e => setCustomMsg(e.target.value)}
+              placeholder="Type your message here..."
+            />
+            <ModalActionFooter>
+              <PrimaryButton $variant="outline" onClick={() => setShowMsgModal(false)}>Cancel</PrimaryButton>
+              <PrimaryButton
+                $variant="success"
+                onClick={confirmSendMessage}
+                disabled={isSendingMsg}
+              >
+                {isSendingMsg ? 'Sending...' : 'Send Message'}
+              </PrimaryButton>
+            </ModalActionFooter>
           </ModalContent>
         </ModalOverlay>
       )}

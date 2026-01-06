@@ -360,6 +360,7 @@ const IconButton = styled.button`
 
 const ShareTracking = () => {
   const axiosData = useAxios();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [loading, setLoading] = useState(true);
   const [rawData, setRawData] = useState([]);
   const [processedData, setProcessedData] = useState([]);
@@ -391,8 +392,10 @@ const ShareTracking = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axiosData.get("upload/all?source=Photo Merge App");
-      const data = res.data.filter(item => item.source === 'Photo Merge App');
+      const res = await axiosData.get(`upload/all?source=Photo Merge App&adminid=${user._id || user.id}`);
+      const data = res.data.filter(item =>
+        item.source === 'Photo Merge App'
+      );
 
       setRawData(data);
       processData(data);
@@ -475,8 +478,11 @@ const ShareTracking = () => {
     // Simple date filter logic
     let matchesDate = true;
     const now = new Date();
+    const todayStr = now.toLocaleDateString('en-CA');
+    const itemDateStr = new Date(item.timestamp).toLocaleDateString('en-CA');
     const diff = (now - item.timestamp) / (1000 * 60 * 60 * 24);
-    if (selectedDateRange === 'Today') matchesDate = diff < 1;
+
+    if (selectedDateRange === 'Today') matchesDate = itemDateStr === todayStr;
     else if (selectedDateRange === 'Last 7 Days') matchesDate = diff < 7;
     else if (selectedDateRange === 'Last 30 Days') matchesDate = diff < 30;
     else if (selectedDateRange === 'Last 90 Days') matchesDate = diff < 90;
@@ -652,8 +658,51 @@ const ShareTracking = () => {
               </tr>
             ) : currentItems.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '100px', color: '#666', fontWeight: 600 }}>
-                  No matching records found for the selected filters.
+                <td colSpan="8">
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: '80px 20px',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: '#FFF'
+                  }}>
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      background: '#F9FAFB',
+                      borderRadius: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '20px',
+                      color: '#6B7280'
+                    }}>
+                      <Share2 size={40} />
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
+                      No tracking records found
+                    </div>
+                    <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+                      {searchQuery || selectedPlatform !== 'All Platforms' || selectedDateRange !== 'Last 30 Days'
+                        ? `We couldn't find any share records matching your current search or filter criteria.`
+                        : "No shares have been tracked yet. Engagement data will appear here once customers start sharing their posters."}
+                    </div>
+                    {(searchQuery || selectedPlatform !== 'All Platforms' || selectedDateRange !== 'Last 30 Days') && (
+                      <PrimaryButton
+                        $variant="outline"
+                        style={{ marginTop: '24px', borderRadius: '12px' }}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSelectedPlatform('All Platforms');
+                          setSelectedDateRange('Last 30 Days');
+                          setCurrentPage(1);
+                        }}
+                      >
+                        Reset All Filters
+                      </PrimaryButton>
+                    )}
+                  </div>
                 </td>
               </tr>
             ) : currentItems.map(row => (

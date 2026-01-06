@@ -1,28 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import {
-    Plus,
-    Send,
-    Trash2,
-    Edit3,
-    ExternalLink,
-    MoreVertical,
-    Download,
-    Filter,
-    Calendar,
-    Search,
-    ChevronDown,
-    MessageSquare,
-    Mail,
-    Smartphone,
-    Bell,
-    CheckCircle,
-    Clock,
-    Play,
-    AlertCircle,
-    BarChart2,
-    Share2,
-    Users
+  Plus,
+  Send,
+  Trash2,
+  Edit3,
+  ExternalLink,
+  MoreVertical,
+  Download,
+  Filter,
+  Calendar,
+  Search,
+  ChevronDown,
+  MessageSquare,
+  Mail,
+  Smartphone,
+  Bell,
+  CheckCircle,
+  Clock,
+  Play,
+  AlertCircle,
+  BarChart2,
+  Share2,
+  Users
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
@@ -219,14 +219,14 @@ const StatusBadge = styled.div`
   font-weight: 700;
   
   ${props => {
-        switch (props.$status) {
-            case 'Active': return `background: #ECFDF5; color: #059669;`;
-            case 'Scheduled': return `background: #EFF6FF; color: #2563EB;`;
-            case 'Completed': return `background: #F9FAFB; color: #4B5563;`;
-            case 'Failed': return `background: #FEF2F2; color: #DC2626;`;
-            default: return `background: #F3F4F6; color: #6B7280;`;
-        }
-    }}
+    switch (props.$status) {
+      case 'Active': return `background: #ECFDF5; color: #059669;`;
+      case 'Scheduled': return `background: #EFF6FF; color: #2563EB;`;
+      case 'Completed': return `background: #F9FAFB; color: #4B5563;`;
+      case 'Failed': return `background: #FEF2F2; color: #DC2626;`;
+      default: return `background: #F3F4F6; color: #6B7280;`;
+    }
+  }}
 `;
 
 const ChannelIcon = styled.div`
@@ -291,269 +291,316 @@ const IconButton = styled.button`
 // --- Mock Data ---
 
 const INITIAL_CAMPAIGNS = [
-    {
-        id: 'CMP-001',
-        name: 'Winter Festive Sale',
-        description: 'Special 30% discount on silk sarees',
-        type: 'WhatsApp',
-        status: 'Active',
-        startDate: '2026-01-01',
-        endDate: '2026-01-10',
-        sent: 1250,
-        delivered: 1180,
-        clicks: 450,
-    },
-    {
-        id: 'CMP-002',
-        name: 'New Year Collection Launch',
-        description: 'Exclusive preview of 2026 collection',
-        type: 'Email',
-        status: 'Completed',
-        startDate: '2025-12-25',
-        endDate: '2025-12-31',
-        sent: 5000,
-        delivered: 4850,
-        clicks: 920,
-    },
-    {
-        id: 'CMP-003',
-        name: 'Weekend Store Visit SMS',
-        description: 'Visit our flagship store this weekend',
-        type: 'SMS',
-        status: 'Scheduled',
-        startDate: '2026-01-07',
-        endDate: '2026-01-08',
-        sent: 0,
-        delivered: 0,
-        clicks: 0,
-    },
-    {
-        id: 'CMP-004',
-        name: 'Flash Sale Reminder',
-        description: 'Only 2 hours left for the sale!',
-        type: 'Push Notification',
-        status: 'Failed',
-        startDate: '2026-01-03',
-        endDate: '2026-01-03',
-        sent: 800,
-        delivered: 650,
-        clicks: 210,
-    }
+  {
+    id: 'CMP-001',
+    name: 'Winter Festive Sale',
+    description: 'Special 30% discount on silk sarees',
+    type: 'WhatsApp',
+    status: 'Active',
+    startDate: '2026-01-01',
+    endDate: '2026-01-10',
+    sent: 1250,
+    delivered: 1180,
+    clicks: 450,
+  },
+  {
+    id: 'CMP-002',
+    name: 'New Year Collection Launch',
+    description: 'Exclusive preview of 2026 collection',
+    type: 'Email',
+    status: 'Completed',
+    startDate: '2025-12-25',
+    endDate: '2025-12-31',
+    sent: 5000,
+    delivered: 4850,
+    clicks: 920,
+  },
+  {
+    id: 'CMP-003',
+    name: 'Weekend Store Visit SMS',
+    description: 'Visit our flagship store this weekend',
+    type: 'SMS',
+    status: 'Scheduled',
+    startDate: '2026-01-07',
+    endDate: '2026-01-08',
+    sent: 0,
+    delivered: 0,
+    clicks: 0,
+  },
+  {
+    id: 'CMP-004',
+    name: 'Flash Sale Reminder',
+    description: 'Only 2 hours left for the sale!',
+    type: 'Push Notification',
+    status: 'Failed',
+    startDate: '2026-01-03',
+    endDate: '2026-01-03',
+    sent: 800,
+    delivered: 650,
+    clicks: 210,
+  }
 ];
 
 const Campaigns = () => {
-    const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterType, setFilterType] = useState('All Channels');
-    const [filterStatus, setFilterStatus] = useState('All Status');
+  const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('All Channels');
+  const [filterStatus, setFilterStatus] = useState('All Status');
 
-    const stats = useMemo(() => {
-        const active = campaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
-        const completed = campaigns.filter(c => c.status === 'Completed').length;
-        const totalSent = campaigns.reduce((acc, curr) => acc + curr.sent, 0);
-        const totalDelivered = campaigns.reduce((acc, curr) => acc + curr.delivered, 0);
-        const avgDelivery = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
+  const stats = useMemo(() => {
+    const active = campaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
+    const completed = campaigns.filter(c => c.status === 'Completed').length;
+    const totalSent = campaigns.reduce((acc, curr) => acc + curr.sent, 0);
+    const totalDelivered = campaigns.reduce((acc, curr) => acc + curr.delivered, 0);
+    const avgDelivery = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
 
-        return { active, completed, totalSent, avgDelivery };
-    }, [campaigns]);
+    return { active, completed, totalSent, avgDelivery };
+  }, [campaigns]);
 
-    const filteredCampaigns = campaigns.filter(c => {
-        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesType = filterType === 'All Channels' || c.type === filterType;
-        const matchesStatus = filterStatus === 'All Status' || c.status === filterStatus;
+  const filteredCampaigns = campaigns.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = filterType === 'All Channels' || c.type === filterType;
+    const matchesStatus = filterStatus === 'All Status' || c.status === filterStatus;
 
-        return matchesSearch && matchesType && matchesStatus;
-    });
+    return matchesSearch && matchesType && matchesStatus;
+  });
 
-    const getChannelConfig = (type) => {
-        switch (type) {
-            case 'WhatsApp': return { icon: <MessageSquare size={16} />, color: '#25D366' };
-            case 'Email': return { icon: <Mail size={16} />, color: '#EA4335' };
-            case 'SMS': return { icon: <Smartphone size={16} />, color: '#1A1A1A' };
-            case 'Push Notification': return { icon: <Bell size={16} />, color: '#F59E0B' };
-            default: return { icon: <AlertCircle size={16} />, color: '#666' };
-        }
-    };
+  const getChannelConfig = (type) => {
+    switch (type) {
+      case 'WhatsApp': return { icon: <MessageSquare size={16} />, color: '#25D366' };
+      case 'Email': return { icon: <Mail size={16} />, color: '#EA4335' };
+      case 'SMS': return { icon: <Smartphone size={16} />, color: '#1A1A1A' };
+      case 'Push Notification': return { icon: <Bell size={16} />, color: '#F59E0B' };
+      default: return { icon: <AlertCircle size={16} />, color: '#666' };
+    }
+  };
 
-    const getStatusIcon = (status) => {
-        switch (status) {
-            case 'Active': return <Play size={12} />;
-            case 'Scheduled': return <Clock size={12} />;
-            case 'Completed': return <CheckCircle size={12} />;
-            case 'Failed': return <AlertCircle size={12} />;
-            default: return null;
-        }
-    };
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Active': return <Play size={12} />;
+      case 'Scheduled': return <Clock size={12} />;
+      case 'Completed': return <CheckCircle size={12} />;
+      case 'Failed': return <AlertCircle size={12} />;
+      default: return null;
+    }
+  };
 
-    const exportData = () => {
-        const csvContent = "data:text/csv;charset=utf-8,"
-            + ["ID,Name,Type,Status,Sent,Delivered,CTR"].join(",") + "\n"
-            + filteredCampaigns.map(c => [
-                c.id, c.name, c.type, c.status, c.sent, c.delivered,
-                c.delivered > 0 ? ((c.clicks / c.delivered) * 100).toFixed(1) + '%' : '0%'
-            ].join(",")).join("\n");
+  const exportData = () => {
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + ["ID,Name,Type,Status,Sent,Delivered,CTR"].join(",") + "\n"
+      + filteredCampaigns.map(c => [
+        c.id, c.name, c.type, c.status, c.sent, c.delivered,
+        c.delivered > 0 ? ((c.clicks / c.delivered) * 100).toFixed(1) + '%' : '0%'
+      ].join(",")).join("\n");
 
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "campaign_report.csv");
-        document.body.appendChild(link);
-        link.click();
-    };
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "campaign_report.csv");
+    document.body.appendChild(link);
+    link.click();
+  };
 
-    return (
-        <PageContainer>
-            <PageHeader>
-                <HeaderInfo>
-                    <h1>Campaign Management</h1>
-                    <p>Create, manage and analyze your marketing performance across all channels</p>
-                </HeaderInfo>
-                <ActionGroup>
-                    <SecondaryButton onClick={exportData}>
-                        <Download size={18} /> Export Results
-                    </SecondaryButton>
-                    <PrimaryButton>
-                        <Plus size={18} /> Create New Campaign
-                    </PrimaryButton>
-                </ActionGroup>
-            </PageHeader>
+  return (
+    <PageContainer>
+      <PageHeader>
+        <HeaderInfo>
+          <h1>Campaign Management</h1>
+          <p>Create, manage and analyze your marketing performance across all channels</p>
+        </HeaderInfo>
+        <ActionGroup>
+          <SecondaryButton onClick={exportData}>
+            <Download size={18} /> Export Results
+          </SecondaryButton>
+          <PrimaryButton>
+            <Plus size={18} /> Create New Campaign
+          </PrimaryButton>
+        </ActionGroup>
+      </PageHeader>
 
-            <MetricGrid>
-                <KPIMetricCard
-                    label="Active Campaigns"
-                    value={stats.active}
-                    trend={12.5}
-                    trendColor="#6B8E23"
-                    bgColor="#F4F9E9"
-                    icon={<Play size={20} />}
-                    points="M10,40 C25,38 35,45 50,35 S80,10 90,15"
-                    endX={85} endY={14}
-                />
-                <KPIMetricCard
-                    label="Completed Campaigns"
-                    value={stats.completed}
-                    trend={5.2}
-                    trendColor="#8E44AD"
-                    bgColor="#F7F2FA"
-                    icon={<CheckCircle size={20} />}
-                    points="M10,42 C25,35 35,40 50,30 S85,5 90,10"
-                    endX={85} endY={8}
-                />
-                <KPIMetricCard
-                    label="Total Sent"
-                    value={stats.totalSent.toLocaleString()}
-                    trend={24.8}
-                    trendColor="#D47D52"
-                    bgColor="#FFF0E5"
-                    icon={<Send size={20} />}
-                    points="M10,35 C25,38 35,25 50,30 S80,25 90,28"
-                    endX={85} endY={27}
-                />
-                <KPIMetricCard
-                    label="Avg Delivery Rate"
-                    value={`${stats.avgDelivery.toFixed(1)}%`}
-                    trend={-1.4}
-                    trendColor="#B58B00"
-                    bgColor="#FFF9E5"
-                    icon={<BarChart2 size={20} />}
-                    positive={false}
-                    points="M10,38 C25,35 35,38 50,32 S80,20 90,25"
-                    endX={85} endY={23}
-                />
-            </MetricGrid>
+      <MetricGrid>
+        <KPIMetricCard
+          label="Active Campaigns"
+          value={stats.active}
+          trend={12.5}
+          trendColor="#6B8E23"
+          bgColor="#F4F9E9"
+          icon={<Play size={20} />}
+          points="M10,40 C25,38 35,45 50,35 S80,10 90,15"
+          endX={85} endY={14}
+        />
+        <KPIMetricCard
+          label="Completed Campaigns"
+          value={stats.completed}
+          trend={5.2}
+          trendColor="#8E44AD"
+          bgColor="#F7F2FA"
+          icon={<CheckCircle size={20} />}
+          points="M10,42 C25,35 35,40 50,30 S85,5 90,10"
+          endX={85} endY={8}
+        />
+        <KPIMetricCard
+          label="Total Sent"
+          value={stats.totalSent.toLocaleString()}
+          trend={24.8}
+          trendColor="#D47D52"
+          bgColor="#FFF0E5"
+          icon={<Send size={20} />}
+          points="M10,35 C25,38 35,25 50,30 S80,25 90,28"
+          endX={85} endY={27}
+        />
+        <KPIMetricCard
+          label="Avg Delivery Rate"
+          value={`${stats.avgDelivery.toFixed(1)}%`}
+          trend={-1.4}
+          trendColor="#B58B00"
+          bgColor="#FFF9E5"
+          icon={<BarChart2 size={20} />}
+          positive={false}
+          points="M10,38 C25,35 35,38 50,32 S80,20 90,25"
+          endX={85} endY={23}
+        />
+      </MetricGrid>
 
-            <ContentCard>
-                <FilterSection>
-                    <SearchBox>
-                        <Search size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search by campaign name or ID..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </SearchBox>
-                    <DropdownSelector onClick={() => { }}>
-                        <Filter size={16} /> {filterType} <ChevronDown size={14} />
-                    </DropdownSelector>
-                    <DropdownSelector onClick={() => { }}>
-                        <Calendar size={16} /> Last 30 Days <ChevronDown size={14} />
-                    </DropdownSelector>
-                </FilterSection>
+      <ContentCard>
+        <FilterSection>
+          <SearchBox>
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Search by campaign name or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </SearchBox>
+          <DropdownSelector onClick={() => { }}>
+            <Filter size={16} /> {filterType} <ChevronDown size={14} />
+          </DropdownSelector>
+          <DropdownSelector onClick={() => { }}>
+            <Calendar size={16} /> Last 30 Days <ChevronDown size={14} />
+          </DropdownSelector>
+        </FilterSection>
 
-                <CampaignTable>
-                    <thead>
-                        <tr>
-                            <th style={{ width: '40px' }}><input type="checkbox" /></th>
-                            <th>Campaign Details</th>
-                            <th>Channel</th>
-                            <th>Status</th>
-                            <th>Performance</th>
-                            <th>Period</th>
-                            <th style={{ textAlign: 'right' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredCampaigns.map((c) => {
-                            const channel = getChannelConfig(c.type);
-                            const deliveryRate = c.sent > 0 ? (c.delivered / c.sent) * 100 : 0;
-                            const ctr = c.delivered > 0 ? (c.clicks / c.delivered) * 100 : 0;
+        <CampaignTable>
+          <thead>
+            <tr>
+              <th style={{ width: '40px' }}><input type="checkbox" /></th>
+              <th>Campaign Details</th>
+              <th>Channel</th>
+              <th>Status</th>
+              <th>Performance</th>
+              <th>Period</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredCampaigns.length === 0 ? (
+              <tr>
+                <td colSpan="7">
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: '80px 20px',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: '#FFF'
+                  }}>
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      background: '#F9FAFB',
+                      borderRadius: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '20px',
+                      color: '#6B7280'
+                    }}>
+                      <Send size={40} />
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
+                      No campaigns found
+                    </div>
+                    <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+                      {searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status'
+                        ? `We couldn't find any campaigns matching your current search or filter criteria.`
+                        : "No campaigns have been created yet. Launch your first campaign to start reaching your customers!"}
+                    </div>
+                    {(searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status') && (
+                      <SecondaryButton
+                        style={{ marginTop: '24px', borderRadius: '12px' }}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setFilterType('All Channels');
+                          setFilterStatus('All Status');
+                        }}
+                      >
+                        Reset All Filters
+                      </SecondaryButton>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : filteredCampaigns.map((c) => {
+              const channel = getChannelConfig(c.type);
+              const deliveryRate = c.sent > 0 ? (c.delivered / c.sent) * 100 : 0;
+              const ctr = c.delivered > 0 ? (c.clicks / c.delivered) * 100 : 0;
 
-                            return (
-                                <tr key={c.id}>
-                                    <td><input type="checkbox" /></td>
-                                    <td>
-                                        <InfoGroup>
-                                            <h4>{c.name}</h4>
-                                            <p>ID: {c.id} • {c.description.substring(0, 30)}...</p>
-                                        </InfoGroup>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <ChannelIcon $color={channel.color}>
-                                                {channel.icon}
-                                            </ChannelIcon>
-                                            <span style={{ fontWeight: 600 }}>{c.type}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <StatusBadge $status={c.status}>
-                                            {getStatusIcon(c.status)} {c.status}
-                                        </StatusBadge>
-                                    </td>
-                                    <td>
-                                        <InfoGroup>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', fontWeight: 700 }}>
-                                                <span>CTR: {ctr.toFixed(1)}%</span>
-                                                <span>Del: {deliveryRate.toFixed(1)}%</span>
-                                            </div>
-                                            <ProgressBar $percent={ctr * 2}>
-                                                <div className="fill" />
-                                            </ProgressBar>
-                                        </InfoGroup>
-                                    </td>
-                                    <td>
-                                        <InfoGroup>
-                                            <p>{new Date(c.startDate).toLocaleDateString('en-GB')}</p>
-                                            <p style={{ color: '#999' }}>to {new Date(c.endDate).toLocaleDateString('en-GB')}</p>
-                                        </InfoGroup>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                            <IconButton title="View Analytics"><BarChart2 size={18} /></IconButton>
-                                            <IconButton title="Edit Campaign"><Edit3 size={18} /></IconButton>
-                                            <IconButton title="More"><MoreVertical size={18} /></IconButton>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </CampaignTable>
-            </ContentCard>
-        </PageContainer>
-    );
+              return (
+                <tr key={c.id}>
+                  <td><input type="checkbox" /></td>
+                  <td>
+                    <InfoGroup>
+                      <h4>{c.name}</h4>
+                      <p>ID: {c.id} • {c.description.substring(0, 30)}...</p>
+                    </InfoGroup>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <ChannelIcon $color={channel.color}>
+                        {channel.icon}
+                      </ChannelIcon>
+                      <span style={{ fontWeight: 600 }}>{c.type}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <StatusBadge $status={c.status}>
+                      {getStatusIcon(c.status)} {c.status}
+                    </StatusBadge>
+                  </td>
+                  <td>
+                    <InfoGroup>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', fontWeight: 700 }}>
+                        <span>CTR: {ctr.toFixed(1)}%</span>
+                        <span>Del: {deliveryRate.toFixed(1)}%</span>
+                      </div>
+                      <ProgressBar $percent={ctr * 2}>
+                        <div className="fill" />
+                      </ProgressBar>
+                    </InfoGroup>
+                  </td>
+                  <td>
+                    <InfoGroup>
+                      <p>{new Date(c.startDate).toLocaleDateString('en-GB')}</p>
+                      <p style={{ color: '#999' }}>to {new Date(c.endDate).toLocaleDateString('en-GB')}</p>
+                    </InfoGroup>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <IconButton title="View Analytics"><BarChart2 size={18} /></IconButton>
+                      <IconButton title="Edit Campaign"><Edit3 size={18} /></IconButton>
+                      <IconButton title="More"><MoreVertical size={18} /></IconButton>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </CampaignTable>
+      </ContentCard>
+    </PageContainer>
+  );
 };
 
 export default Campaigns;

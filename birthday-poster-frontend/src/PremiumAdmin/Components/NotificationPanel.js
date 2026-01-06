@@ -293,28 +293,35 @@ const NotificationPanel = ({ isOpen, onClose }) => {
       if (!isOpen && notifications.length > 0) return;
 
       setLoading(true);
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
       try {
-        const [templatesRes, photosRes, usersRes] = await Promise.all([
-          axiosData.get('/photomerge/templates'),
-          axiosData.get('/upload/all'),
-          axiosData.get('/users/')
+        const [templatesRes, photosRes] = await Promise.all([
+          axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
+          axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
         ]);
 
         const generatedNotifications = [];
-        let notifId = 1;
 
         // Recent templates
         const recentTemplates = (templatesRes.data || [])
-          .sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate))
-          .slice(0, 3);
+          .sort((a, b) => {
+            const timeA = Math.max(new Date(a.createdAt || a.createdDate).getTime(), new Date(a.updatedDate).getTime());
+            const timeB = Math.max(new Date(b.createdAt || b.createdDate).getTime(), new Date(b.updatedDate).getTime());
+            return timeB - timeA;
+          });
 
         recentTemplates.forEach(template => {
+          const createdAt = template.createdAt || template.createdDate;
+          const createdTime = new Date(createdAt).getTime();
+          const updatedTime = new Date(template.updatedDate).getTime();
+          const isUpdate = updatedTime > createdTime;
+
           generatedNotifications.push({
             id: `template-${template._id}`,
             type: 'success',
-            title: 'New Template Added',
-            message: `Template "${template.templatename}" has been successfully uploaded.`,
-            time: getRelativeTime(template.createdDate),
+            title: isUpdate ? 'Template Updated' : 'New Template Added',
+            message: `Template "${template.templatename}" has been ${isUpdate ? 'updated' : 'successfully uploaded'}.`,
+            time: getRelativeTime(isUpdate ? template.updatedDate : createdAt),
             isRead: readIds.includes(`template-${template._id}`),
             data: template
           });
@@ -323,38 +330,31 @@ const NotificationPanel = ({ isOpen, onClose }) => {
         // Recent photos
         const recentPhotos = (photosRes.data || [])
           .filter(item => item.source === 'Photo Merge App')
-          .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
-          .slice(0, 3);
+          .sort((a, b) => {
+            const timeA = Math.max(new Date(a.createdAt || a.date).getTime(), new Date(a.updatedAt || a.date).getTime());
+            const timeB = Math.max(new Date(b.createdAt || b.date).getTime(), new Date(b.updatedAt || b.date).getTime());
+            return timeB - timeA;
+          });
 
         recentPhotos.forEach(photo => {
+          const createdAt = photo.createdAt || photo.date;
+          const updatedAt = photo.updatedAt || photo.date;
+          const createdTime = new Date(createdAt).getTime();
+          const updatedTime = new Date(updatedAt).getTime();
+          const isUpdate = updatedTime > createdTime;
+
           generatedNotifications.push({
             id: `photo-${photo._id}`,
             type: 'info',
-            title: 'Photo Merge Completed',
-            message: `Photo merge for "${photo.name || 'customer'}" is ready.`,
-            time: getRelativeTime(photo.createdAt || photo.date),
+            title: isUpdate ? 'Photo Merge Updated' : 'Photo Merge Completed',
+            message: `Photo merge for "${photo.name || 'customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
+            time: getRelativeTime(isUpdate ? updatedAt : createdAt),
             isRead: readIds.includes(`photo-${photo._id}`),
             data: photo
           });
         });
 
-        // Recent users
-        const recentUsers = (usersRes.data?.data || [])
-          .filter(u => u.type === 'app user')
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 2);
 
-        recentUsers.forEach(user => {
-          generatedNotifications.push({
-            id: `user-${user._id}`,
-            type: 'info',
-            title: 'New User Registered',
-            message: `${user.name || 'A new user'} has registered.`,
-            time: getRelativeTime(user.createdAt),
-            isRead: readIds.includes(`user-${user._id}`),
-            data: user
-          });
-        });
 
         setNotifications(generatedNotifications);
       } catch (error) {
@@ -387,7 +387,10 @@ const NotificationPanel = ({ isOpen, onClose }) => {
   const handleMarkAsRead = (id, e) => {
     if (e) e.stopPropagation();
     if (!readIds.includes(id)) {
-      setReadIds([...readIds, id]);
+      const newReadIds = [...readIds, id];
+      setReadIds(newReadIds);
+      localStorage.setItem('readNotificationIds', JSON.stringify(newReadIds));
+      window.dispatchEvent(new Event('notificationStateChange'));
     }
     setNotifications(notifications.map(notif =>
       notif.id === id ? { ...notif, isRead: true } : notif

@@ -633,6 +633,7 @@ const TemplateCarousel = ({ photos, name }) => {
 const Templates = () => {
     const navigate = useNavigate();
     const axiosData = useAxios();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [templates, setTemplates] = useState([]);
     // const [loading, setLoading] = useState(true); // Unused
     const [searchQuery, setSearchQuery] = useState('');
@@ -701,8 +702,8 @@ const Templates = () => {
         });
     };
 
-    // Default Categories based on spec
-    const categories = ['Casual', 'Lehengas', 'Wedding', 'Sarees', 'Festive'];
+    // Dynamic Template Names for filtering
+    const templateOptions = Array.from(new Set(templates.map(t => t.name))).sort();
     const statusOptions = ['All Status', 'Active', 'Inactive'];
 
     const fetchData = useCallback(async () => {
@@ -711,10 +712,10 @@ const Templates = () => {
             // Fetch templates and usage data in parallel
             const [templatesResponse, photosResponse] = await Promise.all([
                 axiosData.get("/photomerge/templates"),
-                axiosData.get("/upload/all")
+                axiosData.get(`upload/all?adminid=${user._id || user.id}`)
             ]);
 
-            const rawTemplates = templatesResponse.data || [];
+            const rawTemplates = (templatesResponse.data || []).filter(t => t.adminid === user.id || t.adminid === user._id);
             const rawPhotos = photosResponse.data || [];
 
             // Calculate usage counts from photo creations
@@ -935,8 +936,8 @@ const Templates = () => {
     };
 
     const exportToExcel = (dataToExport = templates) => {
-        const csvContent = "Template ID,Name,Category,Status,Usage,Last Used,Orientation,Created At\n"
-            + dataToExport.map(e => `${e.id},${e.name},${e.category},${e.status},${e.usage},${e.lastUsed},${e.orientation},${e.createdAt}`).join("\n");
+        const csvContent = "Name,Category,Status,Usage,Last Used,Created At\n"
+            + dataToExport.map(e => `${e.name},${e.category},${e.status},${e.usage},${e.lastUsed},${e.createdAt}`).join("\n");
 
         const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -952,7 +953,7 @@ const Templates = () => {
     const filteredTemplates = templates.filter(tmpl => {
         const matchesSearch = tmpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             tmpl.id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory === 'All Templates' || tmpl.category === selectedCategory;
+        const matchesCategory = selectedCategory === 'All Templates' || tmpl.name === selectedCategory;
         const matchesStatus = selectedStatus === 'All Status' || tmpl.status.toLowerCase() === selectedStatus.toLowerCase();
         return matchesSearch && matchesCategory && matchesStatus;
     });
@@ -1079,7 +1080,7 @@ const Templates = () => {
                                 boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 100, padding: '8px',
                                 marginTop: '8px'
                             }}>
-                                {['All Templates', ...categories].map(c => (
+                                {['All Templates', ...templateOptions].map(c => (
                                     <div
                                         key={c}
                                         onClick={() => { setSelectedCategory(c); setShowCategoryDropdown(false); }}
@@ -1095,7 +1096,6 @@ const Templates = () => {
                             </div>
                         )}
                     </Dropdown>
-
                     <Dropdown ref={statusRef}>
                         <DropdownBtn onClick={() => setShowStatusDropdown(!showStatusDropdown)}>
                             {selectedStatus}
@@ -1124,11 +1124,58 @@ const Templates = () => {
                             </div>
                         )}
                     </Dropdown>
+
                 </FilterGroup>
             </ControlSection>
 
             <TemplateGrid>
-                {filteredTemplates.map(tmpl => (
+                {filteredTemplates.length === 0 ? (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        padding: '80px 20px',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        background: '#FFF',
+                        borderRadius: '32px',
+                        border: '1px solid #F0F0F0',
+                        gridColumn: '1 / -1'
+                    }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            background: '#F9FAFB',
+                            borderRadius: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '20px',
+                            color: '#6B7280'
+                        }}>
+                            <Layers size={40} />
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
+                            No templates found
+                        </div>
+                        <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+                            {searchQuery || selectedCategory !== 'All Templates' || selectedStatus !== 'All Status'
+                                ? `We couldn't find any templates matching your current search or filter criteria.`
+                                : "No templates have been created yet. Click 'Create New Template' to get started."}
+                        </div>
+                        {(searchQuery || selectedCategory !== 'All Templates' || selectedStatus !== 'All Status') && (
+                            <Button
+                                style={{ marginTop: '24px', background: '#F3F4F6', color: '#374151' }}
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedCategory('All Templates');
+                                    setSelectedStatus('All Status');
+                                }}
+                            >
+                                Reset All Filters
+                            </Button>
+                        )}
+                    </div>
+                ) : filteredTemplates.map(tmpl => (
                     <TemplateCard
                         key={tmpl.id}
                         ref={el => cardRefs.current[tmpl.id] = el}
@@ -1192,11 +1239,13 @@ const Templates = () => {
                             <Button $variant="primary" onClick={() => {
                                 const newList = templates.map(t => selectedIds.includes(t.id) ? { ...t, status: 'active' } : t);
                                 saveTemplates(newList);
+                                selectedIds.forEach(id => handleToggleStatus(id));
                                 setSelectedIds([]);
                             }}>Activate</Button>
                             <Button $variant="primary" onClick={() => {
                                 const newList = templates.map(t => selectedIds.includes(t.id) ? { ...t, status: 'inactive' } : t);
                                 saveTemplates(newList);
+                                selectedIds.forEach(id => handleToggleStatus(id));
                                 setSelectedIds([]);
                             }}>Deactivate</Button>
                             <Button $variant="primary" onClick={() => exportToExcel(templates.filter(t => selectedIds.includes(t.id)))}>Export</Button>

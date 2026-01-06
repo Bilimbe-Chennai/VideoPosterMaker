@@ -560,10 +560,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await axiosData.get("upload/all");
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
 
         // 1. Filter for Photo Merge App
-        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+        const rawItems = response.data.filter(item =>
+          item.source === 'Photo Merge App'
+        );
         const totalPhotos = rawItems.length;
 
         // 2 & 3. Aggregate Duplicate Customers & Trends

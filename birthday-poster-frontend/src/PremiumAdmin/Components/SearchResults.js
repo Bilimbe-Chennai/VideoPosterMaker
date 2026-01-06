@@ -145,6 +145,7 @@ const HighlightedText = styled.span`
 
 const SearchResults = ({ query, show, onResultClick }) => {
     const axiosData = useAxios();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [results, setResults] = useState({
         templates: [],
         users: [],
@@ -165,10 +166,9 @@ const SearchResults = ({ query, show, onResultClick }) => {
                 const searchRegex = query.toLowerCase();
 
                 // Fetch all data in parallel
-                const [templatesRes, usersRes, photosRes] = await Promise.all([
-                    axiosData.get('/photomerge/templates'),
-                    axiosData.get('/users/'),
-                    axiosData.get('/upload/all')
+                const [templatesRes, photosRes] = await Promise.all([
+                    axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
+                    axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
                 ]);
 
                 // Filter templates
@@ -182,22 +182,7 @@ const SearchResults = ({ query, show, onResultClick }) => {
                         id: t._id,
                         name: t.templatename,
                         category: t.accessType || 'Photo Merge',
-                        date: t.createdDate ? new Date(t.createdDate).toLocaleDateString() : 'N/A'
-                    }));
-
-                // Filter users (Admin/App Users)
-                const filteredUsers = (usersRes.data?.data || [])
-                    .filter(u =>
-                        u.name?.toLowerCase().includes(searchRegex) ||
-                        u.email?.toLowerCase().includes(searchRegex) ||
-                        u.mobile?.includes(query)
-                    )
-                    .map(u => ({
-                        id: u._id,
-                        name: u.name || 'Unknown',
-                        email: u.email || 'N/A',
-                        type: u.type || 'staff',
-                        source: 'user'
+                        date: (t.createdAt || t.createdDate) ? new Date(t.createdAt || t.createdDate).toLocaleDateString() : 'N/A'
                     }));
 
                 // AGGREGATE Unique Customers from posters (Matches Customers.js logic)
@@ -227,8 +212,8 @@ const SearchResults = ({ query, show, onResultClick }) => {
                     )
                     .slice(0, 5);
 
-                // Combine results for "Customers" category (Staff + Real Customers)
-                const combinedUsers = [...filteredUsers, ...filteredCustomers].slice(0, 10);
+                // Combine results for "Customers" category
+                const combinedUsers = [...filteredCustomers].slice(0, 10);
 
                 // Filter photos (from Photo Merge App)
                 const photoMergePhotos = (photosRes.data || [])
@@ -247,7 +232,7 @@ const SearchResults = ({ query, show, onResultClick }) => {
                         id: p._id,
                         name: p.name || 'Anonymous',
                         template: p.template_name || p.templatename || p.type || 'Custom',
-                        date: p.date || p.createdAt ? new Date(p.date || p.createdAt).toLocaleDateString() : 'N/A'
+                        date: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'
                     }));
 
                 setResults({

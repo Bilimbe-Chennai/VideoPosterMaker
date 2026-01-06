@@ -12,6 +12,7 @@ import ShareTracking from './Pages/ShareTracking';
 import Campaigns from './Pages/Campaigns';
 import Reports from './Pages/Reports';
 import Settings from './Pages/Settings';
+import Notifications from './Pages/Notifications';
 import Placeholder from './Components/Placeholder';
 import PrivateRoute from '../Components/PrivateRoute';
 
@@ -87,6 +88,7 @@ function PremiumAdminApp() {
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
       </Routes>
     </ThemeProvider>
