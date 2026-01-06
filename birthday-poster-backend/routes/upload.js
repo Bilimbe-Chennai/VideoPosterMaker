@@ -127,7 +127,7 @@ router.post("/custom-share", async (req, res) => {
     if (!token) {
       return res.status(500).json({ error: "ChatMyBot token not configured" });
     }
-  const payload = [
+    const payload = [
       {
         to: toNumber,
         type: "template",
@@ -452,9 +452,15 @@ router.get("/download-all", async (req, res) => {
 //   }
 // });
 // GET all media items
+// GET all media items
 router.get("/all", async (req, res) => {
   try {
-    const mediaItems = await Media.find().sort({ createdAt: -1 }); // Get all items, newest first
+    const { adminid } = req.query;
+    let query = {};
+    if (adminid) {
+      query.adminid = adminid;
+    }
+    const mediaItems = await Media.find(query).sort({ createdAt: -1 }); // Get all items, newest first
     res.json(mediaItems.reverse());
   } catch (err) {
     console.error("Error fetching media items:", err);
@@ -1384,6 +1390,7 @@ router.post("/videovideo", async (req, res) => {
         posterVideoId: new mongoose.Types.ObjectId(posterVideoId),
         whatsappstatus,
         createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;
