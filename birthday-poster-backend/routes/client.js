@@ -1090,7 +1090,9 @@ router.post("/client/:temp_name", async (req, res) => {
           email = "",
           whatsapp = "",
           template_name = "",
-          source = "";
+          source = "",
+          adminid = "",
+          branchName = "";
 
         for (const rawPart of rawParts) {
           if (!rawPart) continue;
@@ -1117,6 +1119,10 @@ router.post("/client/:temp_name", async (req, res) => {
             template_name = body.toString().trim();
           } else if (/name="source"/i.test(headersText)) {
             source = body.toString().trim();
+          } else if (/name="adminid"/i.test(headersText)) {
+            adminid = body.toString().trim();
+          } else if (/name="branchid"/i.test(headersText)) {
+            branchName = body.toString().trim();
           }
         }
 
@@ -1152,6 +1158,8 @@ router.post("/client/:temp_name", async (req, res) => {
             whatsapp,
             whatsappstatus: "pending",
             createdAt: new Date(),
+            adminid,
+            branchName,
           });
           await media.save();
           res.status(202).json({
