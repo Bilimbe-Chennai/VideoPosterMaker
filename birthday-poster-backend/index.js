@@ -6,6 +6,7 @@ const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
 const photomergeRoutes = require('./routes/photomerge');
 const userRoutes = require('./routes/user');
+const campaignRoutes = require('./routes/campaigns');
 const initDb = require("./InitDB");
 const path = require('path');
 const os = require("os");
@@ -46,6 +47,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/photomerge', photomergeRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/campaigns', campaignRoutes);
 // app.get("/photomergeapp/share/:id", (req, res) => {
 //   const { id } = req.params;
 //   // Redirect to app deep link

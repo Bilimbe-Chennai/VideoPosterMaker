@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import {
   Plus,
@@ -22,10 +22,12 @@ import {
   AlertCircle,
   BarChart2,
   Share2,
-  Users
+  Users,
+  X
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
+import useAxios from '../../useAxios';
 
 // --- Styled Components ---
 
@@ -74,12 +76,18 @@ const PrimaryButton = styled.button`
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -93,6 +101,7 @@ const SecondaryButton = styled.button`
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
@@ -128,6 +137,7 @@ const FilterSection = styled.div`
   gap: 16px;
   border-bottom: 1px solid #F5F5F5;
   align-items: center;
+  position: relative;
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -175,9 +185,54 @@ const DropdownSelector = styled.div`
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  position: relative;
   
   &:hover {
     border-color: #DDD;
+  }
+`;
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: white;
+  border: 1px solid #EEE;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  z-index: 100;
+  display: ${props => props.$show ? 'block' : 'none'};
+  animation: fadeIn 0.2s ease;
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const DropdownItem = styled.div`
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.$active ? '#1A1A1A' : '#666'};
+  background: ${props => props.$active ? '#F5F5F5' : 'transparent'};
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #F5F5F5;
+    color: #1A1A1A;
+  }
+  
+  &:first-child {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+  }
+  
+  &:last-child {
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
   }
 `;
 
@@ -224,6 +279,7 @@ const StatusBadge = styled.div`
       case 'Scheduled': return `background: #EFF6FF; color: #2563EB;`;
       case 'Completed': return `background: #F9FAFB; color: #4B5563;`;
       case 'Failed': return `background: #FEF2F2; color: #DC2626;`;
+      case 'Draft': return `background: #F3F4F6; color: #6B7280;`;
       default: return `background: #F3F4F6; color: #6B7280;`;
     }
   }}
@@ -280,6 +336,7 @@ const IconButton = styled.button`
   align-items: center;
   justify-content: center;
   color: #666;
+  cursor: pointer;
   transition: all 0.2s;
   
   &:hover {
@@ -288,78 +345,261 @@ const IconButton = styled.button`
   }
 `;
 
-// --- Mock Data ---
+// Modal Components
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
 
-const INITIAL_CAMPAIGNS = [
-  {
-    id: 'CMP-001',
-    name: 'Winter Festive Sale',
-    description: 'Special 30% discount on silk sarees',
-    type: 'WhatsApp',
-    status: 'Active',
-    startDate: '2026-01-01',
-    endDate: '2026-01-10',
-    sent: 1250,
-    delivered: 1180,
-    clicks: 450,
-  },
-  {
-    id: 'CMP-002',
-    name: 'New Year Collection Launch',
-    description: 'Exclusive preview of 2026 collection',
-    type: 'Email',
-    status: 'Completed',
-    startDate: '2025-12-25',
-    endDate: '2025-12-31',
-    sent: 5000,
-    delivered: 4850,
-    clicks: 920,
-  },
-  {
-    id: 'CMP-003',
-    name: 'Weekend Store Visit SMS',
-    description: 'Visit our flagship store this weekend',
-    type: 'SMS',
-    status: 'Scheduled',
-    startDate: '2026-01-07',
-    endDate: '2026-01-08',
-    sent: 0,
-    delivered: 0,
-    clicks: 0,
-  },
-  {
-    id: 'CMP-004',
-    name: 'Flash Sale Reminder',
-    description: 'Only 2 hours left for the sale!',
-    type: 'Push Notification',
-    status: 'Failed',
-    startDate: '2026-01-03',
-    endDate: '2026-01-03',
-    sent: 800,
-    delivered: 650,
-    clicks: 210,
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #F0F0F0;
+  
+  h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
   }
-];
+`;
+
+const ModalBody = styled.div`
+  padding: 24px;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 20px;
+  
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1A1A1A;
+  }
+  
+  input, select, textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1.5px solid #EEE;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+    
+    &:focus {
+      border-color: #1A1A1A;
+    }
+  }
+  
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px;
+  border-top: 1px solid #F0F0F0;
+`;
 
 const Campaigns = () => {
-  const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
+  const axiosData = useAxios();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All Channels');
   const [filterStatus, setFilterStatus] = useState('All Status');
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    type: 'WhatsApp',
+    status: 'Draft',
+    startDate: '',
+    endDate: '',
+    message: ''
+  });
+  const [photoMergeCustomers, setPhotoMergeCustomers] = useState([]);
+
+  const typeDropdownRef = useRef(null);
+  const statusDropdownRef = useRef(null);
+
+  // Fetch campaigns from API
+  useEffect(() => {
+    fetchCampaigns();
+    fetchCustomers();
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target)) {
+        setShowTypeDropdown(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setShowStatusDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchCampaigns = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosData.get(`campaigns?adminid=${user._id || user.id}`);
+      setCampaigns(response.data || []);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await axiosData.get(`campaigns/target/customers?adminid=${user._id || user.id}`);
+      setPhotoMergeCustomers(response.data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
+
+  const handleCreateCampaign = async () => {
+    try {
+      const campaignData = {
+        ...formData,
+        adminid: user._id || user.id,
+        startDate: formData.startDate || new Date().toISOString(),
+        endDate: formData.endDate || new Date().toISOString(),
+        targetAudience: {
+          source: 'Photo Merge App'
+        }
+      };
+
+      await axiosData.post('campaigns', campaignData);
+      setShowCreateModal(false);
+      resetForm();
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      alert('Failed to create campaign. Please try again.');
+    }
+  };
+
+  const handleEditCampaign = async () => {
+    try {
+      await axiosData.put(`campaigns/${editingCampaign._id}`, formData);
+      setShowEditModal(false);
+      setEditingCampaign(null);
+      resetForm();
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      alert('Failed to update campaign. Please try again.');
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId) => {
+    if (!window.confirm('Are you sure you want to delete this campaign?')) {
+      return;
+    }
+
+    try {
+      await axiosData.delete(`campaigns/${campaignId}`);
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      alert('Failed to delete campaign. Please try again.');
+    }
+  };
+
+  const handleSendCampaign = async (campaignId) => {
+    if (!window.confirm('Are you sure you want to send this campaign?')) {
+      return;
+    }
+
+    try {
+      await axiosData.post(`campaigns/${campaignId}/send`);
+      fetchCampaigns();
+      alert('Campaign sent successfully!');
+    } catch (error) {
+      console.error('Error sending campaign:', error);
+      alert('Failed to send campaign. Please try again.');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      type: 'WhatsApp',
+      status: 'Draft',
+      startDate: '',
+      endDate: '',
+      message: ''
+    });
+  };
+
+  const openEditModal = (campaign) => {
+    setEditingCampaign(campaign);
+    setFormData({
+      name: campaign.name || '',
+      description: campaign.description || '',
+      type: campaign.type || 'WhatsApp',
+      status: campaign.status || 'Draft',
+      startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split('T')[0] : '',
+      endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split('T')[0] : '',
+      message: campaign.message || ''
+    });
+    setShowEditModal(true);
+  };
 
   const stats = useMemo(() => {
     const active = campaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
     const completed = campaigns.filter(c => c.status === 'Completed').length;
-    const totalSent = campaigns.reduce((acc, curr) => acc + curr.sent, 0);
-    const totalDelivered = campaigns.reduce((acc, curr) => acc + curr.delivered, 0);
+    const totalSent = campaigns.reduce((acc, curr) => acc + (curr.sent || 0), 0);
+    const totalDelivered = campaigns.reduce((acc, curr) => acc + (curr.delivered || 0), 0);
     const avgDelivery = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
 
     return { active, completed, totalSent, avgDelivery };
   }, [campaigns]);
 
   const filteredCampaigns = campaigns.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c._id || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'All Channels' || c.type === filterType;
     const matchesStatus = filterStatus === 'All Status' || c.status === filterStatus;
 
@@ -390,8 +630,8 @@ const Campaigns = () => {
     const csvContent = "data:text/csv;charset=utf-8,"
       + ["ID,Name,Type,Status,Sent,Delivered,CTR"].join(",") + "\n"
       + filteredCampaigns.map(c => [
-        c.id, c.name, c.type, c.status, c.sent, c.delivered,
-        c.delivered > 0 ? ((c.clicks / c.delivered) * 100).toFixed(1) + '%' : '0%'
+        c._id || c.id, c.name, c.type, c.status, c.sent || 0, c.delivered || 0,
+        (c.delivered || 0) > 0 ? (((c.clicks || 0) / c.delivered) * 100).toFixed(1) + '%' : '0%'
       ].join(",")).join("\n");
 
     const encodedUri = encodeURI(csvContent);
@@ -400,7 +640,18 @@ const Campaigns = () => {
     link.setAttribute("download", "campaign_report.csv");
     document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#666' }}>
+          Loading campaigns...
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -408,12 +659,17 @@ const Campaigns = () => {
         <HeaderInfo>
           <h1>Campaign Management</h1>
           <p>Create, manage and analyze your marketing performance across all channels</p>
+          {photoMergeCustomers.length > 0 && (
+            <p style={{ fontSize: '13px', color: '#059669', marginTop: '4px' }}>
+              {photoMergeCustomers.length} Photo Merge App customers available for targeting
+            </p>
+          )}
         </HeaderInfo>
         <ActionGroup>
           <SecondaryButton onClick={exportData}>
             <Download size={18} /> Export Results
           </SecondaryButton>
-          <PrimaryButton>
+          <PrimaryButton onClick={() => setShowCreateModal(true)}>
             <Plus size={18} /> Create New Campaign
           </PrimaryButton>
         </ActionGroup>
@@ -423,7 +679,7 @@ const Campaigns = () => {
         <KPIMetricCard
           label="Active Campaigns"
           value={stats.active}
-          trend={12.5}
+          trend={0}
           trendColor="#6B8E23"
           bgColor="#F4F9E9"
           icon={<Play size={20} />}
@@ -433,7 +689,7 @@ const Campaigns = () => {
         <KPIMetricCard
           label="Completed Campaigns"
           value={stats.completed}
-          trend={5.2}
+          trend={0}
           trendColor="#8E44AD"
           bgColor="#F7F2FA"
           icon={<CheckCircle size={20} />}
@@ -443,7 +699,7 @@ const Campaigns = () => {
         <KPIMetricCard
           label="Total Sent"
           value={stats.totalSent.toLocaleString()}
-          trend={24.8}
+          trend={0}
           trendColor="#D47D52"
           bgColor="#FFF0E5"
           icon={<Send size={20} />}
@@ -453,7 +709,7 @@ const Campaigns = () => {
         <KPIMetricCard
           label="Avg Delivery Rate"
           value={`${stats.avgDelivery.toFixed(1)}%`}
-          trend={-1.4}
+          trend={0}
           trendColor="#B58B00"
           bgColor="#FFF9E5"
           icon={<BarChart2 size={20} />}
@@ -474,18 +730,86 @@ const Campaigns = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </SearchBox>
-          <DropdownSelector onClick={() => { }}>
-            <Filter size={16} /> {filterType} <ChevronDown size={14} />
-          </DropdownSelector>
-          <DropdownSelector onClick={() => { }}>
-            <Calendar size={16} /> Last 30 Days <ChevronDown size={14} />
-          </DropdownSelector>
+          <div ref={typeDropdownRef} style={{ position: 'relative' }}>
+            <DropdownSelector onClick={() => setShowTypeDropdown(!showTypeDropdown)}>
+              <Filter size={16} /> {filterType} <ChevronDown size={14} />
+            </DropdownSelector>
+            <DropdownMenu $show={showTypeDropdown}>
+              <DropdownItem 
+                $active={filterType === 'All Channels'}
+                onClick={() => { setFilterType('All Channels'); setShowTypeDropdown(false); }}
+              >
+                All Channels
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterType === 'WhatsApp'}
+                onClick={() => { setFilterType('WhatsApp'); setShowTypeDropdown(false); }}
+              >
+                WhatsApp
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterType === 'Email'}
+                onClick={() => { setFilterType('Email'); setShowTypeDropdown(false); }}
+              >
+                Email
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterType === 'SMS'}
+                onClick={() => { setFilterType('SMS'); setShowTypeDropdown(false); }}
+              >
+                SMS
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterType === 'Push Notification'}
+                onClick={() => { setFilterType('Push Notification'); setShowTypeDropdown(false); }}
+              >
+                Push Notification
+              </DropdownItem>
+            </DropdownMenu>
+          </div>
+          <div ref={statusDropdownRef} style={{ position: 'relative' }}>
+            <DropdownSelector onClick={() => setShowStatusDropdown(!showStatusDropdown)}>
+              <Calendar size={16} /> {filterStatus} <ChevronDown size={14} />
+            </DropdownSelector>
+            <DropdownMenu $show={showStatusDropdown}>
+              <DropdownItem 
+                $active={filterStatus === 'All Status'}
+                onClick={() => { setFilterStatus('All Status'); setShowStatusDropdown(false); }}
+              >
+                All Status
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterStatus === 'Active'}
+                onClick={() => { setFilterStatus('Active'); setShowStatusDropdown(false); }}
+              >
+                Active
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterStatus === 'Scheduled'}
+                onClick={() => { setFilterStatus('Scheduled'); setShowStatusDropdown(false); }}
+              >
+                Scheduled
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterStatus === 'Completed'}
+                onClick={() => { setFilterStatus('Completed'); setShowStatusDropdown(false); }}
+              >
+                Completed
+              </DropdownItem>
+              <DropdownItem 
+                $active={filterStatus === 'Draft'}
+                onClick={() => { setFilterStatus('Draft'); setShowStatusDropdown(false); }}
+              >
+                Draft
+              </DropdownItem>
+            </DropdownMenu>
+          </div>
         </FilterSection>
 
         <CampaignTable>
           <thead>
             <tr>
-              <th style={{ width: '40px' }}><input type="checkbox" /></th>
+              <th style={{ width: '40px' }}></th>
               <th>Campaign Details</th>
               <th>Channel</th>
               <th>Status</th>
@@ -544,16 +868,16 @@ const Campaigns = () => {
               </tr>
             ) : filteredCampaigns.map((c) => {
               const channel = getChannelConfig(c.type);
-              const deliveryRate = c.sent > 0 ? (c.delivered / c.sent) * 100 : 0;
-              const ctr = c.delivered > 0 ? (c.clicks / c.delivered) * 100 : 0;
+              const deliveryRate = (c.sent || 0) > 0 ? ((c.delivered || 0) / c.sent) * 100 : 0;
+              const ctr = (c.delivered || 0) > 0 ? ((c.clicks || 0) / c.delivered) * 100 : 0;
 
               return (
-                <tr key={c.id}>
-                  <td><input type="checkbox" /></td>
+                <tr key={c._id || c.id}>
+                  <td></td>
                   <td>
                     <InfoGroup>
                       <h4>{c.name}</h4>
-                      <p>ID: {c.id} • {c.description.substring(0, 30)}...</p>
+                      <p>ID: {c._id || c.id} • {(c.description || '').substring(0, 30)}...</p>
                     </InfoGroup>
                   </td>
                   <td>
@@ -588,9 +912,26 @@ const Campaigns = () => {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <IconButton title="View Analytics"><BarChart2 size={18} /></IconButton>
-                      <IconButton title="Edit Campaign"><Edit3 size={18} /></IconButton>
-                      <IconButton title="More"><MoreVertical size={18} /></IconButton>
+                      {c.status === 'Draft' && (
+                        <IconButton 
+                          title="Send Campaign" 
+                          onClick={() => handleSendCampaign(c._id || c.id)}
+                        >
+                          <Send size={18} />
+                        </IconButton>
+                      )}
+                      <IconButton 
+                        title="Edit Campaign" 
+                        onClick={() => openEditModal(c)}
+                      >
+                        <Edit3 size={18} />
+                      </IconButton>
+                      <IconButton 
+                        title="Delete Campaign" 
+                        onClick={() => handleDeleteCampaign(c._id || c.id)}
+                      >
+                        <Trash2 size={18} />
+                      </IconButton>
                     </div>
                   </td>
                 </tr>
@@ -599,6 +940,197 @@ const Campaigns = () => {
           </tbody>
         </CampaignTable>
       </ContentCard>
+
+      {/* Create Campaign Modal */}
+      {showCreateModal && (
+        <ModalOverlay onClick={() => setShowCreateModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h2>Create New Campaign</h2>
+              <IconButton onClick={() => { setShowCreateModal(false); resetForm(); }}>
+                <X size={24} />
+              </IconButton>
+            </ModalHeader>
+            <ModalBody>
+              <FormGroup>
+                <label>Campaign Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter campaign name"
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Enter campaign description"
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Channel Type *</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                >
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Email">Email</option>
+                  <option value="SMS">SMS</option>
+                  <option value="Push Notification">Push Notification</option>
+                </select>
+              </FormGroup>
+              <FormGroup>
+                <label>Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <option value="Draft">Draft</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Active">Active</option>
+                </select>
+              </FormGroup>
+              <FormGroup>
+                <label>Start Date *</label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>End Date *</label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Message</label>
+                <textarea
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  placeholder="Enter campaign message"
+                />
+              </FormGroup>
+              <div style={{ 
+                padding: '16px', 
+                background: '#F0F9FF', 
+                borderRadius: '12px', 
+                marginTop: '20px',
+                fontSize: '13px',
+                color: '#1E40AF'
+              }}>
+                <strong>Target Audience:</strong> This campaign will target {photoMergeCustomers.length} Photo Merge App customers.
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <SecondaryButton onClick={() => { setShowCreateModal(false); resetForm(); }}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton 
+                onClick={handleCreateCampaign}
+                disabled={!formData.name || !formData.startDate || !formData.endDate}
+              >
+                Create Campaign
+              </PrimaryButton>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* Edit Campaign Modal */}
+      {showEditModal && editingCampaign && (
+        <ModalOverlay onClick={() => { setShowEditModal(false); setEditingCampaign(null); resetForm(); }}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h2>Edit Campaign</h2>
+              <IconButton onClick={() => { setShowEditModal(false); setEditingCampaign(null); resetForm(); }}>
+                <X size={24} />
+              </IconButton>
+            </ModalHeader>
+            <ModalBody>
+              <FormGroup>
+                <label>Campaign Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Channel Type *</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                >
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Email">Email</option>
+                  <option value="SMS">SMS</option>
+                  <option value="Push Notification">Push Notification</option>
+                </select>
+              </FormGroup>
+              <FormGroup>
+                <label>Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <option value="Draft">Draft</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </FormGroup>
+              <FormGroup>
+                <label>Start Date *</label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>End Date *</label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Message</label>
+                <textarea
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                />
+              </FormGroup>
+            </ModalBody>
+            <ModalFooter>
+              <SecondaryButton onClick={() => { setShowEditModal(false); setEditingCampaign(null); resetForm(); }}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton 
+                onClick={handleEditCampaign}
+                disabled={!formData.name || !formData.startDate || !formData.endDate}
+              >
+                Save Changes
+              </PrimaryButton>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </PageContainer>
   );
 };
