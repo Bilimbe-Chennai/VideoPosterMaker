@@ -21,6 +21,7 @@ const MediaSchema = new mongoose.Schema({
   templateId: mongoose.Schema.Types.ObjectId,
   whatsappstatus: String,
   qrCode: { type: String },
+  adminid: { type: String, default: "" },
   branchName: { type: String, default: "" },
   whatsappsharecount: { type: Number, default: 0 },
   facebooksharecount: { type: Number, default: 0 },
