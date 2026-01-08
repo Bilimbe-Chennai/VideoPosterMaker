@@ -1,9 +1,11 @@
+// First router section - commented out, using second router below
 // const express = require("express");
 // const AdminSettings = require("../models/AdminSettings.js");
 // const Media = require("../models/Media.js");
+// const ActivityHistory = require("../models/ActivityHistory.js");
 // const { Readable } = require("stream");
 // const runFaceSwap = require("../utils/faceSwap.js");
-// const { mergeTwoVideos } = require("../utils/videoMerge.js"); // refactored from your /videovideo route
+// const { mergeTwoVideos } = require("../utils/videoMerge.js");
 // const mongoose = require("mongoose");
 // const QRCode = require("qrcode");
 // const path = require("path");
@@ -12,6 +14,45 @@
 // const axios = require("axios");
 // const { getConnection } = require("../InitDB");
 // const router = express.Router();
+
+// Helper: Log activity history
+async function logActivity({
+  customerPhone,
+  customerName,
+  customerEmail,
+  activityType,
+  activityDescription,
+  mediaId,
+  templateName,
+  branchName,
+  adminid,
+  metadata = {}
+}) {
+  try {
+    if (!customerPhone || !customerName || !activityType || !activityDescription || !adminid) {
+      console.warn('Missing required fields for activity log:', { customerPhone, customerName, activityType, adminid });
+      return;
+    }
+
+    const activity = new ActivityHistory({
+      customerPhone: String(customerPhone),
+      customerName: String(customerName),
+      customerEmail: customerEmail || '',
+      activityType,
+      activityDescription,
+      mediaId: mediaId || null,
+      templateName: templateName || '',
+      branchName: branchName || '',
+      adminid: String(adminid),
+      metadata
+    });
+
+    await activity.save();
+  } catch (err) {
+    console.error('Error logging activity:', err);
+    // Don't throw - activity logging should not break the main flow
+  }
+}
 // const shareOuput = async (whatsapp, downloadUrl, id, res) => {
 //   try {
 //     const toNumber = whatsapp;
@@ -522,6 +563,7 @@ const express = require("express");
 const nodemailer = require('nodemailer');
 const AdminSettings = require("../models/AdminSettings.js");
 const Media = require("../models/Media.js");
+const ActivityHistory = require("../models/ActivityHistory.js");
 const { Readable } = require("stream");
 const runFaceSwap = require("../utils/faceSwap.js");
 const { mergeTwoVideos } = require("../utils/videoMerge.js"); // refactored from your /videovideo route
@@ -533,6 +575,45 @@ const os = require("os");
 const axios = require("axios");
 const { getConnection } = require("../InitDB");
 const router = express.Router();
+
+// Helper: Log activity history
+async function logActivity({
+  customerPhone,
+  customerName,
+  customerEmail,
+  activityType,
+  activityDescription,
+  mediaId,
+  templateName,
+  branchName,
+  adminid,
+  metadata = {}
+}) {
+  try {
+    if (!customerPhone || !customerName || !activityType || !activityDescription || !adminid) {
+      console.warn('Missing required fields for activity log:', { customerPhone, customerName, activityType, adminid });
+      return;
+    }
+
+    const activity = new ActivityHistory({
+      customerPhone: String(customerPhone),
+      customerName: String(customerName),
+      customerEmail: customerEmail || '',
+      activityType,
+      activityDescription,
+      mediaId: mediaId || null,
+      templateName: templateName || '',
+      branchName: branchName || '',
+      adminid: String(adminid),
+      metadata
+    });
+
+    await activity.save();
+  } catch (err) {
+    console.error('Error logging activity:', err);
+    // Don't throw - activity logging should not break the main flow
+  }
+}
 function imageShareEmailTemplate({ name, viewUrl }) {
   return `
 <!DOCTYPE html>
@@ -887,6 +968,21 @@ router.post("/client-upload", async (req, res) => {
           // 5. Save to database
           await media.save();
 
+          // Log activity for video creation
+          if (settings.adminid) {
+            await logActivity({
+              customerPhone: whatsapp || '',
+              customerName: clientName || settings.name || 'Unknown',
+              customerEmail: '',
+              activityType: 'video_created',
+              activityDescription: `Created video with template ${settings.type || 'N/A'}`,
+              mediaId: media._id,
+              templateName: settings.type || '',
+              branchName: settings.branchName || '',
+              adminid: settings.adminid
+            });
+          }
+
           // 6. Send to WhatsApp in background (don't wait for it)
           shareOuput(whatsapp, downloadUrl, media._id, {
             json: () => { },
@@ -1034,6 +1130,21 @@ router.post("/client-upload", async (req, res) => {
               const qrCodeData = await QRCode.toDataURL(downloadUrl);
               media.qrCode = qrCodeData;
               await media.save();
+
+              // Log activity for video creation
+              if (settings.adminid) {
+                await logActivity({
+                  customerPhone: whatsapp || '',
+                  customerName: settings.name || 'Unknown',
+                  customerEmail: '',
+                  activityType: 'video_created',
+                  activityDescription: `Created video with template ${settings.type || 'N/A'}`,
+                  mediaId: media._id,
+                  templateName: settings.type || '',
+                  branchName: settings.branchName || '',
+                  adminid: settings.adminid
+                });
+              }
               await shareOuput(whatsapp, downloadUrl, media._id, {
                 json: () => { },
               });
@@ -1162,6 +1273,22 @@ router.post("/client/:temp_name", async (req, res) => {
             branchName,
           });
           await media.save();
+
+          // Log activity for photo merge creation
+          if (adminid) {
+            await logActivity({
+              customerPhone: whatsapp || '',
+              customerName: clientName || 'Unknown',
+              customerEmail: email || '',
+              activityType: 'photo_created',
+              activityDescription: `Created photo with template ${template_name || 'N/A'}`,
+              mediaId: media._id,
+              templateName: template_name || '',
+              branchName: branchName || '',
+              adminid: adminid
+            });
+          }
+
           res.status(202).json({
             media,
             // message: "Upload received. Processing in background.",

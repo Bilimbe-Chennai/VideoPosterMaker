@@ -28,6 +28,7 @@ const MediaSchema = new mongoose.Schema({
   twittersharecount: { type: Number, default: 0 },
   instagramsharecount: { type: Number, default: 0 },
   downloadcount: { type: Number, default: 0 },
+  urlclickcount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

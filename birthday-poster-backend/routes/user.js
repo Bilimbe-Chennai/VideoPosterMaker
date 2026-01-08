@@ -1,6 +1,50 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const PremiumAdminSettings = require('../models/PremiumAdminSettings');
+
+const DEFAULT_PREMIUM_SETTINGS = {
+    general: {
+        appName: 'P Poster Maker Admin',
+        companyName: '',
+        email: '',
+        phone: '',
+        timezone: 'India (IST)',
+        dateFormat: 'DD/MM/YYYY',
+        exportFormat: 'Excel'
+    },
+    notifications: {
+        email: true,
+        whatsapp: true,
+        push: false,
+        onPhoto: true,
+        onShare: true,
+        onCampaign: true,
+        onReport: false,
+        onBackup: true
+    },
+    integrations: {
+        whatsapp: { active: false, provider: '', apiKey: '', senderID: '' },
+        email: { active: false, provider: '', apiKey: '', senderID: '' },
+        sms: { active: false, provider: '', apiKey: '', senderID: '' }
+    },
+    export: {
+        autoDaily: false,
+        modules: ['Customers', 'Photos', 'Shares'],
+        frequency: 'Weekly',
+        destination: 'Download'
+    },
+    backup: {
+        enabled: false,
+        frequency: 'Daily',
+        scope: ['Database', 'Configuration'],
+        storage: 'Local Server'
+    },
+    audit: {
+        lastUpdated: '',
+        updatedBy: ''
+    }
+};
 
 // User Login with app-user restriction
 router.post('/login', async (req, res) => {
@@ -168,6 +212,60 @@ router.delete('/:id', async (req, res) => {
         res.status(200).json({ success: true, data: {} });
     } catch (err) {
         res.status(400).json({ success: false, error: err.message });
+    }
+});
+
+// Premium Admin Settings (Settings page)
+router.get('/premium-settings', async (req, res) => {
+    try {
+        const { adminid } = req.query;
+        if (!adminid) {
+            return res.status(400).json({ success: false, error: 'adminid is required' });
+        }
+
+        const doc = await PremiumAdminSettings.findOne({ adminid }).lean();
+        const settings = doc?.settings || DEFAULT_PREMIUM_SETTINGS;
+
+        // Return audit derived from db timestamps if not present
+        const audit = {
+            lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : (settings.audit?.lastUpdated || ''),
+            updatedBy: doc?.updatedBy || settings.audit?.updatedBy || ''
+        };
+
+        return res.status(200).json({ success: true, settings: { ...settings, audit } });
+    } catch (err) {
+        console.error('premium-settings GET error:', err);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+router.put('/premium-settings', async (req, res) => {
+    try {
+        const { adminid } = req.query;
+        const { settings, updatedBy } = req.body || {};
+
+        if (!adminid) {
+            return res.status(400).json({ success: false, error: 'adminid is required' });
+        }
+        if (!settings || typeof settings !== 'object') {
+            return res.status(400).json({ success: false, error: 'settings object is required' });
+        }
+
+        const doc = await PremiumAdminSettings.findOneAndUpdate(
+            { adminid },
+            { settings, updatedBy: updatedBy || '' },
+            { upsert: true, new: true }
+        ).lean();
+
+        const audit = {
+            lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : new Date().toLocaleString(),
+            updatedBy: doc?.updatedBy || updatedBy || ''
+        };
+
+        return res.status(200).json({ success: true, settings: { ...doc.settings, audit } });
+    } catch (err) {
+        console.error('premium-settings PUT error:', err);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
