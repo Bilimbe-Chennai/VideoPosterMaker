@@ -5,6 +5,7 @@ const { GridFSBucket, ObjectId } = require("mongodb");
 const mongoose = require("mongoose");
 const axios = require("axios");
 const Media = require("../models/Media");
+const ActivityHistory = require("../models/ActivityHistory");
 const { Readable } = require("stream");
 const path = require("path");
 const os = require("os");
@@ -30,6 +31,45 @@ async function uploadToGridFS(filename, buffer, contentType) {
       .on("error", reject)
       .on("finish", () => resolve(uploadStream.id));
   });
+}
+
+// Helper: Log activity history
+async function logActivity({
+  customerPhone,
+  customerName,
+  customerEmail,
+  activityType,
+  activityDescription,
+  mediaId,
+  templateName,
+  branchName,
+  adminid,
+  metadata = {}
+}) {
+  try {
+    if (!customerPhone || !customerName || !activityType || !activityDescription || !adminid) {
+      console.warn('Missing required fields for activity log:', { customerPhone, customerName, activityType, adminid });
+      return;
+    }
+
+    const activity = new ActivityHistory({
+      customerPhone: String(customerPhone),
+      customerName: String(customerName),
+      customerEmail: customerEmail || '',
+      activityType,
+      activityDescription,
+      mediaId: mediaId || null,
+      templateName: templateName || '',
+      branchName: branchName || '',
+      adminid: String(adminid),
+      metadata
+    });
+
+    await activity.save();
+  } catch (err) {
+    console.error('Error logging activity:', err);
+    // Don't throw - activity logging should not break the main flow
+  }
 }
 //whatsapp share function
 router.post("/share", async (req, res) => {
@@ -100,6 +140,21 @@ router.post("/share", async (req, res) => {
       },
       { new: true }
     );
+
+    // Log activity
+    if (updatedMedia) {
+      await logActivity({
+        customerPhone: updatedMedia.whatsapp || updatedMedia.mobile || '',
+        customerName: updatedMedia.name || 'Unknown',
+        customerEmail: updatedMedia.email || '',
+        activityType: 'photo_shared_whatsapp',
+        activityDescription: `Shared ${updatedMedia.template_name || 'photo'} via WhatsApp`,
+        mediaId: updatedMedia._id,
+        templateName: updatedMedia.template_name || '',
+        branchName: updatedMedia.branchName || '',
+        adminid: updatedMedia.adminid || ''
+      });
+    }
 
     return res.json({ success: true, data: updatedMedia });
   } catch (err) {
@@ -184,6 +239,22 @@ router.post("/custom-share", async (req, res) => {
       { new: true }
     );
 
+    // Log activity
+    if (updatedMedia) {
+      await logActivity({
+        customerPhone: updatedMedia.whatsapp || updatedMedia.mobile || '',
+        customerName: updatedMedia.name || 'Unknown',
+        customerEmail: updatedMedia.email || '',
+        activityType: 'message_sent',
+        activityDescription: `Custom message sent via WhatsApp`,
+        mediaId: updatedMedia._id,
+        templateName: updatedMedia.template_name || '',
+        branchName: updatedMedia.branchName || '',
+        adminid: updatedMedia.adminid || '',
+        metadata: { message: message }
+      });
+    }
+
     res.json({ success: true, data: updatedMedia });
   } catch (error) {
     console.error("Server error in /custom-share:", error.response?.data || error.message);
@@ -205,14 +276,16 @@ router.post("/update-count", async (req, res) => {
       "facebooksharecount",
       "twittersharecount",
       "instagramsharecount",
-      "downloadcount"
+      "downloadcount",
+      "urlclickcount"
     ];
 
     if (!validFields.includes(field)) {
       return res.status(400).json({ error: "Invalid field" });
     }
 
-    const updatedMedia = await Media.findOneAndUpdate(
+    // Try to find by posterVideoId first, then by _id if not found
+    let updatedMedia = await Media.findOneAndUpdate(
       { posterVideoId: id },
       {
         $inc: { [field]: 1 },
@@ -221,8 +294,54 @@ router.post("/update-count", async (req, res) => {
       { new: true, runValidators: true }
     );
 
+    // If not found by posterVideoId, try finding by _id
+    if (!updatedMedia && mongoose.Types.ObjectId.isValid(id)) {
+      updatedMedia = await Media.findOneAndUpdate(
+        { _id: id },
+        {
+          $inc: { [field]: 1 },
+          $set: { updatedAt: new Date() }
+        },
+        { new: true, runValidators: true }
+      );
+    }
+
     if (!updatedMedia) {
       return res.status(404).json({ error: "Media not found" });
+    }
+
+    // Log activity based on field type
+    const activityTypeMap = {
+      'whatsappsharecount': 'photo_shared_whatsapp',
+      'facebooksharecount': 'photo_shared_facebook',
+      'twittersharecount': 'photo_shared_twitter',
+      'instagramsharecount': 'photo_shared_instagram',
+      'downloadcount': 'photo_downloaded',
+      'urlclickcount': 'url_clicked'
+    };
+
+    const activityType = activityTypeMap[field];
+    if (activityType) {
+      const activityDescriptionMap = {
+        'photo_shared_whatsapp': `Shared ${updatedMedia.template_name || 'photo'} via WhatsApp`,
+        'photo_shared_facebook': `Shared ${updatedMedia.template_name || 'photo'} on Facebook`,
+        'photo_shared_twitter': `Shared ${updatedMedia.template_name || 'photo'} on Twitter`,
+        'photo_shared_instagram': `Shared ${updatedMedia.template_name || 'photo'} on Instagram`,
+        'photo_downloaded': `Downloaded ${updatedMedia.template_name || 'photo'}`,
+        'url_clicked': `Viewed share screen for ${updatedMedia.template_name || 'photo'}`
+      };
+
+      await logActivity({
+        customerPhone: updatedMedia.whatsapp || updatedMedia.mobile || '',
+        customerName: updatedMedia.name || 'Unknown',
+        customerEmail: updatedMedia.email || '',
+        activityType,
+        activityDescription: activityDescriptionMap[activityType] || `Updated ${field}`,
+        mediaId: updatedMedia._id,
+        templateName: updatedMedia.template_name || '',
+        branchName: updatedMedia.branchName || '',
+        adminid: updatedMedia.adminid || ''
+      });
     }
 
     return res.json({ success: true, data: updatedMedia });
@@ -539,6 +658,547 @@ router.get("/stats", async (req, res) => {
   } catch (err) {
     console.error("Error fetching stats:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET dashboard metrics with growth calculations
+router.get("/dashboard-metrics", async (req, res) => {
+  try {
+    const { adminid } = req.query;
+    let query = {};
+    if (adminid) {
+      query.adminid = adminid;
+    }
+    query.source = "Photo Merge App";
+
+    // Helper function to calculate growth
+    const calculateGrowth = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return parseFloat(((current - previous) / previous * 100).toFixed(1));
+    };
+
+    // Helper function to generate trend path configuration based on growth value
+    const generateTrendPathConfig = (growth) => {
+      const growthValue = parseFloat(growth) || 0;
+      
+      // Normalize growth to a -50 to +50 scale for better visualization
+      const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+      const scaleFactor = normalizedGrowth / 50; // -1 to 1
+      
+      // For 60x30 viewBox: X ranges 0-60, Y ranges 0-30 (lower Y = higher on screen)
+      const startY = 20; // Middle baseline
+      const endYOffset = -scaleFactor * 12; // Move up/down based on growth (max 12px movement)
+      const endY = startY + endYOffset;
+      
+      // Ensure Y stays within viewBox bounds (0-30)
+      const clampedEndY = Math.max(5, Math.min(25, endY));
+      
+      // Create smooth curve points with control points for better curve
+      const midY1 = startY + (endYOffset * 0.2);
+      const midY2 = startY + (endYOffset * 0.6);
+      
+      // Generate dynamic Bezier curve path
+      const path = `M5,${startY} C18,${startY - scaleFactor * 2} 32,${midY1 + scaleFactor * 1} 45,${midY2} C48,${midY2 + scaleFactor * 1} 50,${clampedEndY - scaleFactor * 0.5} 55,${clampedEndY}`;
+      
+      return {
+        points: path,
+        endX: 55,
+        endY: Math.round(clampedEndY),
+        isPositive: growthValue >= 0,
+        normalizedGrowth: normalizedGrowth,
+        scaleFactor: scaleFactor
+      };
+    };
+
+    // Current period dates
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    today.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    lastMonthEnd.setHours(23, 59, 59, 999);
+
+    const last30DaysStart = new Date(today);
+    last30DaysStart.setDate(last30DaysStart.getDate() - 30);
+    
+    const last60DaysStart = new Date(today);
+    last60DaysStart.setDate(last60DaysStart.getDate() - 60);
+    const last30DaysEnd = new Date(today);
+    last30DaysEnd.setDate(last30DaysEnd.getDate() - 30);
+
+    // Fetch all data
+    const allItems = await Media.find(query).lean();
+
+    // Filter items by date ranges
+    const currentMonthItems = allItems.filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      return itemDate >= lastMonthStart && itemDate <= now;
+    });
+
+    const lastMonthItems = allItems.filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      return itemDate >= new Date(now.getFullYear(), now.getMonth() - 2, 1) && itemDate < lastMonthStart;
+    });
+
+    const todayItems = allItems.filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      return itemDate >= today && itemDate <= now;
+    });
+
+    const yesterdayItems = allItems.filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      return itemDate >= yesterday && itemDate < today;
+    });
+
+    const last30DaysItems = allItems.filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      return itemDate >= last30DaysStart && itemDate <= now;
+    });
+
+    const previous30DaysItems = allItems.filter(item => {
+      const itemDate = new Date(item.date || item.createdAt);
+      return itemDate >= last60DaysStart && itemDate <= last30DaysEnd;
+    });
+
+    // Calculate current metrics
+    const totalCustomersSet = new Set();
+    const lastMonthCustomersSet = new Set();
+    
+    allItems.forEach(item => {
+      const phone = item.whatsapp || item.mobile || '';
+      const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+      const itemDate = new Date(item.date || item.createdAt);
+      
+      if (itemDate >= lastMonthStart && itemDate <= now) {
+        totalCustomersSet.add(key);
+      }
+      
+      if (itemDate >= new Date(now.getFullYear(), now.getMonth() - 2, 1) && itemDate < lastMonthStart) {
+        lastMonthCustomersSet.add(key);
+      }
+    });
+
+    const totalCustomers = totalCustomersSet.size;
+    const totalCustomersLastMonth = lastMonthCustomersSet.size;
+    const totalPhotos = currentMonthItems.length;
+    const totalPhotosLastMonth = lastMonthItems.length;
+    const photosToday = todayItems.length;
+    const photosYesterday = yesterdayItems.length;
+
+    // Calculate shares (social only)
+    const totalShares = currentMonthItems.reduce((acc, item) => {
+      return acc + (item.whatsappsharecount || 0) +
+        (item.facebooksharecount || 0) +
+        (item.twittersharecount || 0) +
+        (item.instagramsharecount || 0);
+    }, 0);
+
+    const totalSharesLastMonth = lastMonthItems.reduce((acc, item) => {
+      return acc + (item.whatsappsharecount || 0) +
+        (item.facebooksharecount || 0) +
+        (item.twittersharecount || 0) +
+        (item.instagramsharecount || 0);
+    }, 0);
+
+    // Calculate downloads (separate)
+    const totalDownloads = currentMonthItems.reduce((acc, item) => {
+      return acc + (item.downloadcount || 0);
+    }, 0);
+
+    const totalDownloadsLastMonth = lastMonthItems.reduce((acc, item) => {
+      return acc + (item.downloadcount || 0);
+    }, 0);
+
+    // Calculate unique users for Share Tracking
+    const uniqueUsersSet = new Set();
+    const prevUniqueUsersSet = new Set();
+    
+    last30DaysItems.forEach(item => {
+      const phone = item.whatsapp || item.mobile || item.name;
+      if (phone) uniqueUsersSet.add(phone);
+    });
+
+    previous30DaysItems.forEach(item => {
+      const phone = item.whatsapp || item.mobile || item.name;
+      if (phone) prevUniqueUsersSet.add(phone);
+    });
+
+    const uniqueUsers = uniqueUsersSet.size;
+    const prevUniqueUsers = prevUniqueUsersSet.size;
+
+    // Calculate total clicks from actual urlclickcount field
+    const totalClicks = last30DaysItems.reduce((acc, item) => acc + (item.urlclickcount || 0), 0);
+    const prevTotalClicks = previous30DaysItems.reduce((acc, item) => acc + (item.urlclickcount || 0), 0);
+
+    // Calculate photos shared
+    const photosSharedSet = new Set();
+    const prevPhotosSharedSet = new Set();
+
+    last30DaysItems.forEach(item => {
+      if (item.photoId || item._id) {
+        photosSharedSet.add(item.photoId || item._id.toString());
+      }
+    });
+
+    previous30DaysItems.forEach(item => {
+      if (item.photoId || item._id) {
+        prevPhotosSharedSet.add(item.photoId || item._id.toString());
+      }
+    });
+
+    const photosShared = photosSharedSet.size;
+    const prevPhotosShared = prevPhotosSharedSet.size;
+
+    // Calculate growth percentages
+    const metrics = {
+      dashboard: {
+        totalCustomers: {
+          value: totalCustomers,
+          growth: calculateGrowth(totalCustomers, totalCustomersLastMonth)
+        },
+        totalPhotos: {
+          value: totalPhotos,
+          growth: calculateGrowth(totalPhotos, totalPhotosLastMonth)
+        },
+        photosToday: {
+          value: photosToday,
+          growth: calculateGrowth(photosToday, photosYesterday)
+        },
+        totalShares: {
+          value: totalShares,
+          growth: calculateGrowth(totalShares, totalSharesLastMonth)
+        }
+      },
+      customers: {
+        totalCustomers: {
+          value: totalCustomers,
+          growth: calculateGrowth(totalCustomers, totalCustomersLastMonth)
+        },
+        activeToday: {
+          value: todayItems.length,
+          growth: calculateGrowth(photosToday, photosYesterday)
+        },
+        totalVisits: {
+          value: currentMonthItems.reduce((acc, item) => acc + 1, 0),
+          growth: calculateGrowth(currentMonthItems.length, lastMonthItems.length)
+        },
+        avgVisits: {
+          value: totalCustomers > 0 ? parseFloat((currentMonthItems.length / totalCustomers).toFixed(1)) : 0,
+          growth: calculateGrowth(
+            totalCustomers > 0 ? currentMonthItems.length / totalCustomers : 0,
+            totalCustomersLastMonth > 0 ? lastMonthItems.length / totalCustomersLastMonth : 0
+          )
+        }
+      },
+      shareTracking: {
+        totalShares: {
+          value: last30DaysItems.reduce((acc, item) => {
+            return acc + (item.whatsappsharecount || 0) +
+              (item.facebooksharecount || 0) +
+              (item.twittersharecount || 0) +
+              (item.instagramsharecount || 0);
+          }, 0),
+          growth: calculateGrowth(
+            last30DaysItems.reduce((acc, item) => {
+              return acc + (item.whatsappsharecount || 0) +
+                (item.facebooksharecount || 0) +
+                (item.twittersharecount || 0) +
+                (item.instagramsharecount || 0);
+            }, 0),
+            previous30DaysItems.reduce((acc, item) => {
+              return acc + (item.whatsappsharecount || 0) +
+                (item.facebooksharecount || 0) +
+                (item.twittersharecount || 0) +
+                (item.instagramsharecount || 0);
+            }, 0)
+          ),
+          trendPath: generateTrendPathConfig(
+            calculateGrowth(
+              last30DaysItems.reduce((acc, item) => {
+                return acc + (item.whatsappsharecount || 0) +
+                  (item.facebooksharecount || 0) +
+                  (item.twittersharecount || 0) +
+                  (item.instagramsharecount || 0);
+              }, 0),
+              previous30DaysItems.reduce((acc, item) => {
+                return acc + (item.whatsappsharecount || 0) +
+                  (item.facebooksharecount || 0) +
+                  (item.twittersharecount || 0) +
+                  (item.instagramsharecount || 0);
+              }, 0)
+            )
+          )
+        },
+        totalDownloads: {
+          value: last30DaysItems.reduce((acc, item) => acc + (item.downloadcount || 0), 0),
+          growth: calculateGrowth(
+            last30DaysItems.reduce((acc, item) => acc + (item.downloadcount || 0), 0),
+            previous30DaysItems.reduce((acc, item) => acc + (item.downloadcount || 0), 0)
+          ),
+          trendPath: generateTrendPathConfig(
+            calculateGrowth(
+              last30DaysItems.reduce((acc, item) => acc + (item.downloadcount || 0), 0),
+              previous30DaysItems.reduce((acc, item) => acc + (item.downloadcount || 0), 0)
+            )
+          )
+        },
+        uniqueUsers: {
+          value: uniqueUsers,
+          growth: calculateGrowth(uniqueUsers, prevUniqueUsers),
+          trendPath: generateTrendPathConfig(calculateGrowth(uniqueUsers, prevUniqueUsers))
+        },
+        totalClicks: {
+          value: totalClicks,
+          growth: calculateGrowth(totalClicks, prevTotalClicks),
+          trendPath: generateTrendPathConfig(calculateGrowth(totalClicks, prevTotalClicks))
+        },
+        photosShared: {
+          value: photosShared,
+          growth: calculateGrowth(photosShared, prevPhotosShared),
+          trendPath: generateTrendPathConfig(calculateGrowth(photosShared, prevPhotosShared))
+        }
+      },
+      photos: {
+        totalPhotosGrowth: calculateGrowth(totalPhotos, totalPhotosLastMonth),
+        photosTodayGrowth: calculateGrowth(photosToday, photosYesterday),
+        sharesGrowth: calculateGrowth(totalShares, totalSharesLastMonth),
+        ratingGrowth: calculateGrowth(
+          last30DaysItems.length > 0 ? last30DaysItems.length : 0,
+          previous30DaysItems.length > 0 ? previous30DaysItems.length : 0
+        )
+      }
+    };
+
+    res.json({
+      success: true,
+      metrics
+    });
+  } catch (err) {
+    console.error("Error fetching dashboard metrics:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET analytics payload (KPI + charts + growth) for Premium Admin Analytics page
+router.get("/analytics", async (req, res) => {
+  try {
+    const { adminid, range } = req.query;
+    const days = Math.max(1, Math.min(365, parseInt(range || "7", 10) || 7));
+
+    const query = {};
+    if (adminid) query.adminid = adminid;
+    // Note: Removed source filter to include all data for the admin
+
+    const allItems = await Media.find(query).lean();
+
+    const now = new Date();
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(now.getDate() - days);
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - days);
+
+    const toDate = (item) => new Date(item.date || item.createdAt);
+    const getShareCount = (item) =>
+      (item.whatsappsharecount || 0) +
+      (item.facebooksharecount || 0) +
+      (item.twittersharecount || 0) +
+      (item.instagramsharecount || 0);
+    
+    const getDownloadCount = (item) => (item.downloadcount || 0);
+
+    const currentData = allItems.filter((item) => {
+      const d = toDate(item);
+      return d >= currentPeriodStart && d <= now;
+    });
+
+    const previousData = allItems.filter((item) => {
+      const d = toDate(item);
+      return d >= previousPeriodStart && d < currentPeriodStart;
+    });
+
+    const calculateGrowth = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return parseFloat((((current - previous) / previous) * 100).toFixed(1));
+    };
+
+    const uniqueCustomers = (dataset) => {
+      const set = new Set(dataset.map((i) => i.whatsapp || i.mobile || i.name).filter(Boolean));
+      return set.size;
+    };
+
+    const conversionRate = (dataset) => {
+      if (dataset.length === 0) return 0;
+      const shared = dataset.filter((i) => getShareCount(i) > 0).length;
+      return parseFloat(((shared / dataset.length) * 100).toFixed(1));
+    };
+
+    // KPIs
+    const photosCurrent = currentData.length;
+    const photosPrev = previousData.length;
+
+    const sharesCurrent = currentData.reduce((a, i) => a + getShareCount(i), 0);
+    const sharesPrev = previousData.reduce((a, i) => a + getShareCount(i), 0);
+
+    const convCurrent = conversionRate(currentData);
+    const convPrev = conversionRate(previousData);
+
+    // Session (API-driven but derived): average engagement seconds based on activity
+    const avgSessionSeconds = (dataset) => {
+      if (dataset.length === 0) return 0;
+      const avgTimePerPhoto = 150; // seconds
+      const avgTimePerShare = 60; // seconds
+      const totalPhotos = dataset.length;
+      const totalShares = dataset.reduce((a, i) => a + getShareCount(i), 0);
+      return Math.round((totalPhotos * avgTimePerPhoto + totalShares * avgTimePerShare) / totalPhotos);
+    };
+
+    const formatDuration = (seconds) => {
+      const s = Math.max(0, Math.round(seconds || 0));
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      if (m <= 0) return `${rem}s`;
+      return `${m}m ${rem}s`;
+    };
+
+    const sessionCurSeconds = avgSessionSeconds(currentData);
+    const sessionPrevSeconds = avgSessionSeconds(previousData);
+
+    // Trends (daily)
+    const trends = {};
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const dayNum = String(d.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${dayNum}`;
+      trends[key] = { photos: 0, shares: 0, users: new Set(), uniqueCustomers: 0 };
+    }
+
+    currentData.forEach((item) => {
+      const d = toDate(item);
+      if (isNaN(d.getTime())) return;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const dayNum = String(d.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${dayNum}`;
+      if (!trends[key]) return;
+      trends[key].photos += 1;
+      trends[key].shares += getShareCount(item);
+      trends[key].users.add(item.whatsapp || item.mobile || item.name);
+    });
+    Object.keys(trends).forEach((k) => {
+      trends[k].uniqueCustomers = trends[k].users.size;
+      delete trends[k].users;
+    });
+
+    // Categories - Dynamic top 4 templates + Others
+    const templateCounts = {};
+    currentData.forEach((item) => {
+      const templateName = item.template_name || item.templatename || item.type || "Others";
+      templateCounts[templateName] = (templateCounts[templateName] || 0) + 1;
+    });
+
+    // Sort templates by count and get top 4
+    const sortedTemplates = Object.entries(templateCounts)
+      .filter(([name]) => name !== "Others")
+      .sort((a, b) => b[1] - a[1]);
+    
+    const top4Templates = sortedTemplates.slice(0, 4);
+    const remainingTemplates = sortedTemplates.slice(4);
+
+    // Build categories object with top 4 + Others
+    const categories = {};
+    top4Templates.forEach(([name, count]) => {
+      categories[name] = count;
+    });
+
+    // Sum all remaining templates as "Others"
+    const othersCount = remainingTemplates.reduce((sum, [, count]) => sum + count, 0) + (templateCounts["Others"] || 0);
+    if (othersCount > 0) {
+      categories["Others"] = othersCount;
+    }
+
+    // Platforms + growth
+    const platforms = { WhatsApp: 0, Facebook: 0, Instagram: 0, Direct: 0 };
+    const prevPlatforms = { WhatsApp: 0, Facebook: 0, Instagram: 0, Direct: 0 };
+
+    currentData.forEach((item) => {
+      platforms.WhatsApp += item.whatsappsharecount || 0;
+      platforms.Facebook += item.facebooksharecount || 0;
+      platforms.Instagram += item.instagramsharecount || 0;
+      platforms.Direct += item.downloadcount || 0;
+    });
+    previousData.forEach((item) => {
+      prevPlatforms.WhatsApp += item.whatsappsharecount || 0;
+      prevPlatforms.Facebook += item.facebooksharecount || 0;
+      prevPlatforms.Instagram += item.instagramsharecount || 0;
+      prevPlatforms.Direct += item.downloadcount || 0;
+    });
+
+    const platformGrowth = {};
+    Object.keys(platforms).forEach((k) => {
+      platformGrowth[k] = calculateGrowth(platforms[k], prevPlatforms[k]);
+    });
+
+    // Peak hours / best day
+    const peakHours = new Array(24).fill(0);
+    const dayPerformance = {};
+    currentData.forEach((item) => {
+      const d = toDate(item);
+      if (isNaN(d.getTime())) return;
+      peakHours[d.getHours()]++;
+      const day = d.toLocaleDateString("en-US", { weekday: "long" });
+      dayPerformance[day] = (dayPerformance[day] || 0) + 1;
+    });
+
+    const bestHourIndex = peakHours.indexOf(Math.max(...peakHours));
+    const bestCategoryEntry = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
+    const bestDay = Object.entries(dayPerformance).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+
+    const weekendCount = (dayPerformance["Saturday"] || 0) + (dayPerformance["Sunday"] || 0);
+    const weekdayCount = Object.values(dayPerformance).reduce((a, b) => a + b, 0) - weekendCount;
+    const trafficPattern = weekendCount > weekdayCount ? "High Weekend Traffic" : "Steady Weekday Traffic";
+
+    const fastestPlatform = Object.entries(platforms).sort((a, b) => b[1] - a[1])[0]?.[0] || "WhatsApp";
+
+    const uniqueCustomersCurrent = uniqueCustomers(currentData);
+    const uniqueCustomersPrev = uniqueCustomers(previousData);
+
+    const payload = {
+      kpis: {
+        photos: { value: photosCurrent, growth: calculateGrowth(photosCurrent, photosPrev) },
+        shares: { value: sharesCurrent, growth: calculateGrowth(sharesCurrent, sharesPrev) },
+        conversion: { value: convCurrent, growth: calculateGrowth(convCurrent, convPrev) },
+        session: { value: formatDuration(sessionCurSeconds), growth: calculateGrowth(sessionCurSeconds, sessionPrevSeconds) },
+      },
+      uniqueCustomers: uniqueCustomersCurrent,
+      uniqueCustomersGrowth: calculateGrowth(uniqueCustomersCurrent, uniqueCustomersPrev),
+      trends,
+      categories,
+      platforms,
+      platformGrowth,
+      peakHours,
+      insights: {
+        bestTimeStr: `${bestHourIndex}:00 - ${bestHourIndex + 1}:00`,
+        bestDay,
+        bestCategory: bestCategoryEntry
+          ? `${bestCategoryEntry[0]} (${photosCurrent > 0 ? Math.round((bestCategoryEntry[1] / photosCurrent) * 100) : 0}%)`
+          : "N/A",
+        growthPlatform: fastestPlatform,
+        trafficPattern,
+        recommendation: `Schedule ${fastestPlatform} campaigns on ${bestDay}s at ${bestHourIndex}:00 for max conversion.`,
+      },
+    };
+
+    res.json({ success: true, analytics: payload });
+  } catch (err) {
+    console.error("Error fetching analytics:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
