@@ -672,9 +672,13 @@ router.get("/dashboard-metrics", async (req, res) => {
     query.source = "Photo Merge App";
 
     // Helper function to calculate growth
+    // Returns count change as percentage based on 100% scale
     const calculateGrowth = (current, previous) => {
-      if (previous === 0) return current > 0 ? 100 : 0;
-      return parseFloat(((current - previous) / previous * 100).toFixed(1));
+      // Calculate the count change
+      const countChange = current - previous;
+      // Return the count change directly as percentage (count change = percentage value)
+      // If change is +2, show 2%; if change is -5, show -5%
+      return parseFloat(countChange.toFixed(1));
     };
 
     // Helper function to generate trend path configuration based on growth value
@@ -1021,8 +1025,11 @@ router.get("/analytics", async (req, res) => {
     });
 
     const calculateGrowth = (current, previous) => {
-      if (previous === 0) return current > 0 ? 100 : 0;
-      return parseFloat((((current - previous) / previous) * 100).toFixed(1));
+      // Calculate the count change
+      const countChange = current - previous;
+      // Return the count change directly as percentage (count change = percentage value)
+      // If change is +2, show 2%; if change is -5, show -5%
+      return parseFloat(countChange.toFixed(1));
     };
 
     const uniqueCustomers = (dataset) => {
