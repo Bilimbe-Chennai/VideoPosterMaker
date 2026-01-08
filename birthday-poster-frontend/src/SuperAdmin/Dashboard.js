@@ -278,7 +278,12 @@ const Dashboard = () => {
     totalUsers: 0,
     totalTemplates: 0,
     uploadsToday: 0,
+    adminsGrowth: 0,
+    usersGrowth: 0,
+    templatesGrowth: 0,
+    uploadsGrowth: 0,
   });
+  const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -287,20 +292,120 @@ const Dashboard = () => {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  const calculateGrowth = (current, previous) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return parseFloat((((current - previous) / previous) * 100).toFixed(1));
+  };
+
+  const formatRelativeTime = (date) => {
+    if (!date) return 'N/A';
+    const now = new Date();
+    const past = new Date(date);
+    const diffInMs = now - past;
+    const diffInMin = Math.floor(diffInMs / (1000 * 60));
+    const diffInHrs = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMin < 1) return 'Just now';
+    if (diffInMin < 60) return `${diffInMin} min ago`;
+    if (diffInHrs < 24) return `${diffInHrs} hour${diffInHrs > 1 ? 's' : ''} ago`;
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
+
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50;
+    const startY = 35;
+    const endYOffset = -scaleFactor * 20;
+    const endY = startY + endYOffset;
+    const midY = startY + (endYOffset * 0.3);
+    const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+    return { points: path, endX: 85, endY: Math.round(endY) };
+  };
+
   const fetchDashboardData = async () => {
     try {
-      const [adminsRes, usersRes, templatesRes] = await Promise.all([
-        axiosData.get('/admins').catch(() => ({ data: [] })),
-        axiosData.get('/users').catch(() => ({ data: [] })),
-        axiosData.get('/photomerge/templates').catch(() => ({ data: [] })),
+      const [adminsRes, usersRes, templatesRes, uploadsRes] = await Promise.all([
+        axiosData.get('users?type=admin').catch(() => ({ data: { data: [] } })),
+        axiosData.get('users').catch(() => ({ data: { data: [] } })),
+        axiosData.get('photomerge/templates').catch(() => ({ data: [] })),
+        axiosData.get('upload/all').catch(() => ({ data: [] })),
       ]);
 
+      const admins = adminsRes.data?.data || [];
+      const allUsers = usersRes.data?.data || [];
+      const templates = templatesRes.data || [];
+      const uploads = uploadsRes.data || [];
+
+      const nonAdminUsers = allUsers.filter(u => u.type !== 'admin' && u.type !== 'superadmin');
+
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      todayStart.setHours(0, 0, 0, 0);
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+      const uploadsToday = uploads.filter(m => {
+        const d = new Date(m.date || m.createdAt);
+        return m.source === 'Photo Merge App' && d >= todayStart;
+      }).length;
+      const uploadsYesterday = uploads.filter(m => {
+        const d = new Date(m.date || m.createdAt);
+        return m.source === 'Photo Merge App' && d >= yesterdayStart && d < todayStart;
+      }).length;
+
+      // Growth for users/admins/templates based on last 30 days vs previous 30 days
+      const last30Days = new Date(todayStart);
+      last30Days.setDate(last30Days.getDate() - 30);
+      const last60Days = new Date(todayStart);
+      last60Days.setDate(last60Days.getDate() - 60);
+
+      const admins30 = admins.filter(a => new Date(a.createdAt) >= last30Days).length;
+      const adminsPrev30 = admins.filter(a => {
+        const d = new Date(a.createdAt);
+        return d >= last60Days && d < last30Days;
+      }).length;
+
+      const users30 = nonAdminUsers.filter(u => new Date(u.createdAt) >= last30Days).length;
+      const usersPrev30 = nonAdminUsers.filter(u => {
+        const d = new Date(u.createdAt);
+        return d >= last60Days && d < last30Days;
+      }).length;
+
+      const getTemplateDate = (t) => new Date(t.createdAt || t.createdDate || t.createdDateTime || t.updatedDate || Date.now());
+      const templates30 = templates.filter(t => getTemplateDate(t) >= last30Days).length;
+      const templatesPrev30 = templates.filter(t => {
+        const d = getTemplateDate(t);
+        return d >= last60Days && d < last30Days;
+      }).length;
+
       setStats({
-        totalAdmins: adminsRes.data?.length || 0,
-        totalUsers: usersRes.data?.length || 0,
-        totalTemplates: templatesRes.data?.length || 0,
-        uploadsToday: Math.floor(Math.random() * 20) + 5, // Mock
+        totalAdmins: admins.length || 0,
+        totalUsers: nonAdminUsers.length || 0,
+        totalTemplates: templates.length || 0,
+        uploadsToday: uploadsToday || 0,
+        adminsGrowth: calculateGrowth(admins30, adminsPrev30),
+        usersGrowth: calculateGrowth(users30, usersPrev30),
+        templatesGrowth: calculateGrowth(templates30, templatesPrev30),
+        uploadsGrowth: calculateGrowth(uploadsToday, uploadsYesterday),
       });
+
+      // Recent activities from real data
+      const latestAdmin = admins.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+      const latestUser = nonAdminUsers.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+      const latestTemplate = templates.slice().sort((a, b) => getTemplateDate(b) - getTemplateDate(a))[0];
+      const latestUpload = uploads
+        .filter(m => m.source === 'Photo Merge App')
+        .slice()
+        .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))[0];
+
+      setRecentActivities([
+        latestAdmin ? { title: 'New Admin Created', desc: `Admin "${latestAdmin.name || latestAdmin.email || 'New Admin'}" created`, time: formatRelativeTime(latestAdmin.createdAt), icon: <Shield size={16} />, color: '#7B61FF', bg: '#F2EFFF' } : null,
+        latestTemplate ? { title: 'Template Updated', desc: `Template "${latestTemplate.templatename || 'Template'}" updated`, time: formatRelativeTime(getTemplateDate(latestTemplate)), icon: <FileText size={16} />, color: '#FF9F43', bg: '#FFF3E0' } : null,
+        latestUpload ? { title: 'New Upload', desc: `Upload by "${latestUpload.name || 'Customer'}"`, time: formatRelativeTime(latestUpload.date || latestUpload.createdAt), icon: <UploadCloud size={16} />, color: '#00C9FF', bg: '#E0F7FA' } : null,
+        latestUser ? { title: 'New User', desc: `User "${latestUser.name || latestUser.email || 'New User'}" joined`, time: formatRelativeTime(latestUser.createdAt), icon: <TrendingUp size={16} />, color: '#25D366', bg: '#E8F5E9' } : null,
+      ].filter(Boolean));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -308,58 +413,56 @@ const Dashboard = () => {
     }
   };
 
+  const adminsTrend = generateTrendPath(stats.adminsGrowth);
+  const usersTrend = generateTrendPath(stats.usersGrowth);
+  const templatesTrend = generateTrendPath(stats.templatesGrowth);
+  const uploadsTrend = generateTrendPath(stats.uploadsGrowth);
+
   const kpis = [
     {
       label: 'Total Admins',
       value: stats.totalAdmins,
-      change: '+5.2%',
+      change: `${stats.adminsGrowth >= 0 ? '+' : ''}${stats.adminsGrowth}%`,
       icon: <Shield size={20} />,
       bgColor: '#F2EFFF',
       trendColor: '#7B61FF',
-      positive: true,
-      points: "M10,40 C25,38 35,45 50,35 S80,10 90,15",
-      endX: 85, endY: 14
+      positive: stats.adminsGrowth >= 0,
+      points: adminsTrend.points,
+      endX: adminsTrend.endX, endY: adminsTrend.endY
     },
     {
       label: 'Total Users',
       value: stats.totalUsers,
-      change: '+12.5%',
+      change: `${stats.usersGrowth >= 0 ? '+' : ''}${stats.usersGrowth}%`,
       icon: <Users size={20} />,
       bgColor: '#E8F5E9',
       trendColor: '#25D366',
-      positive: true,
-      points: "M10,42 C25,35 35,40 50,30 S85,5 90,10",
-      endX: 85, endY: 8
+      positive: stats.usersGrowth >= 0,
+      points: usersTrend.points,
+      endX: usersTrend.endX, endY: usersTrend.endY
     },
     {
       label: 'Total Templates',
       value: stats.totalTemplates,
-      change: '+8.2%',
+      change: `${stats.templatesGrowth >= 0 ? '+' : ''}${stats.templatesGrowth}%`,
       icon: <FileText size={20} />,
       bgColor: '#FFF3E0',
       trendColor: '#FF9F43',
-      positive: true,
-      points: "M10,35 C25,38 35,25 50,30 S80,25 90,28",
-      endX: 85, endY: 27
+      positive: stats.templatesGrowth >= 0,
+      points: templatesTrend.points,
+      endX: templatesTrend.endX, endY: templatesTrend.endY
     },
     {
       label: 'Uploads Today',
       value: stats.uploadsToday,
-      change: '+15.3%',
+      change: `${stats.uploadsGrowth >= 0 ? '+' : ''}${stats.uploadsGrowth}%`,
       icon: <UploadCloud size={20} />,
       bgColor: '#E0F7FA',
       trendColor: '#00C9FF',
-      positive: true,
-      points: "M10,38 C25,35 35,38 50,32 S80,20 90,25",
-      endX: 85, endY: 23
+      positive: stats.uploadsGrowth >= 0,
+      points: uploadsTrend.points,
+      endX: uploadsTrend.endX, endY: uploadsTrend.endY
     }
-  ];
-
-  const recentActivities = [
-    { title: 'New Admin Created', desc: 'System created new admin "Sarah"', time: '2h ago', icon: <Shield size={16} />, color: '#7B61FF', bg: '#F2EFFF' },
-    { title: 'Template Updated', desc: 'Modified "Wedding Invite"', time: '4h ago', icon: <FileText size={16} />, color: '#FF9F43', bg: '#FFF3E0' },
-    { title: 'System Backup', desc: 'Daily backup successful', time: '6h ago', icon: <Activity size={16} />, color: '#00C9FF', bg: '#E0F7FA' },
-    { title: 'New User', desc: 'User #8423 joined', time: '1d ago', icon: <TrendingUp size={16} />, color: '#25D366', bg: '#E8F5E9' },
   ];
 
   const distributionData = [

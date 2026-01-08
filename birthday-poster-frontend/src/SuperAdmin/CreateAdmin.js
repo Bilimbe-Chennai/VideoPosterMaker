@@ -233,7 +233,7 @@ const CreateAdmin = () => {
     setLoading(true);
 
     try {
-      await axiosData.post('/users', {
+      await axiosData.post('users', {
         name: formData.name,
         email: formData.email,
         password: formData.password,

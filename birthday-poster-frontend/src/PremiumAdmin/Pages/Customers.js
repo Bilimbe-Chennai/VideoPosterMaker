@@ -18,11 +18,14 @@ import {
   RotateCcw,
   Send,
   MoreHorizontal,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  X,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Loader,
-  X
 } from 'react-feather';
 import useAxios from '../../useAxios';
 
@@ -87,7 +90,7 @@ const PrimaryButton = styled.button`
         '#F5F5F5'};
     
   color: ${({ $variant }) =>
-    $variant === 'outline' ? '#1A1A1A' : '#FFF'};
+    $variant === 'outline' ? '#0F0F0F' : '#FFF'};
 
   &:hover {
     transform: translateY(-2px);
@@ -154,7 +157,7 @@ const CardLabel = styled.div`
 const MetricValue = styled.div`
   font-size: 36px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #0F0F0F;
   margin-top: 20px;
   margin-bottom: 8px;
   letter-spacing: -1px;
@@ -198,13 +201,13 @@ const DropdownButton = styled.button`
   border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #0F0F0F;
   cursor: pointer;
   transition: all 0.2s;
   min-width: 180px;
   
   &:hover {
-    background: #FAFAFA;
+    background: #E8E8E8;
     border-color: #DDD;
   }
 
@@ -224,7 +227,7 @@ const DropdownMenu = styled.div`
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-  border: 1px solid #F0F0F0;
+  border: 1px solid #D8D8D8;
   padding: 8px;
   z-index: 100;
   opacity: ${({ $isOpen }) => $isOpen ? 1 : 0};
@@ -245,7 +248,7 @@ const DropdownItem = styled.div`
   
   &:hover {
     background: #F9F9F9;
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 `;
 
@@ -263,7 +266,7 @@ const SearchBox = styled.div`
     transition: all 0.2s;
     
     &:focus {
-      border-color: #1A1A1A;
+      border-color: #0F0F0F;
     }
   }
   
@@ -290,7 +293,7 @@ const Table = styled.table`
   th {
     text-align: left;
     padding: 16px 24px;
-    background: #FAFAFA;
+    background: #E8E8E8;
     font-size: 12px;
     font-weight: 700;
     color: #888;
@@ -307,7 +310,7 @@ const pulseAnimation = keyframes`
 
 const HighlightedText = styled.span`
   background: #ffd54f;
-  color: #1A1A1A;
+  color: #0F0F0F;
   font-weight: 700;
   border-radius: 2px;
   padding: 0 2px;
@@ -316,9 +319,9 @@ const HighlightedText = styled.span`
 const TableRow = styled.tr`
   td {
     padding: 16px 24px;
-    border-bottom: 1px solid #F5F5F5;
+    border-bottom: 1px solid #E5E5E5;
     font-size: 14px;
-    color: #1A1A1A;
+    color: #0F0F0F;
     vertical-align: middle;
     transition: background 0.3s ease;
   }
@@ -337,7 +340,7 @@ const TableRow = styled.tr`
   }
 
   &:hover td {
-    background: #FAFAFA;
+    background: #E8E8E8;
   }
 `;
 
@@ -350,7 +353,7 @@ const Avatar = styled.div`
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: #1A1A1A;
+  color: #0F0F0F;
 `;
 
 const StatusBadge = styled.span`
@@ -359,8 +362,8 @@ const StatusBadge = styled.span`
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  background: ${({ $status }) => $status === 'active' ? '#EEF6E8' : '#F5F5F5'};
-  color: ${({ $status }) => $status === 'active' ? '#4CAF50' : '#888'};
+  background: ${({ $status }) => $status === 'active' ? '#D9E6D0' : '#E5E5E5'};
+  color: ${({ $status }) => $status === 'active' ? '#3D8F40' : '#777'};
 `;
 
 const IconButton = styled.button`
@@ -378,7 +381,7 @@ const IconButton = styled.button`
 
   &:hover {
     background: #F5F5F5;
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 
   &:disabled {
@@ -406,8 +409,8 @@ const MessageTextArea = styled.textarea`
   height: 150px;
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid #E5E7EB;
-  background: #F9FAFB;
+  border: 1px solid #D5D7DB;
+  background: #E8E9EA;
   font-family: inherit;
   font-size: 15px;
   margin-bottom: 24px;
@@ -449,7 +452,55 @@ const ModalTitle = styled.h2`
   margin: 0;
   font-size: 24px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #0F0F0F;
+`;
+
+const AlertModalOverlay = styled(ModalOverlay)`
+  z-index: 3000;
+`;
+
+const AlertModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ConfirmModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
 `;
 
 const ProfileHeader = styled.div`
@@ -511,14 +562,14 @@ const InfoBox = styled.div`
   .value {
     font-size: 15px;
     font-weight: 700;
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 `;
 
 const BulkActionBar = styled.div`
   position: fixed;
   bottom: 40px;
-  left: 50%;
+  left: 60%;
   transform: translateX(-50%);
   background: #1A1A1A;
   padding: 12px 24px;
@@ -562,11 +613,27 @@ const Customers = () => {
   const [customMsg, setCustomMsg] = useState('');
   const [activeCustomer, setActiveCustomer] = useState(null);
   const [isSendingMsg, setIsSendingMsg] = useState(false);
+  const [showActivityHistory, setShowActivityHistory] = useState(false);
+  const [activityHistory, setActivityHistory] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   const rowRefs = useRef({});
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Alert & Confirmation Modal States
+  const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+
+  // Helper Functions for Alerts and Confirmations
+  const showAlert = (message, type = 'info') => {
+    setAlertModal({ show: true, message, type });
+  };
+  
+  const showConfirm = (message, onConfirm) => {
+    setConfirmModal({ show: true, message, onConfirm });
+  };
 
   const highlightText = (text, query) => {
     if (!query || !text) return text;
@@ -592,10 +659,16 @@ const Customers = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
+        setLoading(true);
+        console.log('Fetching customers data for admin:', user._id || user.id);
+        
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        console.log('Raw response data:', response.data);
+        
         const rawItems = response.data.filter(item =>
           item.source === 'Photo Merge App'
         );
+        console.log('Filtered items (Photo Merge App):', rawItems.length);
 
         const customersMap = {};
 
@@ -613,6 +686,7 @@ const Customers = () => {
               visitCount: 0,
               photoCount: 0,
               shareCount: 0,
+              downloadCount: 0,
               latestTimeStamp: validTime
             };
           }
@@ -621,12 +695,13 @@ const Customers = () => {
           const itemShares = (item.whatsappsharecount || 0) +
             (item.facebooksharecount || 0) +
             (item.twittersharecount || 0) +
-            (item.instagramsharecount || 0) +
-            (item.downloadcount || 0);
+            (item.instagramsharecount || 0);
+          const itemDownloads = item.downloadcount || 0;
 
           entry.visitCount += 1;
           entry.photoCount += 1;
           entry.shareCount += itemShares;
+          entry.downloadCount = (entry.downloadCount || 0) + itemDownloads;
 
           if (validTime >= entry.latestTimeStamp) {
             entry.latestTimeStamp = validTime;
@@ -672,9 +747,12 @@ const Customers = () => {
           return dateB - dateA;
         });
 
+        console.log('Mapped customers data:', mappedData.length, 'customers');
         setCustomers(mappedData);
       } catch (error) {
         console.error("Error fetching customers:", error);
+        // Set empty array on error so UI shows "no customers" message
+        setCustomers([]);
       } finally {
         setLoading(false);
       }
@@ -795,10 +873,102 @@ const Customers = () => {
     return matchesSearch && matchesBranch && matchesTemplate && matchesDate;
   });
 
-  const totalCustomers = customers.length;
-  const activeToday = customers.filter(c => c.lastVisit === new Date().toLocaleDateString('en-GB').replace(/\//g, '.')).length;
-  const totalVisits = customers.reduce((acc, curr) => acc + curr.visits, 0);
-  const avgVisits = totalCustomers > 0 ? (totalVisits / totalCustomers).toFixed(1) : 0;
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedBranch, selectedTemplate, selectedDateFilter]);
+
+  // State to store API metrics
+  const [apiMetrics, setApiMetrics] = useState({
+    totalCustomers: { value: 0, growth: 0 },
+    activeToday: { value: 0, growth: 0 },
+    totalVisits: { value: 0, growth: 0 },
+    avgVisits: { value: 0, growth: 0 }
+  });
+
+  // Fetch metrics from API
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        console.log('Fetching metrics for customers page');
+        const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
+        console.log('Metrics response:', metricsResponse.data);
+        if (metricsResponse.data?.metrics?.customers) {
+          setApiMetrics(metricsResponse.data.metrics.customers);
+          console.log('Set API metrics:', metricsResponse.data.metrics.customers);
+        } else {
+          console.warn('No customer metrics found in response');
+        }
+      } catch (error) {
+        console.error("Error fetching metrics (using defaults):", error);
+        // Keep default values (0 growth) if API fails
+      }
+    };
+    fetchMetrics();
+  }, [user._id, user.id]);
+
+  // Calculate metrics using local data for values and API for growth
+  const calculateMetrics = () => {
+    console.log('Calculating metrics - customers:', customers?.length, 'apiMetrics:', apiMetrics);
+    
+    // Return default values if customers data is not loaded yet
+    if (!customers || customers.length === 0) {
+      console.log('No customers yet, using API metrics or defaults');
+      return {
+        totalCustomers: apiMetrics.totalCustomers?.value || 0,
+        activeToday: apiMetrics.activeToday?.value || 0,
+        totalVisits: apiMetrics.totalVisits?.value || 0,
+        avgVisits: apiMetrics.avgVisits?.value?.toFixed(1) || '0',
+        customerGrowth: apiMetrics.totalCustomers?.growth || 0,
+        activeTodayGrowth: apiMetrics.activeToday?.growth || 0,
+        avgVisitsGrowth: apiMetrics.avgVisits?.growth || 0,
+        totalVisitsGrowth: apiMetrics.totalVisits?.growth || 0
+      };
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    today.setHours(0, 0, 0, 0);
+
+    const parseDate = (dateStr) => {
+      if (!dateStr || dateStr === 'N/A') return null;
+      try {
+        const parts = dateStr.split('.');
+        if (parts.length === 3) {
+          const date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          if (isNaN(date.getTime())) return null;
+          return date;
+        }
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return null;
+        return date;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    // Current period metrics
+    const totalCustomers = customers.length;
+    const activeToday = customers.filter(c => {
+      const visitDate = parseDate(c.lastVisit);
+      return visitDate && visitDate >= today;
+    }).length;
+    const totalVisits = customers.reduce((acc, curr) => acc + (curr.visits || 0), 0);
+    const avgVisits = totalCustomers > 0 ? (totalVisits / totalCustomers) : 0;
+
+    return {
+      totalCustomers,
+      activeToday,
+      totalVisits,
+      avgVisits: avgVisits.toFixed(1),
+      customerGrowth: apiMetrics.totalCustomers?.growth || 0,
+      activeTodayGrowth: apiMetrics.activeToday?.growth || 0,
+      avgVisitsGrowth: apiMetrics.avgVisits?.growth || 0,
+      totalVisitsGrowth: apiMetrics.totalVisits?.growth || 0
+    };
+  };
+
+  const metrics = calculateMetrics();
 
   const toggleSelect = (id) => {
     setSelectedCustomers(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -808,9 +978,20 @@ const Customers = () => {
     setSelectedCustomers(selectedCustomers.length === filteredCustomers.length ? [] : filteredCustomers.map(c => c.id));
   };
 
-  const exportToExcel = (dataToExport = filteredCustomers) => {
+  const exportToExcel = (dataToExport = null) => {
+    // Ensure we have valid data to export
+    const data = dataToExport || (selectedCustomers.length > 0
+      ? filteredCustomers.filter(c => selectedCustomers.includes(c.id))
+      : filteredCustomers);
+    
+    // Validate that data is an array
+    if (!Array.isArray(data) || data.length === 0) {
+      showAlert('No data available to export.', 'error');
+      return;
+    }
+
     const csvContent = "Name,Phone,Email,Visits,Photos,Category,Branch,Last Visit\n"
-      + dataToExport.map(e => `${e.name},${e.phone},${e.email},${e.visits},${e.photos},${e.template_name},${e.branch},${e.lastVisit}`).join("\n");
+      + data.map(e => `${e.name || ''},${e.phone || ''},${e.email || ''},${e.visits || 0},${e.photos || 0},${e.template_name || ''},${e.branchName || ''},${e.lastVisit || ''}`).join("\n");
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -834,7 +1015,7 @@ const Customers = () => {
   const confirmSendMessage = async () => {
     if (!activeCustomer) return;
     if (!activeCustomer.phone || activeCustomer.phone === 'N/A') {
-      alert("Phone number not available for this customer.");
+      showAlert("Phone number not available for this customer.", 'error');
       return;
     }
 
@@ -847,14 +1028,14 @@ const Customers = () => {
       });
 
       if (response.data.success) {
-        // alert(`Message sent to ${activeCustomer.name} successfully!`);
+        showAlert(`Message sent to ${activeCustomer.name} successfully!`, 'success');
         setShowMsgModal(false);
       } else {
         throw new Error("Failed to send message via API");
       }
     } catch (error) {
       console.error("WhatsApp Error:", error);
-      alert("Failed to send message via WhatsApp API.");
+      showAlert("Failed to send message via WhatsApp API.", 'error');
       setShowMsgModal(false);
     } finally {
       setIsSendingMsg(false);
@@ -867,14 +1048,14 @@ const Customers = () => {
       : [];
 
     if (targets.length === 0) {
-      alert("Please select customers to send bulk messages.");
+      showAlert("Please select customers to send bulk messages.", 'error');
       return;
     }
 
     const bulkMsg = prompt("Enter bulk message (links will be appended if available):", "Thank you for choosing us! ");
     if (!bulkMsg) return;
 
-    if (window.confirm(`Send individual messages to ${targets.length} customers?`)) {
+    showConfirm(`Send individual messages to ${targets.length} customers?`, async () => {
       for (const cust of targets) {
         try {
           await axiosData.post('/upload/custom-share', {
@@ -887,8 +1068,76 @@ const Customers = () => {
         }
         await new Promise(r => setTimeout(r, 500));
       }
-      alert("Bulk messaging process finished.");
+      showAlert("Bulk messaging process finished.", 'success');
+    });
+  };
+
+  const handleViewActivityHistory = async (customer) => {
+    setActiveCustomer(customer);
+    setShowActivityHistory(true);
+    setLoadingActivity(true);
+    setActivityHistory([]);
+
+    try {
+      const phone = customer.phone && customer.phone !== 'N/A' ? customer.phone : null;
+      const name = customer.name || 'Unknown';
+      
+      let response;
+      if (phone) {
+        response = await axiosData.get(`/activity-history/customer/${encodeURIComponent(phone)}?adminid=${user._id || user.id}&limit=100`);
+      } else {
+        response = await axiosData.get(`/activity-history/customer-by-name/${encodeURIComponent(name)}?adminid=${user._id || user.id}&limit=100`);
+      }
+
+      if (response.data.success) {
+        setActivityHistory(response.data.data || []);
+      } else {
+        setActivityHistory([]);
+      }
+    } catch (error) {
+      console.error("Error fetching activity history:", error);
+      setActivityHistory([]);
+    } finally {
+      setLoadingActivity(false);
     }
+  };
+
+  const formatActivityType = (type) => {
+    const typeMap = {
+      'photo_created': 'Photo Created',
+      'photo_shared_whatsapp': 'Shared on WhatsApp',
+      'photo_shared_facebook': 'Shared on Facebook',
+      'photo_shared_twitter': 'Shared on Twitter',
+      'photo_shared_instagram': 'Shared on Instagram',
+      'photo_downloaded': 'Downloaded',
+      'message_sent': 'Message Sent',
+      'video_created': 'Video Created',
+      'poster_created': 'Poster Created'
+    };
+    return typeMap[type] || type;
+  };
+
+  const getActivityIcon = (type) => {
+    if (type.includes('whatsapp') || type === 'message_sent') return <Send size={16} />;
+    if (type.includes('shared')) return <MessageCircle size={16} />;
+    if (type.includes('download')) return <Download size={16} />;
+    if (type.includes('created')) return <ImageIcon size={16} />;
+    return <Activity size={16} />;
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   return (
@@ -905,54 +1154,62 @@ const Customers = () => {
           {/* <PrimaryButton $variant="success" onClick={handleBulkWhatsApp}>
             <MessageCircle size={16} /> Bulk WhatsApp
           </PrimaryButton> */}
-          {/* <PrimaryButton $variant="primary" onClick={() => alert('Opening Add Customer form...')}>
+          {/* <PrimaryButton $variant="primary" onClick={() => showAlert('Opening Add Customer form...', 'info')}>
             <Plus size={16} /> Add Customer
           </PrimaryButton> */}
         </ActionButtons>
       </HeaderSection>
 
       <MetricGrid>
-        <MetricCard $bgColor="#FFF5EB">
+        <MetricCard $bgColor="#FEF3C7">
           <CardHeader>
             <IconBox><Users size={20} /></IconBox>
             <CardLabel>Total Customers</CardLabel>
           </CardHeader>
-          <MetricValue>{totalCustomers.toLocaleString()}</MetricValue>
+          <MetricValue>{metrics.totalCustomers.toLocaleString()}</MetricValue>
           <CardFooter>
-            <GrowthTag $color="#D97706">▲ +12.5%</GrowthTag>
+            <GrowthTag $color={metrics.customerGrowth >= 0 ? "#F59E0B" : "#EF4444"}>
+              {metrics.customerGrowth >= 0 ? '▲' : '▼'} {metrics.customerGrowth >= 0 ? '+' : ''}{metrics.customerGrowth}%
+            </GrowthTag>
           </CardFooter>
         </MetricCard>
 
-        <MetricCard $bgColor="#F1FBEF">
+        <MetricCard $bgColor="#E5F0E0">
           <CardHeader>
             <IconBox><Activity size={20} /></IconBox>
             <CardLabel>Active Today</CardLabel>
           </CardHeader>
-          <MetricValue>{activeToday}</MetricValue>
+          <MetricValue>{metrics.activeToday}</MetricValue>
           <CardFooter>
-            <GrowthTag $color="#65A30D">▲ +8.2%</GrowthTag>
+            <GrowthTag $color={metrics.activeTodayGrowth >= 0 ? "#558A0B" : "#C52D29"}>
+              {metrics.activeTodayGrowth >= 0 ? '▲' : '▼'} {metrics.activeTodayGrowth >= 0 ? '+' : ''}{metrics.activeTodayGrowth}%
+            </GrowthTag>
           </CardFooter>
         </MetricCard>
 
-        <MetricCard $bgColor="#F6F0FF">
+        <MetricCard $bgColor="#E8D5FF">
           <CardHeader>
             <IconBox><ImageIcon size={20} /></IconBox>
             <CardLabel>Avg Engagement</CardLabel>
           </CardHeader>
-          <MetricValue>{avgVisits}</MetricValue>
+          <MetricValue>{metrics.avgVisits}</MetricValue>
           <CardFooter>
-            <GrowthTag $color="#9333EA">▲ +23.1%</GrowthTag>
+            <GrowthTag $color={metrics.avgVisitsGrowth >= 0 ? "#8B5CF6" : "#EF4444"}>
+              {metrics.avgVisitsGrowth >= 0 ? '▲' : '▼'} {metrics.avgVisitsGrowth >= 0 ? '+' : ''}{metrics.avgVisitsGrowth}%
+            </GrowthTag>
           </CardFooter>
         </MetricCard>
 
-        <MetricCard $bgColor="#FFFBEB">
+        <MetricCard $bgColor="#FED7AA">
           <CardHeader>
             <IconBox><ShoppingBag size={20} /></IconBox>
             <CardLabel>Total Visits</CardLabel>
           </CardHeader>
-          <MetricValue>{totalVisits.toLocaleString()}</MetricValue>
+          <MetricValue>{metrics.totalVisits.toLocaleString()}</MetricValue>
           <CardFooter>
-            <GrowthTag $color="#D97706">▲ +2.1%</GrowthTag>
+            <GrowthTag $color={metrics.totalVisitsGrowth >= 0 ? "#D97706" : "#E53935"}>
+              {metrics.totalVisitsGrowth >= 0 ? '▲' : '▼'} {metrics.totalVisitsGrowth >= 0 ? '+' : ''}{metrics.totalVisitsGrowth}%
+            </GrowthTag>
           </CardFooter>
         </MetricCard>
       </MetricGrid>
@@ -1134,9 +1391,9 @@ const Customers = () => {
                   <td>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <IconButton title="View Profile" onClick={() => setViewingCustomer(cust)}><Eye size={16} /></IconButton>
-                      <IconButton title="Activity History"><RotateCcw size={16} /></IconButton>
+                      <IconButton title="Activity History" onClick={() => handleViewActivityHistory(cust)}><RotateCcw size={16} /></IconButton>
                       <IconButton title="WhatsApp Message" style={{ color: '#25D366' }} onClick={() => handleWhatsApp(cust)}><Send size={16} /></IconButton>
-                      <IconButton title="More"><MoreHorizontal size={16} /></IconButton>
+                      {/* <IconButton title="More"><MoreHorizontal size={16} /></IconButton> */}
                     </div>
                   </td>
                 </TableRow>
@@ -1162,7 +1419,7 @@ const Customers = () => {
             <PrimaryButton onClick={() => exportToExcel(customers.filter(c => selectedCustomers.includes(c.id)))} style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}>
               <Download size={14} /> Export
             </PrimaryButton>
-            <PrimaryButton style={{ padding: '8px 16px', fontSize: '12px', background: '#E53935' }} onClick={() => alert('Delete feature coming soon')}>
+            <PrimaryButton style={{ padding: '8px 16px', fontSize: '12px', background: '#E53935' }} onClick={() => showAlert('Delete feature coming soon', 'info')}>
               Delete
             </PrimaryButton>
             <IconButton style={{ color: 'white' }} onClick={() => setSelectedCustomers([])}>✕</IconButton>
@@ -1193,7 +1450,7 @@ const Customers = () => {
               <div className="grid">
                 <InfoBox><div className="label">Phone</div><div className="value">{viewingCustomer.phone}</div></InfoBox>
                 <InfoBox><div className="label">Email</div><div className="value">{viewingCustomer.email}</div></InfoBox>
-                <InfoBox><div className="label">Branch</div><div className="value">{viewingCustomer.branch}</div></InfoBox>
+                <InfoBox><div className="label">Branch</div><div className="value">{viewingCustomer.branchName}</div></InfoBox>
                 <InfoBox><div className="label">Last Visit</div><div className="value">{viewingCustomer.lastVisit}</div></InfoBox>
               </div>
             </ProfileSection>
@@ -1242,6 +1499,151 @@ const Customers = () => {
             </ModalActionFooter>
           </ModalContent>
         </ModalOverlay>
+      )}
+
+      {showActivityHistory && activeCustomer && (
+        <ModalOverlay onClick={() => { setShowActivityHistory(false); setActiveCustomer(null); }}>
+          <ModalContent onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <ModalHeader>
+              <ModalTitle>Activity History - {activeCustomer.name}</ModalTitle>
+              <IconButton onClick={() => { setShowActivityHistory(false); setActiveCustomer(null); }}><X size={20} /></IconButton>
+            </ModalHeader>
+
+            {loadingActivity ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                <Loader className="rotate" size={40} color="#1A1A1A" />
+                <div style={{ fontWeight: 600, color: '#666' }}>Loading activity history...</div>
+              </div>
+            ) : activityHistory.length === 0 ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  background: '#EEE',
+                  borderRadius: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#999'
+                }}>
+                  <Activity size={32} />
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>No activity found</div>
+                <div style={{ color: '#666', textAlign: 'center', maxWidth: '300px', fontSize: '14px' }}>
+                  This customer hasn't performed any activities yet.
+                </div>
+              </div>
+            ) : (
+              <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {activityHistory.map((activity, index) => (
+                  <div
+                    key={activity._id || index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '16px',
+                      padding: '16px',
+                      borderBottom: index === activityHistory.length - 1 ? 'none' : '1px solid #F0F0F0',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#FAFAFA'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      background: '#F5F5F5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#667eea',
+                      flexShrink: 0
+                    }}>
+                      {getActivityIcon(activity.activityType)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <div style={{ fontWeight: 700, fontSize: '15px', color: '#1A1A1A' }}>
+                          {formatActivityType(activity.activityType)}
+                        </div>
+                        {activity.templateName && (
+                          <StatusBadge $status="active" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                            {activity.templateName}
+                          </StatusBadge>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>
+                        {activity.activityDescription}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#999' }}>
+                        {formatDate(activity.createdAt)}
+                        {activity.branchName && ` • ${activity.branchName}`}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* Alert Modal */}
+      {alertModal.show && (
+        <AlertModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+          <AlertModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type={alertModal.type}>
+              {alertModal.type === 'success' ? (
+                <CheckCircle size={32} />
+              ) : alertModal.type === 'error' ? (
+                <XCircle size={32} />
+              ) : (
+                <AlertCircle size={32} />
+              )}
+            </AlertIconWrapper>
+            <AlertMessage>{alertModal.message}</AlertMessage>
+            <ModalActionFooter style={{ justifyContent: 'center' }}>
+              <PrimaryButton
+                $variant={alertModal.type === 'success' ? 'success' : 'outline'}
+                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+              >
+                OK
+              </PrimaryButton>
+            </ModalActionFooter>
+          </AlertModalContent>
+        </AlertModalOverlay>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <AlertModalOverlay onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>
+          <ConfirmModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type="info">
+              <AlertCircle size={32} />
+            </AlertIconWrapper>
+            <ConfirmMessage>{confirmModal.message}</ConfirmMessage>
+            <ModalActionFooter style={{ justifyContent: 'center' }}>
+              <PrimaryButton
+                $variant="outline"
+                onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}
+              >
+                Cancel
+              </PrimaryButton>
+              <PrimaryButton
+                $variant="success"
+                onClick={() => {
+                  if (confirmModal.onConfirm) {
+                    confirmModal.onConfirm();
+                  }
+                  setConfirmModal({ show: false, message: '', onConfirm: null });
+                }}
+              >
+                Confirm
+              </PrimaryButton>
+            </ModalActionFooter>
+          </ConfirmModalContent>
+        </AlertModalOverlay>
       )}
     </CustomersContainer>
   );

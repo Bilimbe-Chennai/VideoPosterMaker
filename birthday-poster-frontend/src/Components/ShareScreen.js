@@ -11,6 +11,24 @@ const ShareScreen = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [imageError, setImageError] = useState(false);
+  // Track URL click when ShareScreen is viewed
+  useEffect(() => {
+    if (photoId) {
+      // Track click when ShareScreen page is viewed
+      const trackView = async () => {
+        try {
+          await axios.post("https://api.bilimbebrandactivations.com/api/upload/update-count", {
+            id: photoId,
+            field: "urlclickcount"
+          });
+        } catch (err) {
+          console.error("Error tracking URL click:", err);
+        }
+      };
+      trackView();
+    }
+  }, [photoId]);
+
   // Check for mobile view
   useEffect(() => {
     const checkMobile = () => {

@@ -5,7 +5,7 @@ import {
   Download, MessageCircle, Search, ChevronDown,
   Filter, Calendar, TrendingUp, TrendingDown,
   ArrowRight, MoreVertical, Eye, RotateCcw, Send, Loader,
-  Instagram, Facebook
+  Instagram, Facebook, X, Mail, AlertCircle, CheckCircle, XCircle
 } from 'react-feather';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -15,6 +15,98 @@ import {
 import Card from '../Components/Card';
 import useAxios from '../../useAxios';
 import Pagination from '../Components/Pagination';
+
+// Configuration Constants (can be fetched from API or settings in future)
+const SHARE_TRACKING_CONFIG = {
+  dateRangeOptions: ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days'],
+  defaultDateRange: 'Last 30 Days',
+  defaultPlatform: 'All Platforms',
+  itemsPerPage: 10,
+  clicksMultiplier: 1.5, // Clicks = shares * multiplier
+  platforms: [
+    { 
+      name: 'WhatsApp', 
+      key: 'WhatsApp', 
+      color: '#20BD5A', 
+      icon: 'MessageCircle',
+      shareKey: 'whatsappsharecount'
+    },
+    { 
+      name: 'Instagram', 
+      key: 'Instagram', 
+      color: '#E4405F', 
+      icon: 'Instagram',
+      shareKey: 'instagramsharecount'
+    },
+    { 
+      name: 'Facebook', 
+      key: 'Facebook', 
+      color: '#1877F2', 
+      icon: 'Facebook',
+      shareKey: 'facebooksharecount'
+    },
+    { 
+      name: 'Twitter',
+      key: 'Twitter',
+      color: '#1DA1F2',
+      icon: 'Share2',
+      shareKey: 'twittersharecount'
+    },
+    { 
+      name: 'Download', 
+      key: 'Download', 
+      color: '#D97706', 
+      icon: 'Download',
+      shareKey: 'downloadcount'
+    }
+  ],
+  metricCards: [
+    {
+      label: 'Total Shares',
+      key: 'totalShares',
+      icon: 'Share2',
+      bgColor: '#F5E8C8',
+      trendColor: '#B8653A',
+      growthKey: 'sharesGrowth'
+    },
+    {
+      label: 'Unique Users',
+      key: 'uniqueUsers',
+      icon: 'Users',
+      bgColor: '#D1FAE5',
+      trendColor: '#10B981',
+      growthKey: 'usersGrowth'
+    },
+    {
+      label: 'Total Clicks',
+      key: 'totalClicks',
+      icon: 'MousePointer',
+      bgColor: '#E8D5FF',
+      trendColor: '#8B5CF6',
+      growthKey: 'clicksGrowth'
+    },
+    {
+      label: 'Photos Shared',
+      key: 'photosShared',
+      icon: 'ImageIcon',
+      bgColor: '#FED7AA',
+      trendColor: '#F97316',
+      growthKey: 'photosGrowth'
+    }
+  ]
+};
+
+// Icon mapping
+const iconComponents = {
+  Share2,
+  Users,
+  MousePointer,
+  ImageIcon,
+  MessageCircle,
+  Instagram,
+  Facebook,
+  Download
+};
 
 // --- Styled Components ---
 
@@ -65,9 +157,9 @@ const PrimaryButton = styled.button`
   border: none;
 
   background: ${props => {
-    if (props.$variant === 'outline') return '#F2F2F2';
+    if (props.$variant === 'outline') return '#E2E2E2';
     if (props.$variant === 'success') return 'linear-gradient(90deg, #22C55E 0%, #10B981 100%)';
-    return '#1A1A1A';
+    return '#0F0F0F';
   }};
 
   color: ${props => {
@@ -75,7 +167,7 @@ const PrimaryButton = styled.button`
     return '#FFF';
   }};
 
-  border: ${props => props.$variant === 'outline' ? '1px solid #E5E5E5' : 'none'};
+  border: ${props => props.$variant === 'outline' ? '1px solid #D5D5D5' : 'none'};
 
   &:hover {
     opacity: 0.9;
@@ -127,7 +219,7 @@ const IconBox = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #1A1A1A;
+  color: #0F0F0F;
 `;
 
 const CardLabel = styled.span`
@@ -139,7 +231,7 @@ const CardLabel = styled.span`
 const MetricValue = styled.div`
   font-size: 34px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #0F0F0F;
   margin: 16px 0 8px 0;
   z-index: 1;
   letter-spacing: -1px;
@@ -240,7 +332,7 @@ const DropdownButton = styled.button`
 
   &:hover {
     border-color: #DDD;
-    background: #F9F9F9;
+    background: #E8E8E8;
   }
 
   ${props => props.$isOpen && `
@@ -280,7 +372,7 @@ const DropdownItem = styled.div`
   background: ${props => props.$active ? '#1A1A1A' : 'transparent'};
 
   &:hover {
-    background: ${props => props.$active ? '#1A1A1A' : '#F5F5F5'};
+    background: ${props => props.$active ? '#0F0F0F' : '#E5E5E5'};
   }
 `;
 
@@ -299,20 +391,20 @@ const Table = styled.table`
   th {
     text-align: left;
     padding: 20px 24px;
-    background: #FAFBFC;
+    background: #E8E9EA;
     font-size: 12px;
     font-weight: 700;
     color: #888;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #F0F0F0;
+    border-bottom: 1px solid #D8D8D8;
   }
   
   td {
     padding: 20px 24px;
-    border-bottom: 1px solid #F5F5F5;
+    border-bottom: 1px solid #E5E5E5;
     font-size: 14px;
-    color: #1A1A1A;
+    color: #0F0F0F;
     vertical-align: middle;
   }
 
@@ -352,7 +444,217 @@ const IconButton = styled.button`
   
   &:hover {
     background: #F0F0F0;
-    color: #1A1A1A;
+    color: #0F0F0F;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(5px);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  padding: 32px;
+  border-radius: 32px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0F0F0F;
+`;
+
+const MessageTextArea = styled.textarea`
+  width: 100%;
+  height: 150px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+  font-family: inherit;
+  font-size: 15px;
+  margin-bottom: 24px;
+  resize: none;
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    background: #FFF;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  }
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+`;
+
+const InfoBox = styled.div`
+  padding: 16px;
+  background: #F9FAFB;
+  border-radius: 12px;
+  
+  .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F0F0F;
+  }
+`;
+
+const ShareTypeButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 20px 24px;
+  border: 2px solid ${props => props.$selected ? props.$color : '#E5E7EB'};
+  background: ${props => props.$selected ? `${props.$color}15` : '#FFF'};
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+  font-weight: 600;
+  color: ${props => props.$selected ? props.$color : '#1A1A1A'};
+  margin-bottom: 12px;
+  
+  &:hover {
+    border-color: ${props => props.$color};
+    background: ${props => `${props.$color}10`};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: ${props => `${props.$color}20`};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${props => props.$color};
+  }
+`;
+
+const AlertModalOverlay = styled(ModalOverlay)`
+  z-index: 3000;
+`;
+
+const AlertModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ConfirmModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const BulkActionBar = styled.div`
+  position: fixed;
+  bottom: 40px;
+  left: 60%;
+  transform: translateX(-50%);
+  background: #1A1A1A;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 400px;
+
+  .count {
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  @media (max-width: 768px) {
+    left: 50%;
+    min-width: 90%;
+    flex-direction: column;
+    gap: 12px;
   }
 `;
 
@@ -368,26 +670,288 @@ const ShareTracking = () => {
     totalShares: 0,
     uniqueUsers: 0,
     totalClicks: 0,
-    photosShared: 0
+    photosShared: 0,
+    sharesGrowth: 0,
+    usersGrowth: 0,
+    clicksGrowth: 0,
+    photosGrowth: 0
   });
 
+  // State to store trend path configurations from API
+  const [trendPaths, setTrendPaths] = useState({
+    totalShares: null,
+    uniqueUsers: null,
+    totalClicks: null,
+    photosShared: null
+  });
+
+  // Fetch metrics from API
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
+        if (metricsResponse.data.metrics?.shareTracking) {
+          const apiMetrics = metricsResponse.data.metrics.shareTracking;
+          setMetrics(prev => ({
+            ...prev,
+            totalShares: apiMetrics.totalShares?.value || prev.totalShares,
+            uniqueUsers: apiMetrics.uniqueUsers?.value || prev.uniqueUsers,
+            totalClicks: apiMetrics.totalClicks?.value || prev.totalClicks,
+            photosShared: apiMetrics.photosShared?.value || prev.photosShared,
+            sharesGrowth: apiMetrics.totalShares?.growth || 0,
+            usersGrowth: apiMetrics.uniqueUsers?.growth || 0,
+            clicksGrowth: apiMetrics.totalClicks?.growth || 0,
+            photosGrowth: apiMetrics.photosShared?.growth || 0
+          }));
+          
+          // Store trend path configurations from API
+          setTrendPaths({
+            totalShares: apiMetrics.totalShares?.trendPath || null,
+            uniqueUsers: apiMetrics.uniqueUsers?.trendPath || null,
+            totalClicks: apiMetrics.totalClicks?.trendPath || null,
+            photosShared: apiMetrics.photosShared?.trendPath || null
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching metrics:", error);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState('All Platforms');
-  const [selectedDateRange, setSelectedDateRange] = useState('Last 30 Days');
+  const [selectedPlatform, setSelectedPlatform] = useState(SHARE_TRACKING_CONFIG.defaultPlatform);
+  const [selectedDateRange, setSelectedDateRange] = useState(SHARE_TRACKING_CONFIG.defaultDateRange);
   const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(SHARE_TRACKING_CONFIG.itemsPerPage);
+  
+  // Selection State
+  const [selectedItems, setSelectedItems] = useState([]);
+  
+  // Modal States
+  const [viewingItem, setViewingItem] = useState(null);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [customMsg, setCustomMsg] = useState('');
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
+  const [showResendModal, setShowResendModal] = useState(false);
+  const [isResendingShare, setIsResendingShare] = useState(false);
+  
+  // Alert & Confirmation Modal States
+  const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  
+  // Get dynamic platform list (exclude platforms with no data if needed)
+  const getAvailablePlatforms = () => {
+    const allPlatforms = ['All Platforms', ...SHARE_TRACKING_CONFIG.platforms.map(p => p.name)];
+    return allPlatforms;
+  };
+  
+  // Helper function to generate SVG trend path based on growth value
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    
+    // Normalize growth to a -50 to +50 scale for better visualization
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50; // -1 to 1
+    
+    // For 60x30 viewBox: X ranges 0-60, Y ranges 0-30 (lower Y = higher on screen)
+    const startY = 20; // Middle baseline
+    const endYOffset = -scaleFactor * 12; // Move up/down based on growth (max 12px movement)
+    const endY = startY + endYOffset;
+    
+    // Ensure Y stays within viewBox bounds (0-30)
+    const clampedEndY = Math.max(5, Math.min(25, endY));
+    
+    // Create smooth curve points with control points for better curve
+    const midY1 = startY + (endYOffset * 0.2);
+    const midY2 = startY + (endYOffset * 0.6);
+    
+    // Generate dynamic Bezier curve path
+    // M = Move to start, C = Cubic Bezier curve (control points)
+    const path = `M5,${startY} C18,${startY - scaleFactor * 2} 32,${midY1 + scaleFactor * 1} 45,${midY2} C48,${midY2 + scaleFactor * 1} 50,${clampedEndY - scaleFactor * 0.5} 55,${clampedEndY}`;
+    
+    return {
+      points: path,
+      endX: 55,
+      endY: Math.round(clampedEndY),
+      isPositive: growthValue >= 0
+    };
+  };
+  
+  // Helper Functions for Alerts and Confirmations
+  const showAlert = (message, type = 'info') => {
+    setAlertModal({ show: true, message, type });
+  };
+  
+  const showConfirm = (message, onConfirm) => {
+    setConfirmModal({ show: true, message, onConfirm });
+  };
+  
+  // Handler Functions
+  const handleViewDetails = (item) => {
+    setViewingItem(item);
+  };
+  
+  const handleResendShare = (item) => {
+    if (!item) {
+      showAlert('Item information not available.', 'error');
+      return;
+    }
+    
+    // Check if customer has either WhatsApp or Email
+    const hasWhatsApp = item.customerId && item.customerId !== 'N/A';
+    const hasEmail = item.email && item.email !== 'N/A';
+    
+    if (!hasWhatsApp && !hasEmail) {
+      showAlert('Customer information (WhatsApp or Email) not available for resending share.', 'error');
+      return;
+    }
+    
+    setViewingItem(item);
+    setShowResendModal(true);
+  };
+  
+  const confirmResendShare = async (type) => {
+    if (!viewingItem) return;
+    
+    // Find the original raw data item to get posterVideoId
+    const rawItem = rawData.find(r => r._id === viewingItem.id);
+    if (!rawItem) {
+      showAlert('Original data not found.', 'error');
+      setShowResendModal(false);
+      setViewingItem(null);
+      return;
+    }
+    
+    // Check if required contact info is available based on type
+    if (type === 'whatsapp' && (!viewingItem.customerId || viewingItem.customerId === 'N/A')) {
+      showAlert('WhatsApp number not available for this customer.', 'error');
+      return;
+    }
+    
+    if (type === 'email' && (!viewingItem.email || viewingItem.email === 'N/A')) {
+      showAlert('Email address not available for this customer.', 'error');
+      return;
+    }
+    
+    // Construct viewUrl from posterVideoId
+    const posterVideoId = rawItem.posterVideoId;
+    const viewUrl = `https://app.bilimbebrandactivations.com/photomergeapp/share/${posterVideoId}`;
+    
+    // Ask for confirmation before sending
+    const confirmMsg = type === 'email'
+      ? `Send output message to ${viewingItem.email}?`
+      : `Send output message to ${viewingItem.customerId} on WhatsApp?`;
+    
+    showConfirm(confirmMsg, async () => {
+      await executeResendShare(type, viewUrl);
+    });
+  };
+  
+  const executeResendShare = async (type, viewUrl) => {
+    if (!viewingItem) return;
+
+    setIsResendingShare(true);
+    try {
+      const rawItem = rawData.find(r => r._id === viewingItem.id);
+      if (!rawItem) {
+        showAlert('Original data not found.', 'error');
+        setIsResendingShare(false);
+        return;
+      }
+      
+      const contact = type === 'email' ? viewingItem.email : viewingItem.customerId;
+      const response = await axiosData.post(
+        `client/client/share/${contact}`,
+        {
+          typeSend: type,
+          viewUrl: viewUrl,
+          id: rawItem._id || rawItem.photoId,
+          name: viewingItem.customer || viewingItem.name
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+      
+      if (response.data.success) {
+        showAlert(`Share resent to ${viewingItem.customer} via ${type === 'email' ? 'Email' : 'WhatsApp'} successfully!`, 'success');
+        setShowResendModal(false);
+        setViewingItem(null);
+        // Refresh data after successful resend
+        await fetchData();
+      } else {
+        throw new Error('Failed to resend message');
+      }
+    } catch (error) {
+      console.error('Resend Message Error:', error);
+      showAlert(`Failed to resend message via ${type === 'email' ? 'Email' : 'WhatsApp'}. Please try again.`, 'error');
+    } finally {
+      setIsResendingShare(false);
+    }
+  };
+  
+  const handleWhatsApp = (item) => {
+    setViewingItem(item);
+    const defaultMsg = item.photo
+      ? `Hello ${item.customer}, check out your ${item.photo} poster!`
+      : `Hello ${item.customer}, thank you for sharing!`;
+    setCustomMsg(defaultMsg);
+    setShowMsgModal(true);
+  };
+  
+  const confirmSendMessage = async () => {
+    if (!viewingItem) return;
+    if (!viewingItem.customerId || viewingItem.customerId === 'N/A') {
+      showAlert('Phone number not available for this customer.', 'error');
+      return;
+    }
+    
+    if (!customMsg.trim()) {
+      showAlert('Please enter a message.', 'error');
+      return;
+    }
+    
+    setIsSendingMsg(true);
+    try {
+      // Find the original raw data item
+      const rawItem = rawData.find(r => r._id === viewingItem.id);
+      if (!rawItem) {
+        showAlert('Original data not found.', 'error');
+        setIsSendingMsg(false);
+        return;
+      }
+      
+      const response = await axiosData.post('/upload/custom-share', {
+        mobile: viewingItem.customerId,
+        _id: rawItem._id || rawItem.photoId,
+        message: customMsg
+      });
+      
+      if (response.data.success) {
+        showAlert(`Message sent to ${viewingItem.customer} successfully!`, 'success');
+        setShowMsgModal(false);
+        setCustomMsg('');
+        setViewingItem(null);
+      } else {
+        throw new Error('Failed to send message via API');
+      }
+    } catch (error) {
+      console.error('WhatsApp Error:', error);
+      showAlert('Failed to send message via WhatsApp API.', 'error');
+      setShowMsgModal(false);
+    } finally {
+      setIsSendingMsg(false);
+    }
+  };
 
   // Refs for dropdowns
   const platformRef = useRef(null);
   const dateRef = useRef(null);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const fetchData = async () => {
     try {
@@ -406,41 +970,57 @@ const ShareTracking = () => {
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   const processData = (data) => {
     let totalShares = 0;
-    let totalClicks = 0; // Mocked for now
     const uniqueUsersSet = new Set();
     const photosSharedSet = new Set();
-    const platformStats = { WhatsApp: 0, Instagram: 0, Facebook: 0, Download: 0 };
+    
+    // Initialize platform stats dynamically
+    const platformStats = {};
+    SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
+      platformStats[platform.name] = 0;
+    });
 
     const sharesByDay = {};
 
     const processed = data.map(item => {
-      const w = item.whatsappsharecount || 0;
-      const f = item.facebooksharecount || 0;
-      const i = item.instagramsharecount || 0;
-      const d = item.downloadcount || 0;
-      const t = w + f + i + d;
+      // Calculate shares dynamically based on platform config
+      let totalEngagement = 0;
+      const platformShares = {};
+      
+      SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
+        const count = item[platform.shareKey] || 0;
+        platformShares[platform.name] = count;
+        totalEngagement += count;
+      });
 
-      totalShares += t;
-      totalClicks += Math.floor(t * 1.5); // Simulation
+      totalShares += totalEngagement;
 
-      if (t > 0) {
+      if (totalEngagement > 0) {
         uniqueUsersSet.add(item.whatsapp || item.mobile || item.name);
         photosSharedSet.add(item.photoId || item._id);
       }
 
       const dateStr = new Date(item.date || item.createdAt).toLocaleDateString('en-GB');
-      if (!sharesByDay[dateStr]) sharesByDay[dateStr] = { date: dateStr, WhatsApp: 0, Instagram: 0, Facebook: 0, Download: 0 };
-      sharesByDay[dateStr].WhatsApp += w;
-      sharesByDay[dateStr].Instagram += i;
-      sharesByDay[dateStr].Facebook += f;
-      sharesByDay[dateStr].Download += d;
+      if (!sharesByDay[dateStr]) {
+        sharesByDay[dateStr] = { date: dateStr };
+        SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
+          sharesByDay[dateStr][platform.name] = 0;
+        });
+      }
+      
+      SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
+        sharesByDay[dateStr][platform.name] += platformShares[platform.name] || 0;
+        platformStats[platform.name] += platformShares[platform.name] || 0;
+      });
 
-      platformStats.WhatsApp += w;
-      platformStats.Instagram += i;
-      platformStats.Facebook += f;
-      platformStats.Download += d;
+      // Determine primary platform (first platform with shares)
+      const primaryPlatform = SHARE_TRACKING_CONFIG.platforms.find(p => (platformShares[p.name] || 0) > 0);
+      const platformName = primaryPlatform ? primaryPlatform.name : 'No Share';
 
       return {
         id: item._id,
@@ -448,10 +1028,10 @@ const ShareTracking = () => {
         email: item.email || item.mail || 'N/A',
         customerId: item.whatsapp || 'N/A',
         photo: item.template_name || item.templatename || 'Custom Poster',
-        platform: w > 0 ? 'WhatsApp' : (i > 0 ? 'Instagram' : (f > 0 ? 'Facebook' : (d > 0 ? 'Download' : 'None'))),
-        shares: t,
-        clicks: Math.floor(t * 1.5),
-        status: t > 0 ? 'Success' : 'Pending',
+        platform: platformName,
+        shares: totalEngagement,
+        clicks: item.urlclickcount || 0, // Use actual URL click count from API
+        status: item.whatsappstatus === 'yes' ? 'Success' : 'Pending',
         timestamp: new Date(item.date || item.createdAt),
         formattedDate: new Date(item.date || item.createdAt).toLocaleString('en-GB', {
           day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -460,12 +1040,15 @@ const ShareTracking = () => {
     });
 
     setProcessedData(processed.sort((a, b) => b.timestamp - a.timestamp));
-    setMetrics({
+
+    // Update metrics with local calculations (growth values come from API)
+    setMetrics(prev => ({
+      ...prev,
       totalShares,
       uniqueUsers: uniqueUsersSet.size,
-      totalClicks,
+      // totalClicks comes from `/upload/dashboard-metrics` (API-derived)
       photosShared: photosSharedSet.size
-    });
+    }));
   };
 
   const filteredData = processedData.filter(item => {
@@ -473,22 +1056,37 @@ const ShareTracking = () => {
       item.photo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.platform.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesPlatform = selectedPlatform === 'All Platforms' || item.platform === selectedPlatform;
+    const matchesPlatform = selectedPlatform === SHARE_TRACKING_CONFIG.defaultPlatform || item.platform === selectedPlatform;
 
-    // Simple date filter logic
+    // Dynamic date filter logic based on config
     let matchesDate = true;
     const now = new Date();
     const todayStr = now.toLocaleDateString('en-CA');
     const itemDateStr = new Date(item.timestamp).toLocaleDateString('en-CA');
     const diff = (now - item.timestamp) / (1000 * 60 * 60 * 24);
 
-    if (selectedDateRange === 'Today') matchesDate = itemDateStr === todayStr;
-    else if (selectedDateRange === 'Last 7 Days') matchesDate = diff < 7;
-    else if (selectedDateRange === 'Last 30 Days') matchesDate = diff < 30;
-    else if (selectedDateRange === 'Last 90 Days') matchesDate = diff < 90;
+    if (selectedDateRange === 'Today') {
+      matchesDate = itemDateStr === todayStr;
+    } else if (selectedDateRange === 'Yesterday') {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      matchesDate = itemDateStr === yesterday.toLocaleDateString('en-CA');
+    } else if (selectedDateRange.startsWith('Last ')) {
+      // Extract number from "Last X Days"
+      const daysMatch = selectedDateRange.match(/Last (\d+) Days/);
+      if (daysMatch) {
+        const days = parseInt(daysMatch[1]);
+        matchesDate = diff < days;
+      }
+    }
 
     return matchesSearch && matchesPlatform && matchesDate;
   });
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedPlatform, selectedDateRange]);
 
   // Calculate Paginated Data
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -505,20 +1103,98 @@ const ShareTracking = () => {
     setCurrentPage(1);
   };
 
-  const exportToExcel = () => {
+  // Selection Functions
+  const toggleSelect = (id) => {
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const selectAll = () => {
+    const allCurrentPageIds = currentItems.map(item => item.id);
+    const allSelected = allCurrentPageIds.every(id => selectedItems.includes(id));
+    
+    if (allSelected) {
+      // Deselect all items on current page
+      setSelectedItems(prev => prev.filter(id => !allCurrentPageIds.includes(id)));
+    } else {
+      // Select all items on current page
+      setSelectedItems(prev => {
+        const newSelection = [...prev];
+        allCurrentPageIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
+    }
+  };
+
+  const selectAllFiltered = () => {
+    const allFilteredIds = filteredData.map(item => item.id);
+    const allSelected = allFilteredIds.every(id => selectedItems.includes(id));
+    
+    if (allSelected) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(allFilteredIds);
+    }
+  };
+
+  const exportToExcel = (dataToExport = null) => {
+    // Ensure we have valid data to export
+    let data;
+    if (dataToExport && Array.isArray(dataToExport) && dataToExport.length > 0) {
+      // Use explicitly passed data (from bulk selection)
+      data = dataToExport;
+    } else {
+      // Default: use filteredData (what's shown in the table)
+      // filteredData is already calculated and in sync with the table display
+      data = filteredData;
+    }
+    
+    // Validate that data is an array
+    if (!Array.isArray(data)) {
+      console.error('Export data is not an array:', data, 'Type:', typeof data);
+      showAlert('No data available to export.', 'error');
+      return;
+    }
+    
+    // Check if data has items
+    if (data.length === 0) {
+      // If filteredData is empty but processedData has items, it means filters are too restrictive
+      if (processedData && processedData.length > 0) {
+        showAlert('No data matches your current filters. Please adjust your filters and try again.', 'error');
+      } else {
+        showAlert('No data available to export. Please wait for data to load.', 'error');
+      }
+      return;
+    }
+
     const csvRows = [
-      ['Customer', 'Customer ID', 'Photo', 'Platform', 'Shares', 'Clicks', 'Date', 'Status'],
-      ...filteredData.map(d => [d.customer, d.customerId, d.photo, d.platform, d.shares, d.clicks, d.formattedDate, d.status])
+      ['Customer', 'Customer ID', 'Email', 'Photo', 'Platform', 'Shares', 'Clicks', 'Date', 'Status'],
+      ...data.map(d => [
+        d.customer || '',
+        d.customerId || '',
+        d.email || '',
+        d.photo || '',
+        d.platform || '',
+        d.shares || 0,
+        d.clicks || 0,
+        d.formattedDate || '',
+        d.status || ''
+      ])
     ];
-    const csvContent = "\uFEFF" + csvRows.map(e => e.join(",")).join("\n");
+    const csvContent = "\uFEFF" + csvRows.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `ShareReport_${new Date().toISOString().split('T')[0]}.csv`);
+    const dataType = dataToExport ? 'Selected' : 'All';
+    link.setAttribute("download", `ShareReport_${dataType}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -529,7 +1205,7 @@ const ShareTracking = () => {
           <p>Track social media shares and engagement across platforms</p>
         </PageInfo>
         <ActionButtons>
-          <PrimaryButton $variant="outline" onClick={exportToExcel}>
+          <PrimaryButton $variant="outline" onClick={() => exportToExcel()}>
             <Download size={18} /> Export as Excel
           </PrimaryButton>
           {/* <PrimaryButton $variant="success">
@@ -539,65 +1215,49 @@ const ShareTracking = () => {
       </HeaderSection>
 
       <MetricGrid>
-        <MetricCard $bgColor="#FFF5EB">
-          <CardHeader>
-            <IconBox><Share2 size={20} /></IconBox>
-            <CardLabel>Total Shares</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.totalShares.toLocaleString()}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color="#D97706">▲ +24.5%</GrowthTag>
-            <svg width="60" height="30" viewBox="0 0 60 30" fill="none">
-              <path d="M5 25C15 25 15 10 30 10C45 10 45 5 55 5" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="55" cy="5" r="2.5" fill="white" stroke="#D97706" strokeWidth="2" />
-            </svg>
-          </CardFooter>
-        </MetricCard>
-
-        <MetricCard $bgColor="#F1FBEF">
-          <CardHeader>
-            <IconBox><Users size={20} /></IconBox>
-            <CardLabel>Unique Users</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.uniqueUsers.toLocaleString()}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color="#65A30D">▲ +12.1%</GrowthTag>
-            <svg width="60" height="30" viewBox="0 0 60 30" fill="none">
-              <path d="M5 25C20 25 20 20 30 18C40 16 45 12 55 10" stroke="#65A30D" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="55" cy="10" r="2.5" fill="white" stroke="#65A30D" strokeWidth="2" />
-            </svg>
-          </CardFooter>
-        </MetricCard>
-
-        <MetricCard $bgColor="#F6F0FF">
-          <CardHeader>
-            <IconBox><MousePointer size={20} /></IconBox>
-            <CardLabel>Total Clicks</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.totalClicks.toLocaleString()}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color="#9333EA">▲ +38.4%</GrowthTag>
-            <svg width="60" height="30" viewBox="0 0 60 30" fill="none">
-              <path d="M5 25C15 25 25 25 35 15C45 5 50 10 55 5" stroke="#9333EA" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="55" cy="5" r="2.5" fill="white" stroke="#9333EA" strokeWidth="2" />
-            </svg>
-          </CardFooter>
-        </MetricCard>
-
-        <MetricCard $bgColor="#FFFBEB">
-          <CardHeader>
-            <IconBox><ImageIcon size={20} /></IconBox>
-            <CardLabel>Photos Shared</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.photosShared.toLocaleString()}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color="#D97706">▼ -2.4%</GrowthTag>
-            <svg width="60" height="30" viewBox="0 0 60 30" fill="none">
-              <path d="M5 25C20 24 30 22 40 18C50 14 52 10 55 8" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="55" cy="8" r="2.5" fill="white" stroke="#D97706" strokeWidth="2" />
-            </svg>
-          </CardFooter>
-        </MetricCard>
+        {SHARE_TRACKING_CONFIG.metricCards.map((metricConfig) => {
+          const IconComponent = iconComponents[metricConfig.icon];
+          const value = metrics[metricConfig.key] || 0;
+          const growth = metrics[metricConfig.growthKey] || 0;
+          const isPositive = growth >= 0;
+          const growthColor = isPositive ? metricConfig.trendColor : "#E53935";
+          
+          // Use trend path from API if available, otherwise generate locally as fallback
+          const apiTrendPath = trendPaths[metricConfig.key];
+          const trendPath = apiTrendPath || generateTrendPath(growth);
+          
+          return (
+            <MetricCard key={metricConfig.key} $bgColor={metricConfig.bgColor}>
+              <CardHeader>
+                <IconBox><IconComponent size={20} /></IconBox>
+                <CardLabel>{metricConfig.label}</CardLabel>
+              </CardHeader>
+              <MetricValue>{value.toLocaleString()}</MetricValue>
+              <CardFooter>
+                <GrowthTag $color={growthColor}>
+                  {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{growth}%
+                </GrowthTag>
+                <svg width="60" height="30" viewBox="0 0 60 30" fill="none" style={{ overflow: 'visible' }}>
+                  <path 
+                    d={trendPath.points}
+                    stroke={growthColor} 
+                    strokeWidth="2.5" 
+                    strokeLinecap="round"
+                    style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.1))' }}
+                  />
+                  <circle 
+                    cx={trendPath.endX}
+                    cy={trendPath.endY}
+                    r="2.5" 
+                    fill="white" 
+                    stroke={growthColor} 
+                    strokeWidth="2" 
+                  />
+                </svg>
+              </CardFooter>
+            </MetricCard>
+          );
+        })}
       </MetricGrid>
 
       <ControlBar>
@@ -615,7 +1275,7 @@ const ShareTracking = () => {
             <Calendar size={18} /> {selectedDateRange} <ChevronDown size={14} />
           </DropdownButton>
           <DropdownMenu $isOpen={showDateDropdown}>
-            {['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days'].map(d => (
+            {SHARE_TRACKING_CONFIG.dateRangeOptions.map(d => (
               <DropdownItem key={d} $active={selectedDateRange === d} onClick={() => { setSelectedDateRange(d); setShowDateDropdown(false); }}>{d}</DropdownItem>
             ))}
           </DropdownMenu>
@@ -626,7 +1286,7 @@ const ShareTracking = () => {
             <Filter size={18} /> {selectedPlatform} <ChevronDown size={14} />
           </DropdownButton>
           <DropdownMenu $isOpen={showPlatformDropdown}>
-            {['All Platforms', 'WhatsApp', 'Instagram', 'Facebook', 'Download'].map(p => (
+            {getAvailablePlatforms().map(p => (
               <DropdownItem key={p} $active={selectedPlatform === p} onClick={() => { setSelectedPlatform(p); setShowPlatformDropdown(false); }}>{p}</DropdownItem>
             ))}
           </DropdownMenu>
@@ -637,7 +1297,14 @@ const ShareTracking = () => {
         <Table>
           <thead>
             <tr>
-              <th style={{ width: '40px' }}><input type="checkbox" /></th>
+              <th style={{ width: '40px' }}>
+                <input
+                  type="checkbox"
+                  checked={currentItems.length > 0 && currentItems.every(item => selectedItems.includes(item.id))}
+                  onChange={selectAll}
+                  title={currentItems.length > 0 && currentItems.every(item => selectedItems.includes(item.id)) ? 'Deselect all on this page' : 'Select all on this page'}
+                />
+              </th>
               <th>Customer</th>
               <th>Photo / Template</th>
               <th>Platform</th>
@@ -684,18 +1351,18 @@ const ShareTracking = () => {
                       No tracking records found
                     </div>
                     <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
-                      {searchQuery || selectedPlatform !== 'All Platforms' || selectedDateRange !== 'Last 30 Days'
+                      {searchQuery || selectedPlatform !== SHARE_TRACKING_CONFIG.defaultPlatform || selectedDateRange !== SHARE_TRACKING_CONFIG.defaultDateRange
                         ? `We couldn't find any share records matching your current search or filter criteria.`
                         : "No shares have been tracked yet. Engagement data will appear here once customers start sharing their posters."}
                     </div>
-                    {(searchQuery || selectedPlatform !== 'All Platforms' || selectedDateRange !== 'Last 30 Days') && (
+                    {(searchQuery || selectedPlatform !== SHARE_TRACKING_CONFIG.defaultPlatform || selectedDateRange !== SHARE_TRACKING_CONFIG.defaultDateRange) && (
                       <PrimaryButton
                         $variant="outline"
                         style={{ marginTop: '24px', borderRadius: '12px' }}
                         onClick={() => {
                           setSearchQuery('');
-                          setSelectedPlatform('All Platforms');
-                          setSelectedDateRange('Last 30 Days');
+                          setSelectedPlatform(SHARE_TRACKING_CONFIG.defaultPlatform);
+                          setSelectedDateRange(SHARE_TRACKING_CONFIG.defaultDateRange);
                           setCurrentPage(1);
                         }}
                       >
@@ -707,7 +1374,13 @@ const ShareTracking = () => {
               </tr>
             ) : currentItems.map(row => (
               <tr key={row.id}>
-                <td><input type="checkbox" /></td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.includes(row.id)}
+                    onChange={() => toggleSelect(row.id)}
+                  />
+                </td>
                 <td>
                   <div style={{ fontWeight: 700 }}>{row.customer}</div>
                   <div style={{ fontSize: '12px', color: '#999' }}>{row.email}</div>
@@ -716,18 +1389,18 @@ const ShareTracking = () => {
                   <div style={{ fontWeight: 600 }}>{row.photo}</div>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {row.platform !== 'None' && (
-                      <PlatformIcon $color={
-                        row.platform === 'WhatsApp' ? '#25D366' :
-                          (row.platform === 'Instagram' ? '#E4405F' :
-                            (row.platform === 'Facebook' ? '#1877F2' : '#F59E0B'))
-                      }>
-                        {row.platform === 'WhatsApp' ? <MessageCircle size={16} /> :
-                          (row.platform === 'Instagram' ? <Instagram size={16} /> :
-                            (row.platform === 'Facebook' ? <Facebook size={16} /> : <Download size={16} />))}
-                      </PlatformIcon>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {row.platform !== 'No Share' && (() => {
+                      const platformConfig = SHARE_TRACKING_CONFIG.platforms.find(p => p.name === row.platform);
+                      if (!platformConfig) return null;
+                      
+                      const IconComponent = iconComponents[platformConfig.icon];
+                      return (
+                        <PlatformIcon $color={platformConfig.color}>
+                          <IconComponent size={16} />
+                        </PlatformIcon>
+                      );
+                    })()}
                     <span style={{ fontWeight: 600 }}>{row.platform}</span>
                   </div>
                 </td>
@@ -738,9 +1411,9 @@ const ShareTracking = () => {
                 <td>{row.formattedDate}</td>
                 <td>
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    <IconButton title="View Details"><Eye size={18} /></IconButton>
-                    <IconButton title="Resend Share"><RotateCcw size={18} /></IconButton>
-                    <IconButton title="WhatsApp Message" style={{ color: '#25D366' }}><Send size={18} /></IconButton>
+                    <IconButton title="View Details" onClick={() => handleViewDetails(row)}><Eye size={18} /></IconButton>
+                    <IconButton title="Resend Message" onClick={() => handleResendShare(row)}><RotateCcw size={18} /></IconButton>
+                    <IconButton title="WhatsApp Message" style={{ color: '#25D366' }} onClick={() => handleWhatsApp(row)}><Send size={18} /></IconButton>
                   </div>
                 </td>
               </tr>
@@ -755,6 +1428,271 @@ const ShareTracking = () => {
           onItemsPerPageChange={handleItemsPerPageChange}
         />
       </TableCard>
+
+      {/* Bulk Action Bar */}
+      {selectedItems.length > 0 && (
+        <BulkActionBar>
+          <div className="count">{selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'} selected</div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <PrimaryButton 
+              onClick={() => exportToExcel(processedData.filter(item => selectedItems.includes(item.id)))} 
+              style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}
+            >
+              <Download size={14} /> Export Selected
+            </PrimaryButton>
+            <PrimaryButton 
+              onClick={selectAllFiltered}
+              style={{ padding: '8px 16px', fontSize: '12px', background: '#666' }}
+            >
+              {filteredData.every(item => selectedItems.includes(item.id)) ? 'Deselect All' : 'Select All'}
+            </PrimaryButton>
+            <IconButton 
+              style={{ color: 'white' }} 
+              onClick={() => setSelectedItems([])}
+              title="Clear selection"
+            >
+              <X size={18} />
+            </IconButton>
+          </div>
+        </BulkActionBar>
+      )}
+
+      {/* View Details Modal */}
+      {viewingItem && !showMsgModal && !showResendModal && (
+        <ModalOverlay onClick={() => setViewingItem(null)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Share Details</ModalTitle>
+              <IconButton onClick={() => setViewingItem(null)}><X size={20} /></IconButton>
+            </ModalHeader>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <InfoBox>
+                <div className="label">Customer</div>
+                <div className="value">{viewingItem.customer}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Customer ID</div>
+                <div className="value">{viewingItem.customerId}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Email</div>
+                <div className="value">{viewingItem.email}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Platform</div>
+                <div className="value">{viewingItem.platform}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Photo / Template</div>
+                <div className="value">{viewingItem.photo}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Message Send Status</div>
+                <div className="value" style={{ 
+                  color: viewingItem.status === 'Success' ? '#10B981' : '#F59E0B' 
+                }}>{viewingItem.status}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Shares</div>
+                <div className="value">{viewingItem.shares}</div>
+              </InfoBox>
+              <InfoBox>
+                <div className="label">Clicks</div>
+                <div className="value">{viewingItem.clicks}</div>
+              </InfoBox>
+            </div>
+            
+            <InfoBox style={{ marginBottom: '24px' }}>
+              <div className="label">Date & Time</div>
+              <div className="value">{viewingItem.formattedDate}</div>
+            </InfoBox>
+            
+            <ModalActionFooter>
+              <PrimaryButton $variant="outline" onClick={() => setViewingItem(null)}>
+                Close
+              </PrimaryButton>
+              <PrimaryButton $variant="success" onClick={() => handleWhatsApp(viewingItem)}>
+                <MessageCircle size={16} /> Send WhatsApp
+              </PrimaryButton>
+            </ModalActionFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* WhatsApp Message Modal */}
+      {showMsgModal && viewingItem && (
+        <ModalOverlay onClick={() => { setShowMsgModal(false); setViewingItem(null); }}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Compose Message</ModalTitle>
+              <IconButton onClick={() => { setShowMsgModal(false); setViewingItem(null); }}>
+                <X size={20} />
+              </IconButton>
+            </ModalHeader>
+            <div style={{ marginBottom: '16px', fontSize: '14px', color: '#666' }}>
+              To: <strong>{viewingItem.customer}</strong> ({viewingItem.customerId})
+            </div>
+            <MessageTextArea
+              value={customMsg}
+              onChange={e => setCustomMsg(e.target.value)}
+              placeholder="Type your message here..."
+            />
+            <ModalActionFooter>
+              <PrimaryButton $variant="outline" onClick={() => { setShowMsgModal(false); setViewingItem(null); }}>
+                Cancel
+              </PrimaryButton>
+              <PrimaryButton
+                $variant="success"
+                onClick={confirmSendMessage}
+                disabled={isSendingMsg}
+              >
+                {isSendingMsg ? 'Sending...' : 'Send Message'}
+              </PrimaryButton>
+            </ModalActionFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* Resend Message Type Selection Modal */}
+      {showResendModal && viewingItem && !showMsgModal && (
+        <ModalOverlay onClick={() => { setShowResendModal(false); setViewingItem(null); }}>
+          <ModalContent onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <ModalHeader>
+              <ModalTitle>Resend Message</ModalTitle>
+              <IconButton onClick={() => { setShowResendModal(false); setViewingItem(null); }}>
+                <X size={20} />
+              </IconButton>
+            </ModalHeader>
+            <div style={{ marginBottom: '24px', fontSize: '14px', color: '#666' }}>
+              Choose how to resend the output message to <strong>{viewingItem.customer}</strong>
+            </div>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <ShareTypeButton
+                $color="#25D366"
+                $selected={true}
+                onClick={() => confirmResendShare('whatsapp')}
+                disabled={isResendingShare || !viewingItem.customerId || viewingItem.customerId === 'N/A'}
+              >
+                <div className="icon-wrapper">
+                  <MessageCircle size={24} />
+                </div>
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>WhatsApp</div>
+                  <div style={{ fontSize: '13px', fontWeight: 400, color: '#666' }}>
+                    {viewingItem.customerId && viewingItem.customerId !== 'N/A' 
+                      ? `Send to ${viewingItem.customerId}`
+                      : 'WhatsApp number not available'}
+                  </div>
+                </div>
+              </ShareTypeButton>
+              
+              <ShareTypeButton
+                $color="#1877F2"
+                $selected={true}
+                onClick={() => confirmResendShare('email')}
+                disabled={isResendingShare || !viewingItem.email || viewingItem.email === 'N/A'}
+              >
+                <div className="icon-wrapper">
+                  <Mail size={24} />
+                </div>
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>Email</div>
+                  <div style={{ fontSize: '13px', fontWeight: 400, color: '#666' }}>
+                    {viewingItem.email && viewingItem.email !== 'N/A'
+                      ? `Send to ${viewingItem.email}`
+                      : 'Email address not available'}
+                  </div>
+                </div>
+              </ShareTypeButton>
+            </div>
+            
+            {isResendingShare && (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '12px',
+                padding: '16px',
+                background: '#F9FAFB',
+                borderRadius: '12px',
+                marginBottom: '24px'
+              }}>
+                <Loader size={20} className="rotate" />
+                <span style={{ fontSize: '14px', color: '#666' }}>Sending...</span>
+              </div>
+            )}
+            
+            <ModalActionFooter>
+              <PrimaryButton 
+                $variant="outline" 
+                onClick={() => { setShowResendModal(false); setViewingItem(null); }}
+                disabled={isResendingShare}
+              >
+                Cancel
+              </PrimaryButton>
+            </ModalActionFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* Alert Modal */}
+      {alertModal.show && (
+        <AlertModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+          <AlertModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type={alertModal.type}>
+              {alertModal.type === 'success' ? (
+                <CheckCircle size={32} />
+              ) : alertModal.type === 'error' ? (
+                <XCircle size={32} />
+              ) : (
+                <AlertCircle size={32} />
+              )}
+            </AlertIconWrapper>
+            <AlertMessage>{alertModal.message}</AlertMessage>
+            <ModalActionFooter style={{ justifyContent: 'center' }}>
+              <PrimaryButton
+                $variant={alertModal.type === 'success' ? 'success' : 'outline'}
+                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+              >
+                OK
+              </PrimaryButton>
+            </ModalActionFooter>
+          </AlertModalContent>
+        </AlertModalOverlay>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <AlertModalOverlay onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>
+          <ConfirmModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type="info">
+              <AlertCircle size={32} />
+            </AlertIconWrapper>
+            <ConfirmMessage>{confirmModal.message}</ConfirmMessage>
+            <ModalActionFooter style={{ justifyContent: 'center' }}>
+              <PrimaryButton
+                $variant="outline"
+                onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}
+              >
+                Cancel
+              </PrimaryButton>
+              <PrimaryButton
+                $variant="success"
+                onClick={() => {
+                  if (confirmModal.onConfirm) {
+                    confirmModal.onConfirm();
+                  }
+                  setConfirmModal({ show: false, message: '', onConfirm: null });
+                }}
+              >
+                Confirm
+              </PrimaryButton>
+            </ModalActionFooter>
+          </ConfirmModalContent>
+        </AlertModalOverlay>
+      )}
     </PageContainer>
   );
 };

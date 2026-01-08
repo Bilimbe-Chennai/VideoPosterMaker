@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import styled, { ThemeProvider } from 'styled-components';
 import {
@@ -13,7 +13,8 @@ import {
   UploadCloud,
   X,
   Menu,
-  Shield // Added Shield icon for Admins
+  Shield, // Added Shield icon for Admins
+  AlertCircle
 } from 'react-feather'; // Ensure react-feather is installed
 import { theme } from '../../PremiumAdmin/theme';
 
@@ -141,8 +142,86 @@ const BottomSection = styled.div`
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(5px);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  width: 100%;
+  max-width: 450px;
+  padding: 32px;
+  border-radius: 32px;
+  position: relative;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #F59E0B20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: #F59E0B;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #1A1A1A;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
+const ModalButton = styled.button`
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  
+  &.outline {
+    background: #F3F4F6;
+    color: #374151;
+    &:hover {
+      background: #E5E7EB;
+    }
+  }
+  
+  &.primary {
+    background: #1A1A1A;
+    color: white;
+    &:hover {
+      background: #000;
+      transform: translateY(-1px);
+    }
+  }
+`;
+
 const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   // const location = useLocation(); // NavLink handles active state automatically
 
   // Get user for role check
@@ -166,10 +245,8 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      localStorage.clear();
-      navigate('/admin/login');
-    }
+    localStorage.clear();
+    navigate('/admin/login');
   };
 
   return (
@@ -203,11 +280,37 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
         </NavSection>
 
         <BottomSection>
-          <NavItem as="button" onClick={handleLogout} style={{ marginTop: 0 }}>
+          <NavItem as="button" onClick={() => setShowLogoutConfirm(true)} style={{ marginTop: 0 }}>
             <LogOut size={18} />
             <NavText>Logout</NavText>
           </NavItem>
         </BottomSection>
+
+        {/* Logout Confirmation Modal */}
+        {showLogoutConfirm && (
+          <ModalOverlay onClick={() => setShowLogoutConfirm(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <AlertIconWrapper>
+                <AlertCircle size={32} />
+              </AlertIconWrapper>
+              <ConfirmMessage>Are you sure you want to logout?</ConfirmMessage>
+              <ModalActionFooter>
+                <ModalButton
+                  className="outline"
+                  onClick={() => setShowLogoutConfirm(false)}
+                >
+                  Cancel
+                </ModalButton>
+                <ModalButton
+                  className="primary"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </ModalButton>
+              </ModalActionFooter>
+            </ModalContent>
+          </ModalOverlay>
+        )}
       </SidebarContainer>
     </ThemeProvider>
   );

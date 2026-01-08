@@ -326,7 +326,7 @@ const AdminList = () => {
 
   const fetchAdmins = async () => {
     try {
-      const response = await axiosData.get('/users?type=admin');
+      const response = await axiosData.get('users?type=admin');
       setAdmins(response.data.data);
     } catch (error) {
       console.error('Error fetching admins:', error);

@@ -5,10 +5,12 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 const LegendContainer = styled.div`
   display: flex;
   justify-content: center;
-  gap: 15px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
   margin-top: 20px;
-  padding: 0 10px;
+  padding: 0 5px;
+  align-items: flex-start;
+  overflow: hidden;
 `;
 
 const LegendItem = styled.div`
@@ -16,6 +18,9 @@ const LegendItem = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  min-width: 60px;
+  max-width: 80px;
+  flex: 0 0 auto;
 `;
 
 const LegendDot = styled.div`
@@ -27,23 +32,28 @@ const LegendDot = styled.div`
 `;
 
 const LegendValue = styled.div`
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: ${props => props.$dark ? '#FFFFFF' : '#1A1A1A'};
 `;
 
 const LegendLabel = styled.div`
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 500;
-  color: ${props => props.$dark ? '#7A7A7A' : '#666'};
+  color: ${props => props.$dark ? '#B0B0B0' : '#666'};
   text-transform: capitalize;
+  max-width: 70px;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
 `;
 
 const DonutActivity = ({ data, dark = false }) => {
     const chartData = React.useMemo(() => {
         if (!data) return [];
         const total = Object.values(data).reduce((a, b) => a + b, 0);
-        const colors = ['#EFEBFA', '#E6F5EC', '#FFFAE8', '#E3F2FD', '#FDF1E9', '#F0F0F0'];
+        const colors = ['#8B5CF6', '#10B981', '#F59E0B', '#3B82F6', '#F97316', '#EC4899'];
 
         return Object.entries(data).map(([name, value], index) => ({
             name,

@@ -18,7 +18,10 @@ import {
     ChevronRight,
     X,
     ArrowUpRight,
-    ArrowDownRight
+    ArrowDownRight,
+    AlertCircle,
+    CheckCircle,
+    XCircle
 } from 'react-feather';
 // import Card from '../Components/Card'; // Unused
 import useAxios from '../../useAxios';
@@ -49,7 +52,7 @@ const HeaderInfo = styled.div`
   }
   p {
     margin: 4px 0 0 0;
-    color: #666;
+    color: #555;
     font-size: 14px;
   }
 `;
@@ -72,9 +75,9 @@ const Button = styled.button`
   cursor: pointer;
   border: none;
 
-  background: ${props => props.$variant === 'primary' ? '#1A1A1A' :
-        props.$variant === 'success' ? '#25D366' : '#F5F5F5'};
-  color: ${props => props.$variant === 'primary' || props.$variant === 'success' ? '#FFF' : '#1A1A1A'};
+  background: ${props => props.$variant === 'primary' ? '#0F0F0F' :
+        props.$variant === 'success' ? '#20BD5A' : '#E5E5E5'};
+  color: ${props => props.$variant === 'primary' || props.$variant === 'success' ? '#FFF' : '#0F0F0F'};
 
   &:hover {
     transform: translateY(-2px);
@@ -155,7 +158,7 @@ const KPIMain = styled.div``;
 const KPIValue = styled.div`
   font-size: 32px;
   font-weight: 700;
-  color: #1A1A1A;
+  color: #0F0F0F;
   margin-bottom: 8px;
 `;
 
@@ -212,7 +215,7 @@ const SearchBox = styled.div`
     width: 100%;
     padding: 10px 16px 10px 40px;
     border-radius: 12px;
-    border: 1px solid #EEE;
+    border: 1px solid #D0D0D0;
     font-size: 14px;
     outline: none;
     transition: all 0.2s;
@@ -227,7 +230,7 @@ const SearchBox = styled.div`
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #999;
+    color: #777;
   }
 `;
 
@@ -254,7 +257,7 @@ const DropdownBtn = styled.button`
   cursor: pointer;
 
   &:hover {
-    background: #FAFAFA;
+    background: #E8E8E8;
   }
 `;
 
@@ -266,7 +269,7 @@ const highlightAnimation = keyframes`
 
 const HighlightedText = styled.span`
   background: #ffd54f;
-  color: #1A1A1A;
+  color: #0F0F0F;
   font-weight: 700;
   border-radius: 2px;
   padding: 0 2px;
@@ -379,7 +382,7 @@ const TemplateTitle = styled.div`
     margin: 0;
     font-size: 16px;
     font-weight: 700;
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 `;
 
@@ -405,7 +408,7 @@ const UsageStats = styled.div`
 const StatItem = styled.div`
   .label {
     font-size: 11px;
-    color: #999;
+    color: #777;
     font-weight: 600;
     text-transform: uppercase;
     margin-bottom: 2px;
@@ -413,7 +416,7 @@ const StatItem = styled.div`
   .value {
     font-size: 14px;
     font-weight: 700;
-    color: #333;
+    color: #222;
   }
 `;
 
@@ -451,7 +454,7 @@ const BulkBar = styled.div`
   bottom: 40px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1A1A1A;
+  background: #0F0F0F;
   padding: 12px 24px;
   border-radius: 20px;
   display: flex;
@@ -518,7 +521,7 @@ const FormGroup = styled.div`
     width: 100%;
     padding: 12px 16px;
     border-radius: 12px;
-    border: 1px solid #EEE;
+    border: 1px solid #D0D0D0;
     font-size: 14px;
     outline: none;
 
@@ -534,9 +537,190 @@ const FormRow = styled.div`
   gap: 16px;
 `;
 
+const AlertModalOverlay = styled(ModalOverlay)`
+  z-index: 3000;
+`;
+
+const AlertModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ConfirmModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
+// Image Modal Styles
+const ImageModalOverlay = styled(ModalOverlay)`
+  //background: rgba(0, 0, 0, 0.95);
+  z-index: 4000;
+  cursor: pointer;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+`;
+
+const ImageModalContent = styled.div`
+  position: relative;
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  cursor: default;
+`;
+
+const FullImage = styled.img`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+`;
+
+const ImageNavButton = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.3s ease;
+  z-index: 10;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  ${props => props.$left && 'left: 20px;'}
+  ${props => props.$right && 'right: 20px;'}
+`;
+
+const ImageCloseButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.3s ease;
+  z-index: 10;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+  }
+`;
+
+const ImageCounter = styled.div`
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 10;
+`;
+
+const ImageDots = styled.div`
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+`;
+
+const ImageDot = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.4)'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.7)'};
+    transform: scale(1.2);
+  }
+`;
+
 // --- Sub-components ---
 
-const TemplateCarousel = ({ photos, name }) => {
+const TemplateCarousel = ({ photos, name, onImageClick }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const handleNext = (e) => {
@@ -554,10 +738,17 @@ const TemplateCarousel = ({ photos, name }) => {
         setCurrentIndex(index);
     };
 
+    const handleImageClick = (e) => {
+        e.stopPropagation();
+        if (onImageClick && photos && photos.length > 0) {
+            onImageClick(photos, currentIndex);
+        }
+    };
+
     if (!photos || photos.length === 0) {
         return (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-                <span style={{ color: '#999', fontSize: '12px' }}>No Image</span>
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E5E5E5' }}>
+                <span style={{ color: '#777', fontSize: '12px' }}>No Image</span>
             </div>
         );
     }
@@ -570,7 +761,8 @@ const TemplateCarousel = ({ photos, name }) => {
                 key={currentIndex}
                 src={currentPhotoUrl}
                 alt={`${name} - ${currentIndex + 1}`}
-                style={{ maxWidth: '90%', maxHeight: '75%', objectFit: 'contain' }}
+                style={{ maxWidth: '90%', maxHeight: '75%', objectFit: 'contain', cursor: 'pointer' }}
+                onClick={handleImageClick}
             />
 
             {photos.length > 1 && (
@@ -615,7 +807,7 @@ const TemplateCarousel = ({ photos, name }) => {
                                 onClick={(e) => handleDotClick(e, idx)}
                                 style={{
                                     width: '8px', height: '8px', borderRadius: '50%',
-                                    background: idx === currentIndex ? '#1A1A1A' : 'rgba(0,0,0,0.2)',
+                                    background: idx === currentIndex ? '#0F0F0F' : 'rgba(0,0,0,0.2)',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s'
                                 }}
@@ -654,9 +846,97 @@ const Templates = () => {
     const [templateCount, setTemplateCount] = useState(3);
     const [userAccess, setUserAccess] = useState([]);
     const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
+    
+    // Alert & Confirmation Modal States
+    const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+    const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+    
+    // Image Modal State
+    const [imageModal, setImageModal] = useState({ show: false, photos: [], currentIndex: 0 });
+    
+    // Helper Functions for Alerts and Confirmations
+    const showAlert = (message, type = 'info') => {
+        setAlertModal({ show: true, message, type });
+    };
+    
+    const showConfirm = (message, onConfirm) => {
+        setConfirmModal({ show: true, message, onConfirm });
+    };
+    
+    // Image Modal Handlers
+    const handleImageClick = (photos, initialIndex) => {
+        setImageModal({ show: true, photos, currentIndex: initialIndex });
+    };
+    
+    const handleCloseImageModal = () => {
+        setImageModal({ show: false, photos: [], currentIndex: 0 });
+    };
+    
+    const handleNextImage = (e) => {
+        if (e) e.stopPropagation();
+        setImageModal(prev => ({
+            ...prev,
+            currentIndex: (prev.currentIndex + 1) % prev.photos.length
+        }));
+    };
+    
+    const handlePrevImage = (e) => {
+        if (e) e.stopPropagation();
+        setImageModal(prev => ({
+            ...prev,
+            currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
+        }));
+    };
+    
+    const handleDotClick = (index) => {
+        setImageModal(prev => ({ ...prev, currentIndex: index }));
+    };
+    
+    // Keyboard navigation for image modal
+    useEffect(() => {
+        if (!imageModal.show) return;
+        
+        const handleKeyDown = (e) => {
+            if (e.key === 'ArrowRight') {
+                setImageModal(prev => ({
+                    ...prev,
+                    currentIndex: (prev.currentIndex + 1) % prev.photos.length
+                }));
+            } else if (e.key === 'ArrowLeft') {
+                setImageModal(prev => ({
+                    ...prev,
+                    currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
+                }));
+            } else if (e.key === 'Escape') {
+                setImageModal({ show: false, photos: [], currentIndex: 0 });
+            }
+        };
+        
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [imageModal.show, imageModal.photos.length]);
     const location = useLocation();
     const [highlightedId, setHighlightedId] = useState(null);
     const cardRefs = useRef({});
+    const [growthMetrics, setGrowthMetrics] = useState({
+        totalGrowth: 0,
+        activeGrowth: 0,
+        usageGrowth: 0,
+        avgUsageGrowth: 0
+    });
+
+    // Helper function to generate SVG trend path
+    const generateTrendPath = (growth) => {
+        const growthValue = parseFloat(growth) || 0;
+        const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+        const scaleFactor = normalizedGrowth / 50;
+        const startY = 35;
+        const endYOffset = -scaleFactor * 20;
+        const endY = startY + endYOffset;
+        const midY = startY + (endYOffset * 0.3);
+        const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+        return { points: path, endX: 85, endY: Math.round(endY) };
+    };
 
     const highlightText = (text, query) => {
         if (!query || !text) return text;
@@ -694,12 +974,50 @@ const Templates = () => {
 
     const handleFileChange = (index) => (e) => {
         const file = e.target.files[0];
-        const newPhotos = [...formData.photos];
-        newPhotos[index] = file;
-        setFormData({
-            ...formData,
-            photos: newPhotos
-        });
+        if (!file) return;
+
+        // Validate file type (PNG only)
+        if (file.type !== 'image/png') {
+            showAlert(`Photo ${index + 1}: Only PNG format is allowed. Please upload a PNG image.`, 'error');
+            e.target.value = ''; // Clear the input
+            return;
+        }
+
+        // Validate image dimensions (3000x4000)
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            
+            const width = img.width;
+            const height = img.height;
+            
+            if (width !== 3000 || height !== 4000) {
+                showAlert(
+                    `Photo ${index + 1}: Image dimensions must be exactly 3000x4000 pixels. Current size: ${width}x${height}px. Please upload an image with the correct dimensions.`,
+                    'error'
+                );
+                e.target.value = ''; // Clear the input
+                return;
+            }
+
+            // Validation passed - add file to form data
+            const newPhotos = [...formData.photos];
+            newPhotos[index] = file;
+            setFormData({
+                ...formData,
+                photos: newPhotos
+            });
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            showAlert(`Photo ${index + 1}: Failed to load image. Please try again.`, 'error');
+            e.target.value = ''; // Clear the input
+        };
+
+        img.src = objectUrl;
     };
 
     // Dynamic Template Names for filtering
@@ -749,6 +1067,55 @@ const Templates = () => {
             });
 
             setTemplates(templateList);
+
+            // Calculate growth metrics (compare last 30 days vs previous 30 days)
+            const now = new Date();
+            const last30Days = new Date(now);
+            last30Days.setDate(now.getDate() - 30);
+            const last60Days = new Date(now);
+            last60Days.setDate(now.getDate() - 60);
+
+            const recentPhotos = rawPhotos.filter(item => {
+                const date = new Date(item.date || item.createdAt);
+                return date >= last30Days && item.source === 'Photo Merge App';
+            });
+
+            const previousPhotos = rawPhotos.filter(item => {
+                const date = new Date(item.date || item.createdAt);
+                return date >= last60Days && date < last30Days && item.source === 'Photo Merge App';
+            });
+
+            const recentTemplateCount = new Set(recentPhotos.map(p => p.template_name || p.templatename || p.type)).size;
+            const previousTemplateCount = new Set(previousPhotos.map(p => p.template_name || p.templatename || p.type)).size;
+
+            const recentActiveTemplates = rawTemplates.filter(t => {
+                const updatedDate = new Date(t.updatedDate || t.createdDate);
+                return t.status === 'active' && updatedDate >= last30Days;
+            }).length;
+
+            const previousActiveTemplates = rawTemplates.filter(t => {
+                const updatedDate = new Date(t.updatedDate || t.createdDate);
+                return t.status === 'active' && updatedDate >= last60Days && updatedDate < last30Days;
+            }).length;
+
+            const recentUsage = recentPhotos.length;
+            const previousUsage = previousPhotos.length;
+
+            const recentAvgUsage = recentTemplateCount > 0 ? recentUsage / recentTemplateCount : 0;
+            const previousAvgUsage = previousTemplateCount > 0 ? previousUsage / previousTemplateCount : 0;
+
+            const calculateGrowth = (current, previous) => {
+                if (previous === 0) return current > 0 ? parseFloat(current.toFixed(1)) : 0;
+                return parseFloat(((current - previous) / previous * 100).toFixed(1));
+            };
+
+            setGrowthMetrics({
+                totalGrowth: calculateGrowth(templateList.length, templateList.length - recentTemplateCount + previousTemplateCount),
+                activeGrowth: calculateGrowth(recentActiveTemplates || templateList.filter(t => t.status === 'active').length, previousActiveTemplates || 1),
+                usageGrowth: calculateGrowth(recentUsage, previousUsage),
+                avgUsageGrowth: calculateGrowth(recentAvgUsage, previousAvgUsage)
+            });
+
             // setLoading(false);
         } catch (error) {
             console.error("Error fetching templates:", error);
@@ -828,17 +1195,18 @@ const Templates = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this template?")) return;
-        try {
-            await axiosData.delete(`/photomerge/templates/${id}`);
-            // Remove from local state
-            const newList = templates.filter(t => t.id !== id);
-            setTemplates(newList);
-            alert("Template deleted successfully");
-        } catch (error) {
-            console.error("Error deleting template", error);
-            alert("Failed to delete template");
-        }
+        showConfirm("Are you sure you want to delete this template?", async () => {
+            try {
+                await axiosData.delete(`/photomerge/templates/${id}`);
+                // Remove from local state
+                const newList = templates.filter(t => t.id !== id);
+                setTemplates(newList);
+                showAlert("Template deleted successfully", 'success');
+            } catch (error) {
+                console.error("Error deleting template", error);
+                showAlert("Failed to delete template", 'error');
+            }
+        });
     };
 
     const handleToggleStatus = async (id) => {
@@ -862,7 +1230,7 @@ const Templates = () => {
             setTemplates(newList);
         } catch (error) {
             console.error("Error updating status", error);
-            alert("Failed to update status");
+            showAlert("Failed to update status", 'error');
         }
     };
 
@@ -902,7 +1270,7 @@ const Templates = () => {
                 });
 
                 fetchData();
-                alert('Template updated successfully!');
+                showAlert('Template updated successfully!', 'success');
 
             } else {
                 const uploadData = new FormData();
@@ -926,12 +1294,12 @@ const Templates = () => {
                 });
 
                 fetchData();
-                alert('Template created successfully!');
+                showAlert('Template created successfully!', 'success');
             }
             setShowModal(false);
         } catch (error) {
             console.error('Error saving template:', error);
-            alert('Failed to save template: ' + (error.response?.data?.error || error.message));
+            showAlert('Failed to save template: ' + (error.response?.data?.error || error.message), 'error');
         }
     };
 
@@ -958,54 +1326,59 @@ const Templates = () => {
         return matchesSearch && matchesCategory && matchesStatus;
     });
 
+    const totalTrend = generateTrendPath(growthMetrics.totalGrowth);
+    const activeTrend = generateTrendPath(growthMetrics.activeGrowth);
+    const usageTrend = generateTrendPath(growthMetrics.usageGrowth);
+    const avgUsageTrend = generateTrendPath(growthMetrics.avgUsageGrowth);
+
     const kpis = [
         {
             label: 'Total Templates',
             value: templates.length,
             icon: <Layers size={21} />,
-            color: '#FFF5EB',
-            text: '#D97706',
-            trend: '+12.5%',
-            isUp: true,
-            points: "M 10 40 Q 30 35, 50 38 T 90 25",
-            endX: 90,
-            endY: 25
+            color: '#FEF3C7',
+            text: '#F59E0B',
+            trend: `${growthMetrics.totalGrowth >= 0 ? '+' : ''}${growthMetrics.totalGrowth}%`,
+            isUp: growthMetrics.totalGrowth >= 0,
+            points: totalTrend.points,
+            endX: totalTrend.endX,
+            endY: totalTrend.endY
         },
         {
             label: 'Active Templates',
             value: templates.filter(t => t.status === 'active').length,
             icon: <Activity size={21} />,
-            color: '#EEF6E8',
-            text: '#4CAF50',
-            trend: '+23.1%',
-            isUp: true,
-            points: "M 10 42 Q 30 40, 50 25 T 90 15",
-            endX: 90,
-            endY: 15
+            color: '#D1FAE5',
+            text: '#10B981',
+            trend: `${growthMetrics.activeGrowth >= 0 ? '+' : ''}${growthMetrics.activeGrowth}%`,
+            isUp: growthMetrics.activeGrowth >= 0,
+            points: activeTrend.points,
+            endX: activeTrend.endX,
+            endY: activeTrend.endY
         },
         {
             label: 'Total Usage',
             value: templates.reduce((acc, curr) => acc + curr.usage, 0).toLocaleString(),
             icon: <BarChart2 size={21} />,
-            color: '#E8F0FE',
-            text: '#2196F3',
-            trend: '+8.2%',
-            isUp: true,
-            points: "M 10 45 Q 40 45, 60 35 T 90 32",
-            endX: 90,
-            endY: 32
+            color: '#DBEAFE',
+            text: '#3B82F6',
+            trend: `${growthMetrics.usageGrowth >= 0 ? '+' : ''}${growthMetrics.usageGrowth}%`,
+            isUp: growthMetrics.usageGrowth >= 0,
+            points: usageTrend.points,
+            endX: usageTrend.endX,
+            endY: usageTrend.endY
         },
         {
             label: 'Avg Usage',
             value: templates.length > 0 ? (templates.reduce((acc, curr) => acc + curr.usage, 0) / templates.length).toFixed(0) : 0,
             icon: <Activity size={21} />,
-            color: '#F4E6F0',
-            text: '#9C27B0',
-            trend: '+2.1%',
-            isUp: true,
-            points: "M 10 45 Q 40 45, 70 35 T 90 28",
-            endX: 90,
-            endY: 28
+            color: '#E8D5E0',
+            text: '#7A1B95',
+            trend: `${growthMetrics.avgUsageGrowth >= 0 ? '+' : ''}${growthMetrics.avgUsageGrowth}%`,
+            isUp: growthMetrics.avgUsageGrowth >= 0,
+            points: avgUsageTrend.points,
+            endX: avgUsageTrend.endX,
+            endY: avgUsageTrend.endY
         },
     ];
 
@@ -1037,7 +1410,7 @@ const Templates = () => {
                         <KPIContent>
                             <KPIMain>
                                 <KPIValue>{kpi.value}</KPIValue>
-                                <TrendIndicator $color={kpi.isUp ? '#4CAF50' : '#E53935'}>
+                                <TrendIndicator $color={kpi.isUp ? '#10B981' : '#EF4444'}>
                                     {kpi.isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                                     {kpi.trend}
                                 </TrendIndicator>
@@ -1086,7 +1459,7 @@ const Templates = () => {
                                         onClick={() => { setSelectedCategory(c); setShowCategoryDropdown(false); }}
                                         style={{
                                             padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
-                                            fontSize: '14px', background: selectedCategory === c ? '#F5F5F5' : 'transparent',
+                                            fontSize: '14px', background: selectedCategory === c ? '#E5E5E5' : 'transparent',
                                             fontWeight: selectedCategory === c ? 600 : 400
                                         }}
                                     >
@@ -1183,7 +1556,7 @@ const Templates = () => {
                         $highlighted={tmpl.id === highlightedId}
                     >
                         <TemplatePreview $active={tmpl.status === 'active'} onClick={() => handleEdit(tmpl)}>
-                            <TemplateCarousel photos={tmpl.photos} name={tmpl.name} />
+                            <TemplateCarousel photos={tmpl.photos} name={tmpl.name} onImageClick={handleImageClick} />
                             <div className="status-badge">{tmpl.status.toUpperCase()}</div>
                             <SelectionCircle
                                 $selected={selectedIds.includes(tmpl.id)}
@@ -1300,18 +1673,24 @@ const Templates = () => {
                                 </FormRow>
                                 <FormGroup>
                                     <label>Template Photos ({templateCount} Required)</label>
+                                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
+                                        <strong>Requirements:</strong> PNG format only, dimensions must be exactly 3000x4000 pixels
+                                    </div>
                                     <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>
                                         {[...Array(templateCount)].map((_, index) => (
                                             <div key={index}>
-                                                <label style={{ fontSize: '12px', marginBottom: '4px' }}>
+                                                <label style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>
                                                     Photo {index + 1}
                                                     {typeof formData.photos[index] === 'string' && <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>}
+                                                    {formData.photos[index] && typeof formData.photos[index] !== 'string' && (
+                                                        <span style={{ color: '#25D366', marginLeft: '5px' }}>✓</span>
+                                                    )}
                                                 </label>
                                                 <input
-                                                    accept="image/*"
+                                                    accept="image/png"
                                                     type="file"
                                                     onChange={handleFileChange(index)}
-                                                    style={{ padding: '8px' }}
+                                                    style={{ padding: '8px', width: '100%' }}
                                                 />
                                             </div>
                                         ))}
@@ -1330,7 +1709,116 @@ const Templates = () => {
                     </ModalOverlay>
                 )
             }
-        </PageContainer >
+
+            {/* Alert Modal */}
+            {alertModal.show && (
+                <AlertModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+                    <AlertModalContent onClick={e => e.stopPropagation()}>
+                        <AlertIconWrapper $type={alertModal.type}>
+                            {alertModal.type === 'success' ? (
+                                <CheckCircle size={32} />
+                            ) : alertModal.type === 'error' ? (
+                                <XCircle size={32} />
+                            ) : (
+                                <AlertCircle size={32} />
+                            )}
+                        </AlertIconWrapper>
+                        <AlertMessage>{alertModal.message}</AlertMessage>
+                        <ModalActionFooter>
+                            <Button
+                                $variant="primary"
+                                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+                            >
+                                OK
+                            </Button>
+                        </ModalActionFooter>
+                    </AlertModalContent>
+                </AlertModalOverlay>
+            )}
+
+            {/* Confirmation Modal */}
+            {confirmModal.show && (
+                <AlertModalOverlay onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>
+                    <ConfirmModalContent onClick={e => e.stopPropagation()}>
+                        <AlertIconWrapper $type="info">
+                            <AlertCircle size={32} />
+                        </AlertIconWrapper>
+                        <ConfirmMessage>{confirmModal.message}</ConfirmMessage>
+                        <ModalActionFooter>
+                            <Button
+                                onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                $variant="primary"
+                                onClick={() => {
+                                    if (confirmModal.onConfirm) {
+                                        confirmModal.onConfirm();
+                                    }
+                                    setConfirmModal({ show: false, message: '', onConfirm: null });
+                                }}
+                            >
+                                Confirm
+                            </Button>
+                        </ModalActionFooter>
+                    </ConfirmModalContent>
+                </AlertModalOverlay>
+            )}
+
+            {/* Image Modal */}
+            {imageModal.show && imageModal.photos.length > 0 && (
+                <ImageModalOverlay onClick={handleCloseImageModal}>
+                    <ImageModalContent onClick={e => e.stopPropagation()}>
+                        <ImageCloseButton onClick={handleCloseImageModal}>
+                            <X size={20} />
+                        </ImageCloseButton>
+                        
+                        {imageModal.photos.length > 1 && (
+                            <ImageNavButton 
+                                $left 
+                                onClick={handlePrevImage}
+                                disabled={imageModal.photos.length <= 1}
+                            >
+                                <ChevronLeft size={24} />
+                            </ImageNavButton>
+                        )}
+                        
+                        <FullImage
+                            src={`https://api.bilimbebrandactivations.com/api/upload/file/${imageModal.photos[imageModal.currentIndex]}`}
+                            alt={`Template image ${imageModal.currentIndex + 1}`}
+                        />
+                        
+                        {imageModal.photos.length > 1 && (
+                            <ImageNavButton 
+                                $right 
+                                onClick={handleNextImage}
+                                disabled={imageModal.photos.length <= 1}
+                            >
+                                <ChevronRight size={24} />
+                            </ImageNavButton>
+                        )}
+                        
+                        {imageModal.photos.length > 1 && (
+                            <>
+                                <ImageCounter>
+                                    {imageModal.currentIndex + 1} / {imageModal.photos.length}
+                                </ImageCounter>
+                                <ImageDots>
+                                    {imageModal.photos.map((_, index) => (
+                                        <ImageDot
+                                            key={index}
+                                            $active={index === imageModal.currentIndex}
+                                            onClick={() => handleDotClick(index)}
+                                        />
+                                    ))}
+                                </ImageDots>
+                            </>
+                        )}
+                    </ImageModalContent>
+                </ImageModalOverlay>
+            )}
+        </PageContainer>
     );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Menu, User, LogOut, Settings } from 'react-feather';
+import { Menu, User, LogOut, Settings, AlertCircle } from 'react-feather';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../../PremiumAdmin/theme';
 
@@ -136,9 +136,87 @@ const DropdownItem = styled.button`
   }
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(5px);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  width: 100%;
+  max-width: 450px;
+  padding: 32px;
+  border-radius: 32px;
+  position: relative;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #F59E0B20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: #F59E0B;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #1A1A1A;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
+const ModalButton = styled.button`
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  
+  &.outline {
+    background: #F3F4F6;
+    color: #374151;
+    &:hover {
+      background: #E5E7EB;
+    }
+  }
+  
+  &.primary {
+    background: #1A1A1A;
+    color: white;
+    &:hover {
+      background: #000;
+      transform: translateY(-1px);
+    }
+  }
+`;
+
 const Header = ({ drawerWidth, handleDrawerToggle }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const admin = JSON.parse(localStorage.getItem('user') || '{}'); // Accessing user from localStorage (CreateAdmin saves as 'user' usually?)
   // Actually Sidebar used 'user', previous Header used 'admin'. 
   // Typically login saves to 'token' and 'user'. Let's check Login.js if needed, but 'user' and 'admin' separation might be legacy. 
@@ -170,14 +248,46 @@ const Header = ({ drawerWidth, handleDrawerToggle }) => {
         </UserAvatar>
 
         <DropdownMenu $isOpen={menuOpen}>
-          <DropdownItem onClick={() => navigate('/superadmin/settings')}>
+          <DropdownItem onClick={() => {
+            setMenuOpen(false);
+            navigate('/superadmin/settings');
+          }}>
             <Settings size={16} /> Settings
           </DropdownItem>
-          <DropdownItem className="logout" onClick={handleLogout}>
+          <DropdownItem className="logout" onClick={() => {
+            setMenuOpen(false);
+            setShowLogoutConfirm(true);
+          }}>
             <LogOut size={16} /> Logout
           </DropdownItem>
         </DropdownMenu>
       </UserSection>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <ModalOverlay onClick={() => setShowLogoutConfirm(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper>
+              <AlertCircle size={32} />
+            </AlertIconWrapper>
+            <ConfirmMessage>Are you sure you want to logout?</ConfirmMessage>
+            <ModalActionFooter>
+              <ModalButton
+                className="outline"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </ModalButton>
+              <ModalButton
+                className="primary"
+                onClick={handleLogout}
+              >
+                Logout
+              </ModalButton>
+            </ModalActionFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </HeaderContainer>
   );
 };

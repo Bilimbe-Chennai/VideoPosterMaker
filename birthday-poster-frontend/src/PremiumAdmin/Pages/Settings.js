@@ -15,9 +15,12 @@ import {
     Smartphone,
     MessageSquare,
     Clock,
-    HardDrive
+    HardDrive,
+    CheckCircle,
+    XCircle
 } from 'react-feather';
 import Card from '../Components/Card';
+import useAxios from '../../useAxios';
 
 // --- Styled Components ---
 
@@ -279,7 +282,7 @@ const AuditInfo = styled.div`
   gap: 6px;
 `;
 
-// --- Mock Initial Settings ---
+// --- Default Settings Shape (fallback) ---
 
 const DEFAULT_SETTINGS = {
     general: {
@@ -324,36 +327,132 @@ const DEFAULT_SETTINGS = {
     }
 };
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(5px);
+`;
+
+const AlertModalContent = styled.div`
+  background: white;
+  width: 100%;
+  max-width: 450px;
+  padding: 32px;
+  border-radius: 32px;
+  position: relative;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #1A1A1A;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
 const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState('General');
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [saving, setSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const axiosData = useAxios();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    // Alert Modal State
+    const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+    
+    // Helper Functions for Alerts
+    const showAlert = (message, type = 'info') => {
+        setAlertModal({ show: true, message, type });
+    };
 
     useEffect(() => {
-        const saved = localStorage.getItem('admin_settings');
-        if (saved) {
-            setSettings(JSON.parse(saved));
-        }
-    }, []);
-
-    const handleSave = () => {
-        setSaving(true);
-        // Simulate API delay
-        setTimeout(() => {
-            const updated = {
-                ...settings,
-                audit: {
-                    lastUpdated: new Date().toLocaleString(),
-                    updatedBy: 'Admin User'
+        const fetchSettings = async () => {
+            try {
+                setLoading(true);
+                const adminid = user._id || user.id;
+                if (!adminid) {
+                    setSettings(DEFAULT_SETTINGS);
+                    return;
                 }
-            };
-            setSettings(updated);
-            localStorage.setItem('admin_settings', JSON.stringify(updated));
+                const res = await axiosData.get(`users/premium-settings?adminid=${adminid}`);
+                if (res.data?.success && res.data?.settings) {
+                    setSettings(res.data.settings);
+                } else {
+                    setSettings(DEFAULT_SETTINGS);
+                }
+            } catch (e) {
+                console.error('Error fetching settings:', e);
+                setSettings(DEFAULT_SETTINGS);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSettings();
+    }, [axiosData, user._id, user.id]);
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            const adminid = user._id || user.id;
+            if (!adminid) {
+                showAlert('Admin not found. Please login again.', 'error');
+                return;
+            }
+            const updatedBy = user.name || user.email || 'Admin User';
+            const res = await axiosData.put(`users/premium-settings?adminid=${adminid}`, {
+                settings,
+                updatedBy
+            });
+            if (res.data?.success && res.data?.settings) {
+                setSettings(res.data.settings);
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 3000);
+            } else {
+                throw new Error('Failed to save settings');
+            }
+        } catch (e) {
+            console.error('Error saving settings:', e);
+            showAlert('Failed to save settings. Please try again.', 'error');
+        } finally {
             setSaving(false);
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
-        }, 1200);
+        }
     };
 
     const updateSetting = (category, key, value) => {
@@ -395,6 +494,12 @@ const SettingsPage = () => {
                 </SettingsNav>
 
                 <SettingsContent>
+                    {loading ? (
+                        <div style={{ padding: '24px', fontWeight: 700, color: '#666' }}>
+                            Loading settings...
+                        </div>
+                    ) : (
+                    <>
                     {activeTab === 'General' && (
                         <div>
                             <SectionTitle><Globe size={20} /> General Settings</SectionTitle>
@@ -656,8 +761,34 @@ const SettingsPage = () => {
                             </SaveButton>
                         </div>
                     </FooterBar>
+                    </>
+                    )}
                 </SettingsContent>
             </ContentLayout>
+            {/* Alert Modal */}
+            {alertModal.show && (
+                <ModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+                    <AlertModalContent onClick={e => e.stopPropagation()}>
+                        <AlertIconWrapper $type={alertModal.type}>
+                            {alertModal.type === 'success' ? (
+                                <CheckCircle size={32} />
+                            ) : alertModal.type === 'error' ? (
+                                <XCircle size={32} />
+                            ) : (
+                                <AlertCircle size={32} />
+                            )}
+                        </AlertIconWrapper>
+                        <AlertMessage>{alertModal.message}</AlertMessage>
+                        <ModalActionFooter>
+                            <SaveButton
+                                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+                            >
+                                OK
+                            </SaveButton>
+                        </ModalActionFooter>
+                    </AlertModalContent>
+                </ModalOverlay>
+            )}
         </PageContainer>
     );
 };

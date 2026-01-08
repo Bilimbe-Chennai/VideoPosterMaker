@@ -259,15 +259,29 @@ const NotificationPanel = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Get user-specific localStorage key
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
+  
   const [readIds, setReadIds] = useState(() => {
-    const saved = localStorage.getItem('readNotificationIds');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Error reading readNotificationIds from localStorage:', e);
+      return [];
+    }
   });
 
   // Sync readIds to localStorage
   useEffect(() => {
-    localStorage.setItem('readNotificationIds', JSON.stringify(readIds));
-  }, [readIds]);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(readIds));
+    } catch (e) {
+      console.error('Error saving readNotificationIds to localStorage:', e);
+    }
+  }, [readIds, storageKey]);
 
   // Helper function to get relative time
   const getRelativeTime = (dateString) => {
@@ -287,13 +301,106 @@ const NotificationPanel = ({ isOpen, onClose }) => {
     return date.toLocaleDateString();
   };
 
+  // Listen for storage changes from other tabs/windows
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === storageKey) {
+        let newReadIds = [];
+        try {
+          newReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (err) {
+          console.error('Error reading readNotificationIds from localStorage:', err);
+        }
+        setReadIds(newReadIds);
+        // Refresh notifications to update read status
+        if (isOpen) {
+          const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+          Promise.all([
+            axiosData.get(`/photomerge/templates?adminid=${currentUser._id || currentUser.id}`),
+            axiosData.get(`/upload/all?adminid=${currentUser._id || currentUser.id}`)
+          ]).then(([templatesRes, photosRes]) => {
+            const generatedNotifications = [];
+            let currentReadIds = [];
+            try {
+              currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            } catch (err) {
+              console.error('Error reading readNotificationIds from localStorage:', err);
+            }
+
+            // Templates
+            (templatesRes.data || []).sort((a, b) => {
+              const timeA = Math.max(new Date(a.createdAt || a.createdDate).getTime(), new Date(a.updatedDate).getTime());
+              const timeB = Math.max(new Date(b.createdAt || b.createdDate).getTime(), new Date(b.updatedDate).getTime());
+              return timeB - timeA;
+            }).forEach(template => {
+              const createdAt = template.createdAt || template.createdDate;
+              const createdTime = new Date(createdAt).getTime();
+              const updatedTime = new Date(template.updatedDate).getTime();
+              const isUpdate = updatedTime > createdTime;
+              const notificationId = `template-${template._id}`;
+              generatedNotifications.push({
+                id: notificationId,
+                type: 'success',
+                title: isUpdate ? 'Template Updated' : 'New Template Added',
+                message: `Template "${template.templatename}" has been ${isUpdate ? 'updated' : 'successfully uploaded'}.`,
+                time: getRelativeTime(isUpdate ? template.updatedDate : createdAt),
+                isRead: currentReadIds.includes(notificationId),
+                data: template
+              });
+            });
+
+            // Photos
+            (photosRes.data || []).filter(item => item.source === 'Photo Merge App')
+              .sort((a, b) => {
+                const timeA = Math.max(new Date(a.createdAt || a.date).getTime(), new Date(a.updatedAt || a.date).getTime());
+                const timeB = Math.max(new Date(b.createdAt || b.date).getTime(), new Date(b.updatedAt || b.date).getTime());
+                return timeB - timeA;
+              }).forEach(photo => {
+                const createdAt = photo.createdAt || photo.date;
+                const updatedAt = photo.updatedAt || photo.date;
+                const createdTime = new Date(createdAt).getTime();
+                const updatedTime = new Date(updatedAt).getTime();
+                const isUpdate = updatedTime > createdTime;
+                const notificationId = `photo-${photo._id}`;
+                generatedNotifications.push({
+                  id: notificationId,
+                  type: 'info',
+                  title: isUpdate ? 'Photo Merge Updated' : 'Photo Merge Completed',
+                  message: `Photo merge for "${photo.name || 'customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
+                  time: getRelativeTime(isUpdate ? updatedAt : createdAt),
+                  isRead: currentReadIds.includes(notificationId),
+                  data: photo
+                });
+              });
+
+            setNotifications(generatedNotifications);
+          }).catch(err => console.error('Error refreshing notifications:', err));
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('notificationStateChange', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('notificationStateChange', handleStorageChange);
+    };
+  }, [isOpen, axiosData, storageKey]);
+
   // Generate notifications from real data
   useEffect(() => {
     const fetchNotifications = async () => {
       if (!isOpen && notifications.length > 0) return;
 
       setLoading(true);
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      // Always read from localStorage to get the latest readIds
+      let currentReadIds = [];
+      try {
+        currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      } catch (e) {
+        console.error('Error reading readNotificationIds from localStorage:', e);
+        currentReadIds = [];
+      }
+      
       try {
         const [templatesRes, photosRes] = await Promise.all([
           axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
@@ -315,14 +422,15 @@ const NotificationPanel = ({ isOpen, onClose }) => {
           const createdTime = new Date(createdAt).getTime();
           const updatedTime = new Date(template.updatedDate).getTime();
           const isUpdate = updatedTime > createdTime;
+          const notificationId = `template-${template._id}`;
 
           generatedNotifications.push({
-            id: `template-${template._id}`,
+            id: notificationId,
             type: 'success',
             title: isUpdate ? 'Template Updated' : 'New Template Added',
             message: `Template "${template.templatename}" has been ${isUpdate ? 'updated' : 'successfully uploaded'}.`,
             time: getRelativeTime(isUpdate ? template.updatedDate : createdAt),
-            isRead: readIds.includes(`template-${template._id}`),
+            isRead: currentReadIds.includes(notificationId),
             data: template
           });
         });
@@ -342,14 +450,15 @@ const NotificationPanel = ({ isOpen, onClose }) => {
           const createdTime = new Date(createdAt).getTime();
           const updatedTime = new Date(updatedAt).getTime();
           const isUpdate = updatedTime > createdTime;
+          const notificationId = `photo-${photo._id}`;
 
           generatedNotifications.push({
-            id: `photo-${photo._id}`,
+            id: notificationId,
             type: 'info',
             title: isUpdate ? 'Photo Merge Updated' : 'Photo Merge Completed',
             message: `Photo merge for "${photo.name || 'customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
             time: getRelativeTime(isUpdate ? updatedAt : createdAt),
-            isRead: readIds.includes(`photo-${photo._id}`),
+            isRead: currentReadIds.includes(notificationId),
             data: photo
           });
         });
@@ -367,7 +476,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
     if (isOpen) {
       fetchNotifications();
     }
-  }, [isOpen, axiosData]);
+  }, [isOpen, axiosData, readIds, storageKey]);
 
   const getIconByType = (type) => {
     switch (type) {
@@ -386,15 +495,28 @@ const NotificationPanel = ({ isOpen, onClose }) => {
 
   const handleMarkAsRead = (id, e) => {
     if (e) e.stopPropagation();
-    if (!readIds.includes(id)) {
-      const newReadIds = [...readIds, id];
-      setReadIds(newReadIds);
-      localStorage.setItem('readNotificationIds', JSON.stringify(newReadIds));
-      window.dispatchEvent(new Event('notificationStateChange'));
+    // Always read from localStorage to ensure we have the latest state
+    let currentReadIds = [];
+    try {
+      currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    } catch (e) {
+      console.error('Error reading readNotificationIds from localStorage:', e);
+      currentReadIds = [];
     }
-    setNotifications(notifications.map(notif =>
-      notif.id === id ? { ...notif, isRead: true } : notif
-    ));
+    if (!currentReadIds.includes(id)) {
+      const newReadIds = [...currentReadIds, id];
+      setReadIds(newReadIds);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newReadIds));
+      } catch (e) {
+        console.error('Error saving readNotificationIds to localStorage:', e);
+      }
+      window.dispatchEvent(new Event('notificationStateChange'));
+      // Update local state immediately
+      setNotifications(prev => prev.map(notif =>
+        notif.id === id ? { ...notif, isRead: true } : notif
+      ));
+    }
   };
 
   const handleDelete = (id, e) => {

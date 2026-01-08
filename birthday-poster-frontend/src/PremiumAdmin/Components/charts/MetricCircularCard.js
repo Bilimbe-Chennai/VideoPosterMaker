@@ -47,6 +47,7 @@ const Label = styled.div`
 
 const LowerSection = styled.div`
   display: flex;
+  gap: 24px;
   justify-content: space-between;
   align-items: flex-end;
 `;

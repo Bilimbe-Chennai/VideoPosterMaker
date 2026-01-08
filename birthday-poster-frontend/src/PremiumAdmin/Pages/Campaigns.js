@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   Plus,
@@ -23,10 +23,12 @@ import {
   BarChart2,
   Share2,
   Users,
-  MessageCircle
+  MessageCircle,
+  Loader
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
+import useAxios from '../../useAxios';
 
 // --- Styled Components ---
 
@@ -292,64 +294,169 @@ const IconButton = styled.button`
   }
 `;
 
-// --- Mock Data ---
-
-const INITIAL_CAMPAIGNS = [
-  {
-    id: 'CMP-001',
-    name: 'Winter Festive Sale',
-    description: 'Special 30% discount on silk sarees',
-    type: 'WhatsApp',
-    status: 'Active',
-    startDate: '2026-01-01',
-    endDate: '2026-01-10',
-    sent: 1250,
-    delivered: 1180,
-    clicks: 450,
-  },
-  {
-    id: 'CMP-002',
-    name: 'New Year Collection Launch',
-    description: 'Exclusive preview of 2026 collection',
-    type: 'Email',
-    status: 'Completed',
-    startDate: '2025-12-25',
-    endDate: '2025-12-31',
-    sent: 5000,
-    delivered: 4850,
-    clicks: 920,
-  },
-  {
-    id: 'CMP-003',
-    name: 'Weekend Store Visit SMS',
-    description: 'Visit our flagship store this weekend',
-    type: 'SMS',
-    status: 'Scheduled',
-    startDate: '2026-01-07',
-    endDate: '2026-01-08',
-    sent: 0,
-    delivered: 0,
-    clicks: 0,
-  },
-  {
-    id: 'CMP-004',
-    name: 'Flash Sale Reminder',
-    description: 'Only 2 hours left for the sale!',
-    type: 'Push Notification',
-    status: 'Failed',
-    startDate: '2026-01-03',
-    endDate: '2026-01-03',
-    sent: 800,
-    delivered: 650,
-    clicks: 210,
-  }
-];
-
 const Campaigns = () => {
-  const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
+  const axiosData = useAxios();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [campaigns, setCampaigns] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All Channels');
   const [filterStatus, setFilterStatus] = useState('All Status');
+  const [loading, setLoading] = useState(true);
+  const [growthMetrics, setGrowthMetrics] = useState({
+    activeGrowth: 0,
+    completedGrowth: 0,
+    sentGrowth: 0,
+    deliveryGrowth: 0
+  });
+
+  // Helper function to generate SVG trend path
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50;
+    const startY = 35;
+    const endYOffset = -scaleFactor * 20;
+    const endY = startY + endYOffset;
+    const midY = startY + (endYOffset * 0.3);
+    const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+    return { points: path, endX: 85, endY: Math.round(endY) };
+  };
+
+  // Fetch campaign data from API (derived from share activities)
+  useEffect(() => {
+    const fetchCampaignData = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+
+        // Group by template/campaign type
+        const campaignMap = {};
+        
+        rawItems.forEach(item => {
+          const templateName = item.template_name || item.templatename || item.type || 'General Campaign';
+          
+          if (!campaignMap[templateName]) {
+            campaignMap[templateName] = {
+              id: `CMP-${Object.keys(campaignMap).length + 1}`.padStart(7, '0'),
+              name: templateName,
+              description: `Campaign for ${templateName} template`,
+              type: 'WhatsApp',
+              status: 'Active',
+              startDate: item.date || item.createdAt,
+              endDate: new Date().toISOString(),
+              sent: 0,
+              delivered: 0,
+              clicks: 0,
+              whatsapp: 0,
+              facebook: 0,
+              instagram: 0,
+              download: 0
+            };
+          }
+
+          const campaign = campaignMap[templateName];
+          const whatsapp = item.whatsappsharecount || 0;
+          const facebook = item.facebooksharecount || 0;
+          const twitter = item.twittersharecount || 0;
+          const instagram = item.instagramsharecount || 0;
+          const download = item.downloadcount || 0;
+          const totalShares = whatsapp + facebook + twitter + instagram; // Shares only
+          const totalEngagement = totalShares + download; // Shares + Downloads
+
+          campaign.sent += 1;
+          campaign.delivered += totalShares > 0 ? 1 : 0;
+          campaign.clicks += totalShares;
+          campaign.whatsapp += whatsapp;
+          campaign.facebook += facebook;
+          campaign.instagram += instagram;
+          campaign.download += download;
+
+          // Determine primary channel
+          if (campaign.whatsapp > campaign.facebook && campaign.whatsapp > campaign.instagram) {
+            campaign.type = 'WhatsApp';
+          } else if (campaign.facebook > campaign.instagram) {
+            campaign.type = 'Email'; // Using Email icon for Facebook
+          } else if (campaign.instagram > 0) {
+            campaign.type = 'Push Notification'; // Using for Instagram
+          }
+
+          // Update dates
+          const itemDate = new Date(item.date || item.createdAt);
+          const startDate = new Date(campaign.startDate);
+          if (itemDate < startDate) {
+            campaign.startDate = item.date || item.createdAt;
+          }
+        });
+
+        // Convert to array and determine status
+        const now = new Date();
+        const campaignsArray = Object.values(campaignMap).map(c => {
+          const endDate = new Date(c.endDate);
+          const startDate = new Date(c.startDate);
+          
+          if (c.clicks === 0 && c.sent > 0) {
+            c.status = 'Scheduled';
+          } else if (endDate < now && c.clicks > 0) {
+            c.status = 'Completed';
+          } else if (c.delivered < c.sent * 0.5) {
+            c.status = 'Failed';
+          } else {
+            c.status = 'Active';
+          }
+          
+          return c;
+        });
+
+        // Sort by most recent
+        campaignsArray.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+        
+        setCampaigns(campaignsArray);
+
+        // Calculate growth metrics (compare current vs last 30 days)
+        const last30Days = new Date(now);
+        last30Days.setDate(now.getDate() - 30);
+        const last60Days = new Date(now);
+        last60Days.setDate(now.getDate() - 60);
+
+        const recentCampaigns = campaignsArray.filter(c => new Date(c.startDate) >= last30Days);
+        const previousCampaigns = campaignsArray.filter(c => {
+          const date = new Date(c.startDate);
+          return date >= last60Days && date < last30Days;
+        });
+
+        const calculateGrowth = (current, previous) => {
+          if (previous === 0) return current > 0 ? parseFloat(current.toFixed(1)) : 0;
+          return parseFloat(((current - previous) / previous * 100).toFixed(1));
+        };
+
+        const recentActive = recentCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
+        const previousActive = previousCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
+        const recentCompleted = recentCampaigns.filter(c => c.status === 'Completed').length;
+        const previousCompleted = previousCampaigns.filter(c => c.status === 'Completed').length;
+        const recentSent = recentCampaigns.reduce((acc, c) => acc + c.sent, 0);
+        const previousSent = previousCampaigns.reduce((acc, c) => acc + c.sent, 0);
+        const recentDelivered = recentCampaigns.reduce((acc, c) => acc + c.delivered, 0);
+        const previousDelivered = previousCampaigns.reduce((acc, c) => acc + c.delivered, 0);
+
+        setGrowthMetrics({
+          activeGrowth: calculateGrowth(recentActive, previousActive),
+          completedGrowth: calculateGrowth(recentCompleted, previousCompleted),
+          sentGrowth: calculateGrowth(recentSent, previousSent),
+          deliveryGrowth: calculateGrowth(
+            recentSent > 0 ? (recentDelivered / recentSent) * 100 : 0,
+            previousSent > 0 ? (previousDelivered / previousSent) * 100 : 0
+          )
+        });
+      } catch (error) {
+        console.error("Error fetching campaign data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCampaignData();
+  }, []);
 
   const stats = useMemo(() => {
     const active = campaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
@@ -427,47 +534,62 @@ const Campaigns = () => {
       </PageHeader>
 
       <MetricGrid>
-        <KPIMetricCard
-          label="Active Campaigns"
-          value={stats.active}
-          trend={12.5}
-          trendColor="#6B8E23"
-          bgColor="#F4F9E9"
-          icon={<Play size={20} />}
-          points="M10,40 C25,38 35,45 50,35 S80,10 90,15"
-          endX={85} endY={14}
-        />
-        <KPIMetricCard
-          label="Completed Campaigns"
-          value={stats.completed}
-          trend={5.2}
-          trendColor="#8E44AD"
-          bgColor="#F7F2FA"
-          icon={<CheckCircle size={20} />}
-          points="M10,42 C25,35 35,40 50,30 S85,5 90,10"
-          endX={85} endY={8}
-        />
-        <KPIMetricCard
-          label="Total Sent"
-          value={stats.totalSent.toLocaleString()}
-          trend={24.8}
-          trendColor="#D47D52"
-          bgColor="#FFF0E5"
-          icon={<Send size={20} />}
-          points="M10,35 C25,38 35,25 50,30 S80,25 90,28"
-          endX={85} endY={27}
-        />
-        <KPIMetricCard
-          label="Avg Delivery Rate"
-          value={`${stats.avgDelivery.toFixed(1)}%`}
-          trend={-1.4}
-          trendColor="#B58B00"
-          bgColor="#FFF9E5"
-          icon={<BarChart2 size={20} />}
-          positive={false}
-          points="M10,38 C25,35 35,38 50,32 S80,20 90,25"
-          endX={85} endY={23}
-        />
+        {(() => {
+          const activeTrend = generateTrendPath(growthMetrics.activeGrowth);
+          const completedTrend = generateTrendPath(growthMetrics.completedGrowth);
+          const sentTrend = generateTrendPath(growthMetrics.sentGrowth);
+          const deliveryTrend = generateTrendPath(growthMetrics.deliveryGrowth);
+
+          return (
+            <>
+              <KPIMetricCard
+                label="Active Campaigns"
+                value={stats.active}
+                trend={growthMetrics.activeGrowth}
+                trendColor="#10B981"
+                bgColor="#D1FAE5"
+                icon={<Play size={20} />}
+                points={activeTrend.points}
+                endX={activeTrend.endX}
+                endY={activeTrend.endY}
+              />
+              <KPIMetricCard
+                label="Completed Campaigns"
+                value={stats.completed}
+                trend={growthMetrics.completedGrowth}
+                trendColor="#7A3A95"
+                bgColor="#E8DEE8"
+                icon={<CheckCircle size={20} />}
+                points={completedTrend.points}
+                endX={completedTrend.endX}
+                endY={completedTrend.endY}
+              />
+              <KPIMetricCard
+                label="Total Sent"
+                value={stats.totalSent.toLocaleString()}
+                trend={growthMetrics.sentGrowth}
+                trendColor="#D47D52"
+                bgColor="#FFF0E5"
+                icon={<Send size={20} />}
+                points={sentTrend.points}
+                endX={sentTrend.endX}
+                endY={sentTrend.endY}
+              />
+              <KPIMetricCard
+                label="Avg Delivery Rate"
+                value={`${stats.avgDelivery.toFixed(1)}%`}
+                trend={growthMetrics.deliveryGrowth}
+                trendColor="#F97316"
+                bgColor="#FED7AA"
+                icon={<BarChart2 size={20} />}
+                positive={growthMetrics.deliveryGrowth >= 0}
+                points={deliveryTrend.points}
+                endX={deliveryTrend.endX}
+                endY={deliveryTrend.endY}
+              />
+            </>
+          );
+        })()}
       </MetricGrid>
 
       <ContentCard>
@@ -502,7 +624,16 @@ const Campaigns = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredCampaigns.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="7">
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '100px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                    <Loader className="rotate" size={48} color="#1A1A1A" />
+                    <div style={{ fontWeight: 600, color: '#666' }}>Loading campaign data...</div>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredCampaigns.length === 0 ? (
               <tr>
                 <td colSpan="7">
                   <div style={{
@@ -611,3 +742,19 @@ const Campaigns = () => {
 };
 
 export default Campaigns;
+
+// Add CSS for loader animation
+const style = document.createElement('style');
+style.textContent = `
+  .rotate {
+    animation: rotate 2s linear infinite;
+  }
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+if (!document.querySelector('style[data-campaigns-loader]')) {
+  style.setAttribute('data-campaigns-loader', 'true');
+  document.head.appendChild(style);
+}

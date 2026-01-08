@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import axios from "axios";
+import { showGlobalAlert } from './utils/globalAlert';
 
 const getAxiosInstance = () => {
   const getAxios = axios.create({
@@ -19,9 +20,11 @@ const useAxios = () => {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           // Only alert if we aren't already on the login page to avoid loops or redundant alerts
           if (!window.location.pathname.includes('/admin/login')) {
-            alert('you are logged out kindly login and contiue browsing');
-            localStorage.clear();
-            window.location.href = '/admin/login';
+            showGlobalAlert('You are logged out. Please login and continue browsing.', 'error');
+            setTimeout(() => {
+              localStorage.clear();
+              window.location.href = '/admin/login';
+            }, 2000); // Show alert for 2 seconds then redirect
           }
         }
         return Promise.reject(error);

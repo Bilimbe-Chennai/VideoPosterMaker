@@ -515,6 +515,24 @@ const TemplateManager = () => {
   const [templateCount, setTemplateCount] = useState(3);
   const [userAccess, setUserAccess] = useState([]);
   const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
+  const [growthMetrics, setGrowthMetrics] = useState({
+    totalGrowth: 0,
+    activeGrowth: 0,
+    usageGrowth: 0,
+    avgUsageGrowth: 0
+  });
+
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50;
+    const startY = 35;
+    const endYOffset = -scaleFactor * 20;
+    const endY = startY + endYOffset;
+    const midY = startY + (endYOffset * 0.3);
+    const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+    return { points: path, endX: 85, endY: Math.round(endY) };
+  };
 
   // Initialize user settings
   useEffect(() => {
@@ -595,6 +613,52 @@ const TemplateManager = () => {
       });
 
       setTemplates(templateList);
+
+      // Growth metrics from real data: last 30 days vs previous 30 days
+      const now = new Date();
+      const last30Days = new Date(now);
+      last30Days.setDate(now.getDate() - 30);
+      const last60Days = new Date(now);
+      last60Days.setDate(now.getDate() - 60);
+
+      const recentPhotos = rawPhotos.filter(item => {
+        const date = new Date(item.date || item.createdAt);
+        return item.source === 'Photo Merge App' && date >= last30Days;
+      });
+      const previousPhotos = rawPhotos.filter(item => {
+        const date = new Date(item.date || item.createdAt);
+        return item.source === 'Photo Merge App' && date >= last60Days && date < last30Days;
+      });
+
+      const recentUsage = recentPhotos.length;
+      const previousUsage = previousPhotos.length;
+
+      const recentTemplateCount = new Set(recentPhotos.map(p => p.template_name || p.templatename || p.type).filter(Boolean)).size;
+      const previousTemplateCount = new Set(previousPhotos.map(p => p.template_name || p.templatename || p.type).filter(Boolean)).size;
+
+      const recentAvgUsage = recentTemplateCount > 0 ? recentUsage / recentTemplateCount : 0;
+      const previousAvgUsage = previousTemplateCount > 0 ? previousUsage / previousTemplateCount : 0;
+
+      const calculateGrowth = (current, previous) => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return parseFloat(((current - previous) / previous * 100).toFixed(1));
+      };
+
+      const activeNow = templateList.filter(t => t.status === 'active').length;
+      // Approx: active templates used in recent period vs previous period
+      const recentActive = new Set(
+        recentPhotos.map(p => p.template_name || p.templatename || p.type).filter(Boolean)
+      ).size;
+      const previousActive = new Set(
+        previousPhotos.map(p => p.template_name || p.templatename || p.type).filter(Boolean)
+      ).size;
+
+      setGrowthMetrics({
+        totalGrowth: calculateGrowth(templateList.length, templateList.length - recentTemplateCount + previousTemplateCount),
+        activeGrowth: calculateGrowth(recentActive || activeNow, previousActive),
+        usageGrowth: calculateGrowth(recentUsage, previousUsage),
+        avgUsageGrowth: calculateGrowth(recentAvgUsage, previousAvgUsage)
+      });
     } catch (error) {
       console.error("Error fetching templates:", error);
     }
@@ -722,7 +786,7 @@ const TemplateManager = () => {
           }
         });
 
-        await axiosData.post('/photomerge/template-upload', uploadData, {
+        await axiosData.post('photomerge/template-upload', uploadData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
 
@@ -758,6 +822,11 @@ const TemplateManager = () => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const totalTrend = generateTrendPath(growthMetrics.totalGrowth);
+  const activeTrend = generateTrendPath(growthMetrics.activeGrowth);
+  const usageTrend = generateTrendPath(growthMetrics.usageGrowth);
+  const avgUsageTrend = generateTrendPath(growthMetrics.avgUsageGrowth);
+
   const kpis = [
     {
       label: 'Total Templates',
@@ -765,11 +834,11 @@ const TemplateManager = () => {
       icon: <Layers size={21} />,
       color: '#FFF5EB',
       text: '#D97706',
-      trend: '+12.5%',
-      isUp: true,
-      points: "M 10 40 Q 30 35, 50 38 T 90 25",
-      endX: 90,
-      endY: 25
+      trend: `${growthMetrics.totalGrowth >= 0 ? '+' : ''}${growthMetrics.totalGrowth}%`,
+      isUp: growthMetrics.totalGrowth >= 0,
+      points: totalTrend.points,
+      endX: totalTrend.endX,
+      endY: totalTrend.endY
     },
     {
       label: 'Active Templates',
@@ -777,11 +846,11 @@ const TemplateManager = () => {
       icon: <Activity size={21} />,
       color: '#EEF6E8',
       text: '#4CAF50',
-      trend: '+23.1%',
-      isUp: true,
-      points: "M 10 42 Q 30 40, 50 25 T 90 15",
-      endX: 90,
-      endY: 15
+      trend: `${growthMetrics.activeGrowth >= 0 ? '+' : ''}${growthMetrics.activeGrowth}%`,
+      isUp: growthMetrics.activeGrowth >= 0,
+      points: activeTrend.points,
+      endX: activeTrend.endX,
+      endY: activeTrend.endY
     },
     {
       label: 'Total Usage',
@@ -789,11 +858,11 @@ const TemplateManager = () => {
       icon: <BarChart2 size={21} />,
       color: '#E8F0FE',
       text: '#2196F3',
-      trend: '+8.2%',
-      isUp: true,
-      points: "M 10 45 Q 40 45, 60 35 T 90 32",
-      endX: 90,
-      endY: 32
+      trend: `${growthMetrics.usageGrowth >= 0 ? '+' : ''}${growthMetrics.usageGrowth}%`,
+      isUp: growthMetrics.usageGrowth >= 0,
+      points: usageTrend.points,
+      endX: usageTrend.endX,
+      endY: usageTrend.endY
     },
     {
       label: 'Avg Usage',
@@ -801,11 +870,11 @@ const TemplateManager = () => {
       icon: <Activity size={21} />,
       color: '#F4E6F0',
       text: '#9C27B0',
-      trend: '+2.1%',
-      isUp: true,
-      points: "M 10 45 Q 40 45, 70 35 T 90 28",
-      endX: 90,
-      endY: 28
+      trend: `${growthMetrics.avgUsageGrowth >= 0 ? '+' : ''}${growthMetrics.avgUsageGrowth}%`,
+      isUp: growthMetrics.avgUsageGrowth >= 0,
+      points: avgUsageTrend.points,
+      endX: avgUsageTrend.endX,
+      endY: avgUsageTrend.endY
     },
   ];
 
