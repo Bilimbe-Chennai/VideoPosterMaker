@@ -1088,6 +1088,13 @@ const Templates = () => {
             const recentTemplateCount = new Set(recentPhotos.map(p => p.template_name || p.templatename || p.type)).size;
             const previousTemplateCount = new Set(previousPhotos.map(p => p.template_name || p.templatename || p.type)).size;
 
+            // Calculate total templates: current vs previous period
+            const currentTotalTemplates = templateList.length;
+            const previousTotalTemplates = rawTemplates.filter(t => {
+                const createdDate = new Date(t.createdDate || t.updatedDate || now);
+                return createdDate < last30Days; // Templates created before last 30 days
+            }).length;
+
             const recentActiveTemplates = rawTemplates.filter(t => {
                 const updatedDate = new Date(t.updatedDate || t.createdDate);
                 return t.status === 'active' && updatedDate >= last30Days;
@@ -1105,12 +1112,15 @@ const Templates = () => {
             const previousAvgUsage = previousTemplateCount > 0 ? previousUsage / previousTemplateCount : 0;
 
             const calculateGrowth = (current, previous) => {
-                if (previous === 0) return current > 0 ? parseFloat(current.toFixed(1)) : 0;
-                return parseFloat(((current - previous) / previous * 100).toFixed(1));
+                // Calculate the count change
+                const countChange = current - previous;
+                // Return the count change directly as percentage (count change = percentage value)
+                // If change is +2, show 2%; if change is -5, show -5%
+                return parseFloat(countChange.toFixed(1));
             };
 
             setGrowthMetrics({
-                totalGrowth: calculateGrowth(templateList.length, templateList.length - recentTemplateCount + previousTemplateCount),
+                totalGrowth: calculateGrowth(currentTotalTemplates, previousTotalTemplates),
                 activeGrowth: calculateGrowth(recentActiveTemplates || templateList.filter(t => t.status === 'active').length, previousActiveTemplates || 1),
                 usageGrowth: calculateGrowth(recentUsage, previousUsage),
                 avgUsageGrowth: calculateGrowth(recentAvgUsage, previousAvgUsage)

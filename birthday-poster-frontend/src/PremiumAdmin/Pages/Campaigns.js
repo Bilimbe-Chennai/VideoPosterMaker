@@ -565,8 +565,11 @@ const Campaigns = () => {
         });
 
         const calculateGrowth = (current, previous) => {
-          if (previous === 0) return current > 0 ? parseFloat(current.toFixed(1)) : 0;
-          return parseFloat(((current - previous) / previous * 100).toFixed(1));
+          // Calculate the count change
+          const countChange = current - previous;
+          // Return the count change directly as percentage (count change = percentage value)
+          // If change is +2, show 2%; if change is -5, show -5%
+          return parseFloat(countChange.toFixed(1));
         };
 
         const recentActive = recentCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;

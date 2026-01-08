@@ -293,8 +293,11 @@ const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const calculateGrowth = (current, previous) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return parseFloat((((current - previous) / previous) * 100).toFixed(1));
+    // Calculate the count change
+    const countChange = current - previous;
+    // Return the count change directly as percentage (count change = percentage value)
+    // If change is +2, show 2%; if change is -5, show -5%
+    return parseFloat(countChange.toFixed(1));
   };
 
   const formatRelativeTime = (date) => {
