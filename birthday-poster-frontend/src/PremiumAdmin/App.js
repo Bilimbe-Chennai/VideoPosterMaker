@@ -11,6 +11,8 @@ import Analytics from './Pages/Analytics';
 import ShareTracking from './Pages/ShareTracking';
 import Campaigns from './Pages/Campaigns';
 import Reports from './Pages/Reports';
+import Billing from './Pages/Billing';
+import Subscription from './Pages/Subscription';
 import Settings from './Pages/Settings';
 import Notifications from './Pages/Notifications';
 import Placeholder from './Components/Placeholder';
@@ -87,6 +89,8 @@ function PremiumAdminApp() {
           <Route path="share-tracking" element={<ShareTracking />} />
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="billing" element={<Billing />} />
+          <Route path="subscription" element={<Subscription />} />
           <Route path="settings" element={<Settings />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
