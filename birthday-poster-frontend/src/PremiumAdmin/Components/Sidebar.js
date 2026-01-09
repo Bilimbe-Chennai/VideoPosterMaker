@@ -39,7 +39,7 @@ const SidebarContainer = styled.aside`
 `;
 
 const LogoSection = styled.div`
-  padding: ${({ theme }) => `${theme.spacing.xl} ${theme.spacing.xl} ${theme.spacing.lg}`};
+  padding: 20px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -82,23 +82,33 @@ const ToggleButton = styled.button`
 `;
 
 const NavSection = styled.div`
-  padding: ${({ theme }) => theme.spacing.sm} 0;
+  padding: 12px 0;
   flex: 1;
+  overflow-y: auto;
+  
+  /* Modern scrollbar */
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
 `;
 
 const NavItem = styled(NavLink)`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-  padding: 12px 24px;
+  gap: 12px;
+  padding: 10px 20px;
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
   transition: all 0.2s ease;
   margin: 4px 12px;
-  border-radius: ${({ theme }) => theme.borderRadius.medium};
+  border-radius: 12px;
   background: transparent;
   border: none;
-  width: calc(100% - 24px); /* Account for margins */
+  width: calc(100% - 24px);
   cursor: pointer;
   font-family: inherit;
 
@@ -137,7 +147,6 @@ const Sidebar = ({ isOpen, onToggle, onClose }) => {
     { icon: <FileText size={18} />, text: 'Reports', path: 'reports' },
     { icon: <Shield size={18} />, text: 'Subscription', path: 'subscription' },
     { icon: <CreditCard size={18} />, text: 'Billing', path: 'billing' },
-    // { icon: <Bell size={18} />, text: 'Notifications', path: 'notifications' },
     { icon: <Settings size={18} />, text: 'Settings', path: 'settings' },
   ];
 

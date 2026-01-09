@@ -18,6 +18,8 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:7000",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
   "https://bilimbe-bday-poster-frontend.onrender.com",
   "https://bilimbe-bday-poster-backend.onrender.com",
   "https://app.bilimbebrandactivations.com",

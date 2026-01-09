@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import Card from '../Components/Card';
+import Pagination from '../Components/Pagination';
 import {
-    FileText,
-    Download,
-    MapPin,
-    Edit2,
-    Calendar,
-    Clock,
-    CheckCircle,
-    AlertCircle
+  FileText,
+  Download,
+  MapPin,
+  Edit2,
+  Calendar,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Home
 } from 'react-feather';
 
 const PageContainer = styled.div`
@@ -20,17 +22,37 @@ const PageContainer = styled.div`
 
 const PageHeader = styled.div`
   margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   
-  h1 {
-    font-size: 32px;
-    font-weight: 800;
-    color: #1A1A1A;
-    margin-bottom: 8px;
+  .header-left {
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #7A7A7A;
+      font-size: 16px;
+    }
   }
+`;
+
+const PlanStatusBadge = styled.div`
+  background: #111;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
   
-  p {
-    color: ${({ theme }) => theme.colors.textSecondary};
-    font-size: 16px;
+  svg {
+    color: #FFF;
   }
 `;
 
@@ -60,7 +82,7 @@ const CardTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #1A1A1A;
+  color: ${({ theme }) => theme.colors.primaryDark};
 `;
 
 const AddressContent = styled.div`
@@ -71,32 +93,25 @@ const AddressContent = styled.div`
 
 const AddressInfo = styled.div`
   display: flex;
-  gap: 16px;
+  gap: 20px;
+  margin-bottom: 24px;
   
   .icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(101, 52, 255, 0.05);
-    color: #6534FF;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: #000;
     flex-shrink: 0;
+    margin-top: 4px;
   }
   
   .details {
     h4 {
-      font-size: 14px;
-      color: #7A7A7A;
+      font-size: 16px;
+      font-weight: 700;
+      color: #000;
       margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     p {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1A1A1A;
+      font-size: 15px;
+      color: #7A7A7A;
       line-height: 1.5;
     }
   }
@@ -106,13 +121,13 @@ const EditButton = styled.button`
   position: absolute;
   top: 32px;
   right: 32px;
-  background: transparent;
-  border: 1px solid #F0F0F0;
+  background: white;
+  border: 1px solid #E0E0E0;
   padding: 8px 16px;
   border-radius: 10px;
   font-size: 13px;
-  font-weight: 600;
-  color: #1A1A1A;
+  font-weight: 700;
+  color: #000;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -121,7 +136,7 @@ const EditButton = styled.button`
   
   &:hover {
     background: #FAFAFA;
-    border-color: #E0E0E0;
+    border-color: #000;
   }
 `;
 
@@ -138,7 +153,7 @@ const InvoicesTable = styled.div`
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 100px;
+  grid-template-columns: 1.2fr 1.5fr 1fr 1fr 1fr 1fr 80px;
   padding: 20px 32px;
   align-items: center;
   border-bottom: 1px solid #F0F0F0;
@@ -182,140 +197,192 @@ const PeriodBadge = styled.span`
 `;
 
 const DownloadBtn = styled.button`
-  background: transparent;
-  border: none;
-  color: #6534FF;
+  background: white;
+  border: 1px solid #E0E0E0;
+  padding: 8px 16px;
+  border-radius: 50px;
+  color: #1A1A1A;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s;
   
   &:hover {
+    background: #FAFAFA;
+    border-color: #6534FF;
+    color: #6534FF;
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(101, 52, 255, 0.1);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `;
 
 const Billing = () => {
-    const [address] = useState({
-        companyName: 'Varamahalakshmi Silks',
-        address: '123 Royal Silk Lane, Kanchipuram, Tamil Nadu 631501',
-        gstin: '33AAAAA0000A1Z5',
-        plan: 'Pro Plan (Monthly)',
-        planEndDate: 'Jan 01, 2024'
-    });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [address] = useState({
+    companyName: 'Varamahalakshmi Silks',
+    address: '123 Royal Silk Lane, Kanchipuram, Tamil Nadu 631501',
+    gstin: '33AAAAA0000A1Z5',
+    plan: 'Pro Plan (Monthly)',
+    planEndDate: 'Jan 01, 2024'
+  });
 
-    const [invoices] = useState([
-        {
-            id: 'INV-2023-001',
-            date: '2023-12-01',
-            period: 'Dec 01 - Jan 01',
-            amount: '₹2,499',
-            status: 'paid'
-        },
-        {
-            id: 'INV-2023-002',
-            date: '2023-11-01',
-            period: 'Nov 01 - Dec 01',
-            amount: '₹2,499',
-            status: 'paid'
-        }
-    ]);
+  const [invoices] = useState([
+    {
+      id: 'INV-2023-001',
+      date: '2023-12-01',
+      period: 'Dec 01 - Jan 01',
+      plan: 'Pro Plan',
+      amount: '₹2,499',
+      status: 'paid'
+    },
+    {
+      id: 'INV-2023-002',
+      date: '2023-11-01',
+      period: 'Nov 01 - Dec 01',
+      plan: 'Pro Plan',
+      amount: '₹2,499',
+      status: 'paid'
+    }
+  ]);
 
-    return (
-        <PageContainer>
-            <PageHeader>
-                <h1>Billing & Invoices</h1>
-                <p>Manage your billing details and view your subscription history.</p>
-            </PageHeader>
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentInvoices = invoices.slice(indexOfFirstItem, indexOfLastItem);
 
-            <BillingGrid>
-                <AddressCard>
-                    <CardTitle><MapPin size={20} /> Billing Address</CardTitle>
-                    <EditButton><Edit2 size={14} /> Edit Details</EditButton>
-                    <AddressContent>
-                        <AddressInfo>
-                            <div className="icon"><FileText size={20} /></div>
-                            <div className="details">
-                                <h4>Company Name</h4>
-                                <p>{address.companyName}</p>
-                            </div>
-                        </AddressInfo>
-                        <AddressInfo>
-                            <div className="icon"><MapPin size={20} /></div>
-                            <div className="details">
-                                <h4>Address</h4>
-                                <p>{address.address}</p>
-                            </div>
-                        </AddressInfo>
-                        <AddressInfo>
-                            <div className="icon"><CheckCircle size={20} /></div>
-                            <div className="details">
-                                <h4>GST / Tax ID</h4>
-                                <p>{address.gstin}</p>
-                            </div>
-                        </AddressInfo>
-                    </AddressContent>
-                </AddressCard>
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
-                <AddressCard>
-                    <CardTitle><Calendar size={20} /> Current Plan</CardTitle>
-                    <AddressContent>
-                        <AddressInfo>
-                            <div className="icon"><Clock size={20} /></div>
-                            <div className="details">
-                                <h4>Plan Type</h4>
-                                <p>{address.plan}</p>
-                            </div>
-                        </AddressInfo>
-                        <AddressInfo>
-                            <div className="icon"><Calendar size={20} /></div>
-                            <div className="details">
-                                <h4>Next Billing Date</h4>
-                                <p>{address.planEndDate}</p>
-                            </div>
-                        </AddressInfo>
-                    </AddressContent>
-                </AddressCard>
-            </BillingGrid>
+  const handleItemsPerPageChange = (size) => {
+    setItemsPerPage(size);
+    setCurrentPage(1);
+  };
 
-            <InvoicesSection>
-                <SectionTitle><FileText size={24} /> Invoice History</SectionTitle>
-                <InvoicesTable>
-                    <TableRow className="header">
-                        <div>Invoice</div>
-                        <div>Billing Period</div>
-                        <div>Date</div>
-                        <div>Amount</div>
-                        <div>Action</div>
-                    </TableRow>
-                    {invoices.map(inv => (
-                        <TableRow key={inv.id}>
-                            <div style={{ fontWeight: 600 }}>{inv.id}</div>
-                            <div><PeriodBadge>{inv.period}</PeriodBadge></div>
-                            <div>{inv.date}</div>
-                            <div style={{ fontWeight: 700 }}>{inv.amount}</div>
-                            <div>
-                                <DownloadBtn title="Download Invoice">
-                                    <Download size={18} />
-                                </DownloadBtn>
-                            </div>
-                        </TableRow>
-                    ))}
-                </InvoicesTable>
-            </InvoicesSection>
-        </PageContainer>
-    );
+  return (
+    <PageContainer>
+      <PageHeader>
+        <div className="header-left">
+          <h1>Billing & Invoices</h1>
+          <p>Manage your billing details and view your subscription history.</p>
+        </div>
+        <PlanStatusBadge>
+          <CheckCircle size={18} />
+          Current Plan : pro (Active)
+        </PlanStatusBadge>
+      </PageHeader>
+
+      <BillingGrid>
+        <AddressCard>
+          <CardTitle>Billing Address</CardTitle>
+          <EditButton><Edit2 size={14} /> Edit Details</EditButton>
+          <AddressContent>
+            <AddressInfo>
+              <div className="icon"><Home size={18} /></div>
+              <div className="details">
+                <h4>Company Name</h4>
+                <p>{address.companyName}</p>
+              </div>
+            </AddressInfo>
+            <AddressInfo>
+              <div className="icon"><MapPin size={18} /></div>
+              <div className="details">
+                <h4>Address</h4>
+                <p>{address.address}</p>
+              </div>
+            </AddressInfo>
+            <AddressInfo>
+              <div className="icon"><CheckCircle size={18} /></div>
+              <div className="details">
+                <h4>GST / Tax ID</h4>
+                <p>{address.gstin}</p>
+              </div>
+            </AddressInfo>
+          </AddressContent>
+        </AddressCard>
+
+        <AddressCard>
+          <CardTitle>Current Plan</CardTitle>
+          <AddressContent>
+            <AddressInfo>
+              <div className="icon"><Home size={18} /></div>
+              <div className="details">
+                <h4>Plan Type</h4>
+                <p>{address.plan}</p>
+              </div>
+            </AddressInfo>
+            <AddressInfo>
+              <div className="icon"><Calendar size={18} /></div>
+              <div className="details">
+                <h4>Next Billing Date</h4>
+                <p>{address.planEndDate}</p>
+              </div>
+            </AddressInfo>
+          </AddressContent>
+        </AddressCard>
+      </BillingGrid>
+
+      <InvoicesSection>
+        <SectionTitle><FileText size={24} /> Invoice History</SectionTitle>
+        <InvoicesTable>
+          <TableRow className="header">
+            <div>Invoice</div>
+            <div>Billing Period</div>
+            <div>Date</div>
+            <div>Plan</div>
+            <div>Amount</div>
+            <div>Status</div>
+            <div>Action</div>
+          </TableRow>
+          {currentInvoices.map(inv => (
+            <TableRow key={inv.id}>
+              <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{inv.id}</div>
+              <div><PeriodBadge>{inv.period}</PeriodBadge></div>
+              <div style={{ color: '#7A7A7A', fontSize: '14px' }}>{inv.date}</div>
+              <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{inv.plan}</div>
+              <div style={{ fontWeight: 700, color: '#1A1A1A' }}>{inv.amount}</div>
+              <div>
+                <StatusChip $status={inv.status}>
+                  {inv.status === 'paid' ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                  {inv.status}
+                </StatusChip>
+              </div>
+              <div>
+                <DownloadBtn title="Download PDF">
+                  <Download />
+                  PDF
+                </DownloadBtn>
+              </div>
+            </TableRow>
+          ))}
+        </InvoicesTable>
+        <Pagination
+          totalItems={invoices.length}
+          itemsPerPage={itemsPerPage}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
+      </InvoicesSection>
+    </PageContainer>
+  );
 };
 
 const SectionTitle = styled.h2`
   font-size: 24px;
-  font-weight: 700;
   margin-bottom: 24px;
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #1A1A1A;
+  color: ${({ theme }) => theme.colors.primaryDark};
 `;
 
 export default Billing;

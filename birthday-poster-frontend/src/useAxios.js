@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import axios from "axios";
 
 const getAxiosInstance = () => {
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const getAxios = axios.create({
-    //baseURL: "http://localhost:7000/api/",
-    baseURL: "https://api.bilimbebrandactivations.com/api/"
+    baseURL: isLocal ? "http://127.0.0.1:7000/api/" : "https://api.bilimbebrandactivations.com/api/"
   });
   return getAxios;
 };
