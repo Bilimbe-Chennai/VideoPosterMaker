@@ -4,8 +4,12 @@ import { showGlobalAlert } from './utils/globalAlert';
 
 const getAxiosInstance = () => {
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // const getAxios = axios.create({
+  //   baseURL: isLocal ? "http://127.0.0.1:7000/api/" : "https://api.bilimbebrandactivations.com/api/"
+  // });
   const getAxios = axios.create({
-    baseURL: isLocal ? "http://127.0.0.1:7000/api/" : "https://api.bilimbebrandactivations.com/api/"
+    //baseURL: "http://localhost:5000/api/",
+    baseURL:"https://api.bilimbebrandactivations.com/api/"
   });
   return getAxios;
 };
