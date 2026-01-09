@@ -24,6 +24,7 @@ import {
     XCircle
 } from 'react-feather';
 // import Card from '../Components/Card'; // Unused
+import Pagination from '../Components/Pagination';
 import useAxios from '../../useAxios';
 
 // --- Styled Components ---
@@ -830,6 +831,12 @@ const Templates = () => {
     // const [loading, setLoading] = useState(true); // Unused
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All Templates');
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 25,
+        total: 0,
+        totalPages: 0
+    });
     const [selectedStatus, setSelectedStatus] = useState('All Status');
     const [selectedIds, setSelectedIds] = useState([]);
 
@@ -1027,14 +1034,31 @@ const Templates = () => {
     const fetchData = useCallback(async () => {
         try {
             // setLoading(true);
-            // Fetch templates and usage data in parallel
+            // Fetch templates and usage data in parallel with pagination
             const [templatesResponse, photosResponse] = await Promise.all([
-                axiosData.get("/photomerge/templates"),
-                axiosData.get(`upload/all?adminid=${user._id || user.id}`)
+                axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}&page=${pagination.page}&limit=${pagination.limit}`),
+                axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`) // Get all photos for usage calculation
             ]);
 
-            const rawTemplates = (templatesResponse.data || []).filter(t => t.adminid === user.id || t.adminid === user._id);
-            const rawPhotos = photosResponse.data || [];
+            // Handle paginated or non-paginated responses
+            const rawTemplatesArray = Array.isArray(templatesResponse.data?.data)
+                ? templatesResponse.data.data
+                : (Array.isArray(templatesResponse.data) ? templatesResponse.data : []);
+            const rawTemplates = rawTemplatesArray.filter(t => t.adminid === user.id || t.adminid === user._id);
+            
+            const rawPhotosArray = Array.isArray(photosResponse.data?.data)
+                ? photosResponse.data.data
+                : (Array.isArray(photosResponse.data) ? photosResponse.data : []);
+            const rawPhotos = rawPhotosArray;
+            
+            // Update pagination if available
+            if (templatesResponse.data?.pagination) {
+                setPagination(prev => ({
+                    ...prev,
+                    total: templatesResponse.data.pagination.total,
+                    totalPages: templatesResponse.data.pagination.totalPages
+                }));
+            }
 
             // Calculate usage counts from photo creations
             const usageCounts = {};
@@ -1131,7 +1155,7 @@ const Templates = () => {
             console.error("Error fetching templates:", error);
             // setLoading(false);
         }
-    }, [axiosData]);
+    }, [axiosData, user._id, user.id, pagination.page, pagination.limit]);
 
     useEffect(() => {
         fetchData();
@@ -1613,6 +1637,17 @@ const Templates = () => {
                     </TemplateCard>
                 ))}
             </TemplateGrid>
+            
+            {pagination.total > 0 && pagination.totalPages > 1 && (
+                <Pagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    total={pagination.total}
+                    limit={pagination.limit}
+                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                    onLimitChange={(limit) => setPagination(prev => ({ ...prev, limit, page: 1 }))}
+                />
+            )}
 
             {
                 selectedIds.length > 0 && (

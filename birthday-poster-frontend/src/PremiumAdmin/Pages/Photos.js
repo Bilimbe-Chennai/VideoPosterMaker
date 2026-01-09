@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import {
   Image, Share2, Star, Download, Filter, Grid, List as ListIcon,
@@ -529,6 +529,11 @@ const pulseAnimation = keyframes`
   100% { background-color: transparent; }
 `;
 
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
 const HighlightedText = styled.span`
   background: #ffd54f;
   color: #0F0F0F;
@@ -968,6 +973,13 @@ const Photos = () => {
   const [viewImage, setViewImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10, // Load only 15 photos initially for much faster load
+    total: 0,
+    totalPages: 0
+  });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Alert & Confirmation Modal States
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
@@ -1067,23 +1079,56 @@ const Photos = () => {
   }, []);
 
   useEffect(() => {
-    fetchPhotos();
+    fetchPhotos(1, false);
   }, []);
 
-  const fetchPhotos = async () => {
+  const fetchPhotos = async (page = 1, append = false) => {
     try {
-      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
-      const data = response.data.filter(item =>
+      if (!append) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+      
+      // Use pagination to load photos in chunks for better performance
+      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
+      
+      // Handle both paginated and non-paginated responses
+      const dataArray = Array.isArray(response.data?.data) 
+        ? response.data.data 
+        : (Array.isArray(response.data) ? response.data : []);
+      
+      const data = dataArray.filter(item =>
         item.source === 'Photo Merge App'
       );
+      
+      // Update pagination info if available
+      if (response.data?.pagination) {
+        setPagination(prev => ({
+          ...prev,
+          total: response.data.pagination.total,
+          totalPages: response.data.pagination.totalPages,
+          page: page
+        }));
+      }
 
-      // Fetch metrics from API
-      let metricsData = { totalPhotosGrowth: '0', photosTodayGrowth: '0', sharesGrowth: '0', ratingGrowth: '0' };
-      try {
-        const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
-        metricsData = metricsResponse.data.metrics?.photos || { totalPhotosGrowth: '0', photosTodayGrowth: '0', sharesGrowth: '0', ratingGrowth: '0' };
-      } catch (metricsError) {
-        console.error("Error fetching metrics:", metricsError);
+      // Fetch metrics from API asynchronously (non-blocking) - only on initial load
+      if (!append) {
+        // Don't wait for metrics, fetch in background
+        axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`)
+          .then(metricsResponse => {
+            const metrics = metricsResponse.data.metrics?.photos || { totalPhotosGrowth: '0', photosTodayGrowth: '0', sharesGrowth: '0', ratingGrowth: '0' };
+            setStats(prev => ({
+              ...prev,
+              totalPhotosGrowth: metrics.totalPhotosGrowth || '0',
+              photosTodayGrowth: metrics.photosTodayGrowth || '0',
+              sharesGrowth: metrics.sharesGrowth || '0',
+              ratingGrowth: metrics.ratingGrowth || '0'
+            }));
+          })
+          .catch(metricsError => {
+            console.error("Error fetching metrics:", metricsError);
+          });
       }
 
       // 1. Group by Customer to count total uploads (Visits)
@@ -1135,34 +1180,51 @@ const Photos = () => {
         };
       }).sort((a, b) => b.timestamp - a.timestamp);
 
-      setPhotos(processed);
+      // Set photos immediately for instant display
+      if (append) {
+        setPhotos(prev => [...prev, ...processed]);
+      } else {
+        setPhotos(processed);
+        setLoading(false); // Stop loading immediately after photos are set
+      }
 
-      // Calculate Global Stats
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayCount = processed.filter(p => p.timestamp >= today.getTime()).length;
-      const totalShares = processed.reduce((acc, curr) => acc + curr.shares + curr.downloads, 0);
-      
-      // Calculate average rating from all photos
-      const avgRating = processed.length > 0
-        ? (processed.reduce((acc, curr) => acc + parseFloat(curr.rating), 0) / processed.length).toFixed(1)
-        : '4.5';
+      // Calculate Global Stats asynchronously (non-blocking) - only on initial load
+      if (!append) {
+        // Use setTimeout to make stats calculation non-blocking
+        setTimeout(() => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayCount = processed.filter(p => p.timestamp >= today.getTime()).length;
+          const totalShares = processed.reduce((acc, curr) => acc + curr.shares + curr.downloads, 0);
+          
+          // Calculate average rating from all photos
+          const avgRating = processed.length > 0
+            ? (processed.reduce((acc, curr) => acc + parseFloat(curr.rating), 0) / processed.length).toFixed(1)
+            : '4.5';
 
-      setStats({
-        total: processed.length,
-        today: todayCount,
-        shares: totalShares,
-        rating: avgRating,
-        totalPhotosGrowth: metricsData.totalPhotosGrowth || '0',
-        photosTodayGrowth: metricsData.photosTodayGrowth || '0',
-        sharesGrowth: metricsData.sharesGrowth || '0',
-        ratingGrowth: metricsData.ratingGrowth || '0'
-      });
+          // Set stats immediately without waiting for metrics
+          setStats({
+            total: response.data?.pagination?.total || processed.length,
+            today: todayCount,
+            shares: totalShares,
+            rating: avgRating,
+            totalPhotosGrowth: '0', // Will update when metrics load
+            photosTodayGrowth: '0', // Will update when metrics load
+            sharesGrowth: '0', // Will update when metrics load
+            ratingGrowth: '0' // Will update when metrics load
+          });
+        }, 0);
+      }
 
     } catch (error) {
       console.error("Error fetching photos:", error);
-    } finally {
       setLoading(false);
+      setIsLoadingMore(false);
+    } finally {
+      // Only set loading states if not already set
+      if (append) {
+        setIsLoadingMore(false);
+      }
     }
   };
 
@@ -1209,11 +1271,15 @@ const Photos = () => {
   const dateFilters = ['All Time', 'Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days'];
   const visitFilters = ['All Visits', 'Most Visited (>10)', 'Low Engagement (<5)'];
 
-  const filteredPhotos = photos.filter(photo => {
-    const matchesSearch = photo.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      photo.template_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesBranch = selectedBranch === 'All Branches' || photo.branch === selectedBranch;
-    const matchesTemplate = selectedTemplate === 'All Templates' || photo.template_name === selectedTemplate;
+  // Memoize filtered photos for better performance
+  const filteredPhotos = useMemo(() => {
+    return photos.filter(photo => {
+      const matchesSearch = !searchQuery || 
+        photo.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        photo.template_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        photo.category?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesBranch = selectedBranch === 'All Branches' || photo.branch === selectedBranch;
+      const matchesTemplate = selectedTemplate === 'All Templates' || photo.template_name === selectedTemplate || photo.category === selectedTemplate;
 
     let matchesDate = true;
     if (selectedDateFilter !== 'All Time') {
@@ -1245,7 +1311,8 @@ const Photos = () => {
     else if (selectedVisitFilter === 'Low Engagement (<5)') matchesVisits = photo.views < 5;
 
     return matchesSearch && matchesBranch && matchesTemplate && matchesDate && matchesVisits;
-  });
+    });
+  }, [photos, searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter]);
 
   const exportToExcel = (dataToExport = null) => {
     const finalData = dataToExport || (selectedPhotos.length > 0
@@ -1349,11 +1416,21 @@ const Photos = () => {
     setCurrentPage(1);
   }, [searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter]);
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredPhotos.length / itemsPerPage);
+  // Pagination Logic - Use server-side pagination for better performance
+  // For display, we still use client-side pagination on the filtered results
+  const displayTotalPages = Math.ceil(filteredPhotos.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentPhotos = filteredPhotos.slice(indexOfFirstItem, indexOfLastItem);
+  
+  // Load more photos earlier (when 2 pages from end) for smoother experience
+  useEffect(() => {
+    if (currentPage >= displayTotalPages - 2 && pagination.page < pagination.totalPages && !loading && !isLoadingMore && filteredPhotos.length > 0) {
+      const nextPage = pagination.page + 1;
+      fetchPhotos(nextPage, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, displayTotalPages]);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -1362,17 +1439,17 @@ const Photos = () => {
 
   const renderPagination = () => {
     const pageNumbers = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) {
+    if (displayTotalPages <= 7) {
+      for (let i = 1; i <= displayTotalPages; i++) {
         pageNumbers.push(i);
       }
     } else {
       if (currentPage <= 4) {
-        pageNumbers.push(1, 2, 3, 4, 5, '...', totalPages);
-      } else if (currentPage >= totalPages - 3) {
-        pageNumbers.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        pageNumbers.push(1, 2, 3, 4, 5, '...', displayTotalPages);
+      } else if (currentPage >= displayTotalPages - 3) {
+        pageNumbers.push(1, '...', displayTotalPages - 4, displayTotalPages - 3, displayTotalPages - 2, displayTotalPages - 1, displayTotalPages);
       } else {
-        pageNumbers.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+        pageNumbers.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', displayTotalPages);
       }
     }
 
@@ -1401,7 +1478,7 @@ const Photos = () => {
 
         <PageButton
           onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          disabled={currentPage === displayTotalPages}
         >
           <ChevronRight size={20} />
         </PageButton>
@@ -1736,6 +1813,25 @@ const Photos = () => {
               </PhotoInfo>
             </PhotoCard>
           ))}
+          {isLoadingMore && (
+            <>
+              {[...Array(8)].map((_, i) => (
+                <PhotoCard key={`skeleton-${i}`} style={{ opacity: 0.6 }}>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '200px', 
+                    background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 1.5s infinite',
+                    borderRadius: '12px',
+                    marginBottom: '16px'
+                  }} />
+                  <div style={{ width: '60%', height: '16px', background: '#f0f0f0', borderRadius: '4px', marginBottom: '8px' }} />
+                  <div style={{ width: '40%', height: '12px', background: '#f0f0f0', borderRadius: '4px' }} />
+                </PhotoCard>
+              ))}
+            </>
+          )}
         </PhotoGrid>
       ) : (
         <PhotoTable>
@@ -1763,6 +1859,8 @@ const Photos = () => {
                 src={photo.url}
                 alt={photo.customer}
                 onClick={() => setViewImage(photo.url)}
+                loading="lazy"
+                decoding="async"
               />
               <CustomerInfo>
                 <ListCustomerName>{highlightText(photo.customer, searchQuery)}</ListCustomerName>
@@ -1795,7 +1893,7 @@ const Photos = () => {
       )
       }
 
-      {totalPages > 1 && renderPagination()}
+      {displayTotalPages > 1 && renderPagination()}
 
       {
         viewImage && (

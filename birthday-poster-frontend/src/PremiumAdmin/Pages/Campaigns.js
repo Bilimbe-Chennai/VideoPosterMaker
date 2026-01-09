@@ -33,6 +33,7 @@ import {
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
+import Pagination from '../Components/Pagination';
 import useAxios from '../../useAxios';
 
 // --- Styled Components ---
@@ -242,6 +243,29 @@ const DropdownItem = styled.div`
   &:last-child {
     border-bottom-left-radius: 12px;
     border-bottom-right-radius: 12px;
+  }
+`;
+
+const CampaignGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+  padding: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const CampaignCard = styled(Card)`
+  padding: 24px;
+  border-radius: 20px;
+  transition: all 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -536,6 +560,16 @@ const Campaigns = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All Channels');
   const [filterStatus, setFilterStatus] = useState('All Status');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 25,
+    total: 0,
+    totalPages: 0
+  });
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
+  const [scrollMode, setScrollMode] = useState(false); // true for infinite scroll
+  const [allCampaigns, setAllCampaigns] = useState([]); // For infinite scroll
+  const [loadingMore, setLoadingMore] = useState(false);
   const [growthMetrics, setGrowthMetrics] = useState({
     activeGrowth: 0,
     completedGrowth: 0,
@@ -648,19 +682,56 @@ const Campaigns = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchCampaigns = useCallback(async () => {
+  const fetchCampaigns = useCallback(async (page = pagination.page, append = false) => {
     try {
-      setLoading(true);
-      const response = await axiosData.get(`campaigns?adminid=${user._id || user.id}`);
-      const campaignsData = response.data || [];
-      setCampaigns(campaignsData);
-      calculateGrowthMetrics(campaignsData);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
+      const response = await axiosData.get(`campaigns?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
+      
+      // Handle paginated or non-paginated responses
+      const campaignsData = Array.isArray(response.data?.data) 
+        ? response.data.data 
+        : (Array.isArray(response.data) ? response.data : []);
+      
+      if (scrollMode && append) {
+        // Append to existing campaigns for infinite scroll
+        setAllCampaigns(prev => [...prev, ...campaignsData]);
+        setCampaigns(prev => [...prev, ...campaignsData]);
+      } else if (scrollMode && !append) {
+        // Initial load for infinite scroll
+        setAllCampaigns(campaignsData);
+        setCampaigns(campaignsData);
+      } else {
+        // Regular pagination
+        setCampaigns(campaignsData);
+      }
+      
+      // Update pagination if available
+      if (response.data?.pagination) {
+        setPagination(prev => ({
+          ...prev,
+          total: response.data.pagination.total,
+          totalPages: response.data.pagination.totalPages,
+          page: page
+        }));
+      }
+      
+      // For growth metrics, we might need all campaigns, so fetch separately if needed
+      // For now, calculate with current page data
+      if (!scrollMode || !append) {
+        calculateGrowthMetrics(campaignsData);
+      }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [axiosData, user._id, user.id]);
+  }, [axiosData, user._id, user.id, pagination.limit, scrollMode]);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -671,11 +742,31 @@ const Campaigns = () => {
     }
   }, [axiosData, user._id, user.id]);
 
+  // Handle load more for infinite scroll
+  const handleLoadMore = useCallback(() => {
+    if (scrollMode && pagination.page < pagination.totalPages && !loadingMore) {
+      const nextPage = pagination.page + 1;
+      fetchCampaigns(nextPage, true);
+    }
+  }, [scrollMode, pagination.page, pagination.totalPages, loadingMore, fetchCampaigns]);
+
   // Fetch campaigns from API
   useEffect(() => {
-    fetchCampaigns();
+    if (scrollMode) {
+      // Reset and fetch first page when switching to scroll mode
+      setAllCampaigns([]);
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }
+    fetchCampaigns(1, false);
     fetchCustomers();
-  }, [fetchCampaigns, fetchCustomers]);
+  }, [scrollMode, pagination.limit, fetchCustomers]); // Removed fetchCampaigns from deps to avoid infinite loop
+
+  // Also fetch when page changes in pagination mode
+  useEffect(() => {
+    if (!scrollMode && pagination.page > 1) {
+      fetchCampaigns(pagination.page, false);
+    }
+  }, [pagination.page]);
 
   // Helper functions for alerts and confirmations
   const showAlert = (message, type = 'info') => {
@@ -852,9 +943,9 @@ const Campaigns = () => {
         adminid: user._id || user.id,
         targetAudience: campaign.targetAudience || { source: 'Photo Merge App' },
         message: campaign.message || '',
-        sent: 0,
-        delivered: 0,
-        clicks: 0
+        sent: 1,
+        delivered: 1,
+        clicks: 1
       };
 
       await axiosData.post('campaigns', duplicateData);
@@ -933,6 +1024,19 @@ const Campaigns = () => {
 
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  // Pagination for filtered campaigns
+  const totalFilteredPages = Math.ceil(filteredCampaigns.length / pagination.limit);
+  const startIndex = (pagination.page - 1) * pagination.limit;
+  const endIndex = startIndex + pagination.limit;
+  const paginatedCampaigns = scrollMode ? filteredCampaigns : filteredCampaigns.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (pagination.page > 1 && totalFilteredPages > 0 && pagination.page > totalFilteredPages) {
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }
+  }, [searchQuery, filterType, filterStatus, totalFilteredPages]);
 
   const getChannelConfig = (type) => {
     switch (type) {
@@ -1170,8 +1274,9 @@ const Campaigns = () => {
           </div>
         </FilterSection>
 
-        <CampaignTable>
-          <thead>
+        {viewMode === 'table' ? (
+          <CampaignTable>
+            <thead>
             <tr>
               <th style={{ width: '40px' }}></th>
               <th>Campaign Details</th>
@@ -1239,7 +1344,7 @@ const Campaigns = () => {
                   </div>
                 </td>
               </tr>
-            ) : filteredCampaigns.map((c) => {
+            ) : paginatedCampaigns.map((c) => {
               const channel = getChannelConfig(c.type);
               const deliveryRate = (c.sent || 0) > 0 ? ((c.delivered || 0) / c.sent) * 100 : 0;
               const ctr = (c.delivered || 0) > 0 ? ((c.clicks || 0) / c.delivered) * 100 : 0;
@@ -1326,8 +1431,134 @@ const Campaigns = () => {
                 </tr>
               );
             })}
-          </tbody>
-        </CampaignTable>
+            </tbody>
+          </CampaignTable>
+        ) : (
+          <CampaignGrid>
+            {loading ? (
+              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '100px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                <Loader className="rotate" size={48} color="#1A1A1A" />
+                <div style={{ fontWeight: 600, color: '#666' }}>Loading campaign data...</div>
+              </div>
+            ) : paginatedCampaigns.length === 0 ? (
+              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '80px 20px', flexDirection: 'column', alignItems: 'center', background: '#FFF' }}>
+                <div style={{ width: '80px', height: '80px', background: '#F9FAFB', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', color: '#6B7280' }}>
+                  <Send size={40} />
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>No campaigns found</div>
+                <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+                  {searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status'
+                    ? `We couldn't find any campaigns matching your current search or filter criteria.`
+                    : "No campaigns have been created yet. Launch your first campaign to start reaching your customers!"}
+                </div>
+              </div>
+            ) : paginatedCampaigns.map((c) => {
+              const channel = getChannelConfig(c.type);
+              const deliveryRate = (c.sent || 0) > 0 ? ((c.delivered || 0) / c.sent) * 100 : 0;
+              const ctr = (c.delivered || 0) > 0 ? ((c.clicks || 0) / c.delivered) * 100 : 0;
+
+              return (
+                <CampaignCard key={c._id || c.id} onClick={() => handleViewCampaign(c)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>{c.name}</h3>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#6B7280' }}>ID: {c._id || c.id}</p>
+                    </div>
+                    <StatusBadge $status={c.status}>
+                      {getStatusIcon(c.status)} {c.status}
+                    </StatusBadge>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                    <ChannelIcon $color={channel.color}>
+                      {channel.icon}
+                    </ChannelIcon>
+                    <span style={{ fontWeight: 600, fontSize: '14px' }}>{c.type}</span>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, marginBottom: '8px' }}>
+                      <span>CTR: {ctr.toFixed(1)}%</span>
+                      <span>Del: {deliveryRate.toFixed(1)}%</span>
+                    </div>
+                    <ProgressBar $percent={ctr * 2}>
+                      <div className="fill" />
+                    </ProgressBar>
+                  </div>
+
+                  <div style={{ marginBottom: '16px', fontSize: '13px', color: '#6B7280' }}>
+                    <p style={{ margin: '4px 0' }}>{new Date(c.startDate).toLocaleDateString('en-GB')}</p>
+                    <p style={{ margin: '4px 0' }}>to {new Date(c.endDate).toLocaleDateString('en-GB')}</p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid #F5F5F5', paddingTop: '16px' }}>
+                    <IconButton 
+                      title="View Details" 
+                      onClick={(e) => { e.stopPropagation(); handleViewCampaign(c); }}
+                    >
+                      <Eye size={18} />
+                    </IconButton>
+                    {c.status !== 'Completed' && (
+                      <IconButton 
+                        title="Send Campaign" 
+                        onClick={(e) => { e.stopPropagation(); handleSendCampaign(c._id || c.id); }}
+                        disabled={operationLoading}
+                      >
+                        <Send size={18} />
+                      </IconButton>
+                    )}
+                    <IconButton 
+                      title="Duplicate Campaign" 
+                      onClick={(e) => { e.stopPropagation(); handleDuplicateCampaign(c); }}
+                      disabled={operationLoading}
+                    >
+                      <Copy size={18} />
+                    </IconButton>
+                    <IconButton 
+                      title="Edit Campaign" 
+                      onClick={(e) => { e.stopPropagation(); openEditModal(c); }}
+                      disabled={operationLoading}
+                    >
+                      <Edit3 size={18} />
+                    </IconButton>
+                    <IconButton 
+                      title="Delete Campaign" 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteCampaign(c._id || c.id); }}
+                      disabled={operationLoading}
+                    >
+                      <Trash2 size={18} />
+                    </IconButton>
+                  </div>
+                </CampaignCard>
+              );
+            })}
+          </CampaignGrid>
+        )}
+        
+        {/* Pagination component will handle its own visibility logic */}
+        {filteredCampaigns.length > 0 && (
+          <div style={{ padding: '24px' }}>
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={scrollMode ? pagination.totalPages : totalFilteredPages}
+              total={scrollMode ? pagination.total : filteredCampaigns.length}
+              limit={pagination.limit}
+              onPageChange={(page) => {
+                setPagination(prev => ({ ...prev, page }));
+              }}
+              onLimitChange={(limit) => {
+                setPagination(prev => ({ ...prev, limit, page: 1 }));
+              }}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              scrollMode={scrollMode}
+              onScrollModeChange={setScrollMode}
+              onLoadMore={handleLoadMore}
+              loadingMore={loadingMore}
+              hasMore={scrollMode && pagination.page < pagination.totalPages}
+            />
+          </div>
+        )}
       </ContentCard>
 
       {/* Create Campaign Modal */}

@@ -203,112 +203,130 @@ const Notifications = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    
-    // Get user-specific localStorage key
-    const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
-    
-    const [readIds, setReadIds] = useState(() => {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error('Error reading readNotificationIds from localStorage:', e);
-            return [];
-        }
-    });
-
-    useEffect(() => {
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(readIds));
-        } catch (e) {
-            console.error('Error saving readNotificationIds to localStorage:', e);
-        }
-    }, [readIds, storageKey]);
-
-    // Listen for storage changes from other tabs/windows
-    useEffect(() => {
-        const handleStorageChange = (e) => {
-            if (e.key === storageKey || e.type === 'notificationStateChange') {
-                try {
-                    const newReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                    setReadIds(newReadIds);
-                    // The useEffect with readIds dependency will automatically trigger fetchAllData
-                } catch (err) {
-                    console.error('Error reading readNotificationIds from localStorage:', err);
-                }
-            }
-        };
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('notificationStateChange', handleStorageChange);
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('notificationStateChange', handleStorageChange);
-        };
-    }, [storageKey]);
 
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            // Always read from localStorage to get the latest readIds
-            let currentReadIds = [];
-            try {
-                currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            } catch (e) {
-                console.error('Error reading readNotificationIds from localStorage:', e);
-                currentReadIds = [];
-            }
+            const adminId = user._id || user.id;
             
-            const [templatesRes, photosRes] = await Promise.all([
-                axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
-                axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
+            // Fetch notifications from API
+            const [notificationsRes, templatesRes, photosRes] = await Promise.all([
+                axiosData.get(`/notifications?adminid=${adminId}`),
+                axiosData.get(`/photomerge/templates?adminid=${adminId}&page=1&limit=100`),
+                axiosData.get(`/upload/all?adminid=${adminId}&page=1&limit=100`)
             ]);
 
-            const allNotifs = [];
+            // Get existing notifications from API
+            const existingNotifications = notificationsRes.data?.data || [];
+            const existingNotificationIds = new Set(existingNotifications.map(n => n.notificationId));
 
-            // Templates Notifications
-            (templatesRes.data || []).forEach(t => {
+            const allNotifs = [...existingNotifications];
+
+            // Handle paginated responses
+            const templatesArray = Array.isArray(templatesRes.data?.data) 
+                ? templatesRes.data.data 
+                : (Array.isArray(templatesRes.data) ? templatesRes.data : []);
+            const photosArray = Array.isArray(photosRes.data?.data) 
+                ? photosRes.data.data 
+                : (Array.isArray(photosRes.data) ? photosRes.data : []);
+
+            // Sync Templates Notifications
+            for (const t of templatesArray) {
                 const createdAt = t.createdAt || t.createdDate;
                 const createdTime = new Date(createdAt).getTime();
-                const updatedTime = new Date(t.updatedDate).getTime();
+                const updatedTime = new Date(t.updatedDate || createdAt).getTime();
                 const isUpdate = updatedTime > createdTime;
                 const notificationId = `template-${t._id}`;
-                allNotifs.push({
-                    id: notificationId,
-                    type: 'success',
-                    title: isUpdate ? 'Template Updated' : 'New Template Created',
-                    isUpdate,
-                    message: `Template "${t.templatename}" has been ${isUpdate ? 'updated' : 'created'}.`,
-                    timestamp: isUpdate ? updatedTime : createdTime,
-                    date: isUpdate ? t.updatedDate : createdAt,
-                    category: 'templates',
-                    isRead: currentReadIds.includes(notificationId)
-                });
-            });
+                
+                if (!existingNotificationIds.has(notificationId)) {
+                    // Create new notification in API
+                    try {
+                        await axiosData.post('/notifications', {
+                            adminid: adminId,
+                            notificationId,
+                            type: 'success',
+                            title: isUpdate ? 'Template Updated' : 'New Template Created',
+                            message: `Template "${t.templatename}" has been ${isUpdate ? 'updated' : 'created'}.`,
+                            category: 'templates',
+                            isUpdate,
+                            timestamp: isUpdate ? updatedTime : createdTime,
+                            date: isUpdate ? t.updatedDate : createdAt
+                        });
+                        
+                        // Add to local list
+                        allNotifs.push({
+                            notificationId,
+                            type: 'success',
+                            title: isUpdate ? 'Template Updated' : 'New Template Created',
+                            isUpdate,
+                            message: `Template "${t.templatename}" has been ${isUpdate ? 'updated' : 'created'}.`,
+                            timestamp: isUpdate ? updatedTime : createdTime,
+                            date: isUpdate ? t.updatedDate : createdAt,
+                            category: 'templates',
+                            isRead: false
+                        });
+                    } catch (err) {
+                        console.error('Error creating template notification:', err);
+                    }
+                }
+            }
 
-            // Photos Notifications
-            (photosRes.data || []).filter(p => p.source === 'Photo Merge App').forEach(p => {
+            // Sync Photos Notifications
+            for (const p of photosArray.filter(p => p.source === 'Photo Merge App')) {
                 const createdAt = p.createdAt || p.date;
                 const updatedAt = p.updatedAt || p.date;
                 const createdTime = new Date(createdAt).getTime();
                 const updatedTime = new Date(updatedAt).getTime();
                 const isUpdate = updatedTime > createdTime;
                 const notificationId = `photo-${p._id}`;
-                allNotifs.push({
-                    id: notificationId,
-                    type: 'info',
-                    title: isUpdate ? 'Photo Updated' : 'Photo Created',
-                    isUpdate,
-                    message: `Photo merge for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
-                    timestamp: isUpdate ? updatedTime : createdTime,
-                    date: isUpdate ? updatedAt : createdAt,
-                    category: 'photos',
-                    isRead: currentReadIds.includes(notificationId)
-                });
-            });
+                
+                if (!existingNotificationIds.has(notificationId)) {
+                    // Create new notification in API
+                    try {
+                        await axiosData.post('/notifications', {
+                            adminid: adminId,
+                            notificationId,
+                            type: 'info',
+                            title: isUpdate ? 'Photo Updated' : 'Photo Created',
+                            message: `Photo merge for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
+                            category: 'photos',
+                            isUpdate,
+                            timestamp: isUpdate ? updatedTime : createdTime,
+                            date: isUpdate ? updatedAt : createdAt
+                        });
+                        
+                        // Add to local list
+                        allNotifs.push({
+                            notificationId,
+                            type: 'info',
+                            title: isUpdate ? 'Photo Updated' : 'Photo Created',
+                            isUpdate,
+                            message: `Photo merge for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
+                            timestamp: isUpdate ? updatedTime : createdTime,
+                            date: isUpdate ? updatedAt : createdAt,
+                            category: 'photos',
+                            isRead: false
+                        });
+                    } catch (err) {
+                        console.error('Error creating photo notification:', err);
+                    }
+                }
+            }
 
+            // Map API response to frontend format
+            const mappedNotifications = allNotifs.map(n => ({
+                id: n.notificationId || n.id,
+                type: n.type,
+                title: n.title,
+                message: n.message,
+                isUpdate: n.isUpdate,
+                timestamp: n.timestamp,
+                date: n.date || (n.timestamp ? new Date(n.timestamp) : new Date()),
+                category: n.category,
+                isRead: n.isRead || false
+            }));
 
-
-            setNotifications(allNotifs.sort((a, b) => b.timestamp - a.timestamp));
+            setNotifications(mappedNotifications.sort((a, b) => b.timestamp - a.timestamp));
         } catch (error) {
             console.error("Error fetching notifications", error);
         } finally {
@@ -318,53 +336,48 @@ const Notifications = () => {
 
     useEffect(() => {
         fetchAllData();
-    }, [readIds]);
+    }, []);
 
-    const handleMarkAsRead = (id) => {
-        // Always read from localStorage to ensure we have the latest state
-        let currentReadIds = [];
+    const handleMarkAsRead = async (id) => {
         try {
-            currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        } catch (e) {
-            console.error('Error reading readNotificationIds from localStorage:', e);
-            currentReadIds = [];
-        }
-        if (!currentReadIds.includes(id)) {
-            const newReadIds = [...currentReadIds, id];
-            setReadIds(newReadIds);
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(newReadIds));
-            } catch (e) {
-                console.error('Error saving readNotificationIds to localStorage:', e);
-            }
+            const adminId = user._id || user.id;
+            await axiosData.post(`/notifications/${id}/read`, { adminid: adminId });
+            
+            // Update local state optimistically
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-            window.dispatchEvent(new Event('notificationStateChange'));
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            // Revert on error
+            fetchAllData();
         }
     };
 
-    const handleDelete = (id) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+    const handleDelete = async (id) => {
+        try {
+            const adminId = user._id || user.id;
+            await axiosData.delete(`/notifications/${id}?adminid=${adminId}`);
+            
+            // Update local state optimistically
+            setNotifications(prev => prev.filter(n => n.id !== id));
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            // Revert on error
+            fetchAllData();
+        }
     };
 
-    const handleMarkAllRead = () => {
-        // Always read from localStorage to ensure we have the latest state
-        let currentReadIds = [];
+    const handleMarkAllRead = async () => {
         try {
-            currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        } catch (e) {
-            console.error('Error reading readNotificationIds from localStorage:', e);
-            currentReadIds = [];
+            const adminId = user._id || user.id;
+            await axiosData.post('/notifications/mark-all-read', { adminid: adminId });
+            
+            // Update local state optimistically
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+            // Revert on error
+            fetchAllData();
         }
-        const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
-        const newReadIds = [...new Set([...currentReadIds, ...unreadIds])];
-        setReadIds(newReadIds);
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(newReadIds));
-        } catch (e) {
-            console.error('Error saving readNotificationIds to localStorage:', e);
-        }
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-        window.dispatchEvent(new Event('notificationStateChange'));
     };
 
     const filteredNotifications = notifications.filter(n => {
@@ -400,7 +413,14 @@ const Notifications = () => {
                         <Check size={18} />
                         Mark All as Read
                     </ActionButton>
-                    <ActionButton onClick={() => setNotifications([])}>
+                    <ActionButton onClick={async () => {
+                        const adminId = user._id || user.id;
+                        const deletePromises = notifications.map(n => 
+                            axiosData.delete(`/notifications/${n.id}?adminid=${adminId}`).catch(err => console.error('Error deleting:', err))
+                        );
+                        await Promise.all(deletePromises);
+                        setNotifications([]);
+                    }}>
                         <Trash2 size={18} />
                         Clear All
                     </ActionButton>
@@ -486,7 +506,7 @@ const Notifications = () => {
                                                 {notif.isUpdate ? 'Updated' : 'Created'}
                                             </StatusBadge>
                                         </Title>
-                                        <Time>{new Date(notif.date).toLocaleString()}</Time>
+                                        <Time>{notif.date ? new Date(notif.date).toLocaleString() : (notif.timestamp ? new Date(notif.timestamp).toLocaleString() : 'N/A')}</Time>
                                     </TitleRow>
                                     <Message>{notif.message}</Message>
                                 </Content>
