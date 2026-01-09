@@ -574,18 +574,42 @@ router.get("/download-all", async (req, res) => {
 // GET all media items
 router.get("/all", async (req, res) => {
   try {
-    const { adminid } = req.query;
+    const { adminid, page = 1, limit = 50 } = req.query;
     let query = {};
     if (adminid) {
       query.adminid = adminid;
     }
     
-    console.log('Fetching media items with query:', query);
-    const mediaItems = await Media.find(query).sort({ createdAt: -1 }).lean(); // Get all items, newest first, use lean() for better performance
-    console.log(`Found ${mediaItems.length} media items`);
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
     
-    // Return as array directly (no need to reverse since we're sorting by createdAt: -1)
-    res.json(mediaItems || []);
+    console.log('Fetching media items with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
+    
+    // Get total count for pagination
+    const total = await Media.countDocuments(query);
+    
+    // Get paginated items
+    const mediaItems = await Media.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+    
+    console.log(`Found ${mediaItems.length} media items (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
+    
+    // Return paginated response
+    res.json({
+      data: mediaItems || [],
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1
+      }
+    });
   } catch (err) {
     console.error("Error fetching media items:", err);
     res.status(500).json({ error: "Server error while fetching media items", message: err.message });
