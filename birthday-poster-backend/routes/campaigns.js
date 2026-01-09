@@ -8,7 +8,7 @@ const Media = require('../models/Media');
 // GET all campaigns for an admin
 router.get('/', async (req, res) => {
   try {
-    const { adminid, status, type } = req.query;
+    const { adminid, status, type, page = 1, limit = 50 } = req.query;
     const query = {};
     
     if (adminid) {
@@ -21,10 +21,35 @@ router.get('/', async (req, res) => {
       query.type = type;
     }
 
-    console.log('Fetching campaigns with query:', query);
-    const campaigns = await Campaign.find(query).sort({ createdAt: -1 }).lean();
-    console.log(`Found ${campaigns.length} campaigns`);
-    res.json(campaigns || []);
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    console.log('Fetching campaigns with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
+    
+    // Get total count for pagination
+    const total = await Campaign.countDocuments(query);
+    
+    // Get paginated campaigns
+    const campaigns = await Campaign.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+    
+    console.log(`Found ${campaigns.length} campaigns (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
+    
+    res.json({
+      data: campaigns || [],
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+        hasNextPage: pageNum < Math.ceil(total / limitNum),
+        hasPrevPage: pageNum > 1
+      }
+    });
   } catch (error) {
     console.error('Error fetching campaigns:', error);
     res.status(500).json({ error: 'Failed to fetch campaigns', message: error.message });

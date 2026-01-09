@@ -55,6 +55,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/report-downloads', require('./routes/reportDownloads'));
 app.use('/api/subscription', require('./routes/subscription'));
 app.use('/api/billing', require('./routes/billing'));
+app.use('/api/notifications', require('./routes/notifications'));
 // app.get("/photomergeapp/share/:id", (req, res) => {
 //   const { id } = req.params;
 //   // Redirect to app deep link
@@ -65,4 +66,45 @@ app.use('/api/billing', require('./routes/billing'));
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", origin: req.headers.origin || "no-origin" });
 });
-app.listen(process.env.PORT, () => console.log('Server running on http://localhost:7000'));
+
+// Start campaign scheduler for automatic activation of scheduled campaigns
+const { startCampaignScheduler } = require('./utils/campaignScheduler');
+const mongoose = require('mongoose');
+let campaignSchedulerInterval = null;
+
+// Initialize database connection
+initDb();
+
+// Start scheduler when database connection is ready
+const startSchedulerWhenReady = () => {
+  if (mongoose.connection.readyState === 1) {
+    // Connection is ready
+    try {
+      campaignSchedulerInterval = startCampaignScheduler();
+      console.log('✅ Campaign scheduler started successfully');
+    } catch (error) {
+      console.error('❌ Error starting campaign scheduler:', error);
+    }
+  } else {
+    // Wait and check again
+    setTimeout(startSchedulerWhenReady, 2000);
+  }
+};
+
+// Start checking for DB connection
+mongoose.connection.on('connected', () => {
+  console.log('✅ MongoDB connected - starting campaign scheduler...');
+  startSchedulerWhenReady();
+});
+
+// Also try to start after a delay as fallback
+setTimeout(() => {
+  if (!campaignSchedulerInterval && mongoose.connection.readyState === 1) {
+    startSchedulerWhenReady();
+  }
+}, 5000);
+
+app.listen(process.env.PORT, () => {
+  console.log('Server running on http://localhost:7000');
+  console.log('Campaign scheduler will start after database connection is established.');
+});

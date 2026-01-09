@@ -205,34 +205,25 @@ const TopBar = ({ onMenuClick }) => {
     return () => window.removeEventListener('userUpdated', handleUserUpdate);
   }, []);
 
-  // Fetch notification count
+  // Fetch notification count from API
   useEffect(() => {
     const fetchNotificationCount = async () => {
       try {
-        const [templatesRes, photosRes] = await Promise.all([
-          axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
-          axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
-        ]);
-
-        // Count all items that are UNREAD - use user-specific key
-        const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
-        let savedReadIds = [];
-        try {
-          savedReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        } catch (e) {
-          console.error('Error reading readNotificationIds from localStorage:', e);
-          savedReadIds = [];
-        }
-
-        const unreadTemplates = (templatesRes.data || [])
-          .filter(t => !savedReadIds.includes(`template-${t._id}`));
-
-        const unreadPhotos = (photosRes.data || [])
-          .filter(p => p.source === 'Photo Merge App' && !savedReadIds.includes(`photo-${p._id}`));
-
-        const count = unreadTemplates.length + unreadPhotos.length;
-        setNotificationCount(count);
-        document.title = count > 0 ? `(${count}) Premium Admin` : 'Premium Admin';
+        const adminId = user._id || user.id;
+        
+        // Fetch unread notifications from API
+        const notificationsRes = await axiosData.get(`/notifications?adminid=${adminId}`);
+        
+        // Handle paginated responses
+        const notificationsArray = Array.isArray(notificationsRes.data?.data) 
+          ? notificationsRes.data.data 
+          : (Array.isArray(notificationsRes.data) ? notificationsRes.data : []);
+        
+        // Count unread notifications
+        const unreadCount = notificationsArray.filter(n => !n.isRead && !n.isDeleted).length;
+        
+        setNotificationCount(unreadCount);
+        document.title = unreadCount > 0 ? `(${unreadCount}) Premium Admin` : 'Premium Admin';
       } catch (error) {
         console.error('Error fetching notification count:', error);
       }
@@ -242,22 +233,17 @@ const TopBar = ({ onMenuClick }) => {
     // Refresh count every 5 minutes
     const interval = setInterval(fetchNotificationCount, 5 * 60 * 1000);
 
-    // Listen for storage changes AND custom event from NotificationPanel
-    const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
-    const handleStorageChange = (e) => {
-      if (e.key === storageKey || e.type === 'notificationStateChange') {
-        fetchNotificationCount();
-      }
+    // Listen for custom event from NotificationPanel (when notifications are marked as read)
+    const handleNotificationChange = () => {
+      fetchNotificationCount();
     };
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('notificationStateChange', handleStorageChange);
+    window.addEventListener('notificationStateChange', handleNotificationChange);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('notificationStateChange', handleStorageChange);
+      window.removeEventListener('notificationStateChange', handleNotificationChange);
     };
-  }, [axiosData]);
+  }, [axiosData, user._id, user.id]);
 
   // Close search results when clicking outside
   useEffect(() => {

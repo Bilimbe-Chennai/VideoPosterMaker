@@ -629,8 +629,12 @@ const Analytics = () => {
   const fetchAnalyticsData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
-      const rawData = response.data.filter(item => item.source === 'Photo Merge App');
+      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`);
+      // Handle both paginated and non-paginated responses
+      const dataArray = Array.isArray(response.data?.data) 
+        ? response.data.data 
+        : (Array.isArray(response.data) ? response.data : []);
+      const rawData = dataArray.filter(item => item.source === 'Photo Merge App');
       processAnalytics(rawData, uniqueCustomersGrowth, timeRange);
       setLoading(false);
     } catch (error) {

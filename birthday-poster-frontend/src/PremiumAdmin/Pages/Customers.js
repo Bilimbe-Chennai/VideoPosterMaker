@@ -665,8 +665,13 @@ const Customers = () => {
 
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
         console.log('Raw response data:', response.data);
-
-        const rawItems = response.data.filter(item =>
+        
+        // Handle paginated responses
+        const dataArray = Array.isArray(response.data?.data) 
+          ? response.data.data 
+          : (Array.isArray(response.data) ? response.data : []);
+        
+        const rawItems = dataArray.filter(item =>
           item.source === 'Photo Merge App'
         );
         console.log('Filtered items (Photo Merge App):', rawItems.length);

@@ -958,7 +958,13 @@ const ShareTracking = () => {
     try {
       setLoading(true);
       const res = await axiosData.get(`upload/all?source=Photo Merge App&adminid=${user._id || user.id}`);
-      const data = res.data.filter(item =>
+      
+      // Handle paginated responses
+      const dataArray = Array.isArray(res.data?.data) 
+        ? res.data.data 
+        : (Array.isArray(res.data) ? res.data : []);
+      
+      const data = dataArray.filter(item =>
         item.source === 'Photo Merge App'
       );
 

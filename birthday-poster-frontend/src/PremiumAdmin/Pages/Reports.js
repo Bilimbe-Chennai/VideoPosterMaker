@@ -451,22 +451,32 @@ const Reports = () => {
         return;
       }
 
-      // Fetch all data in parallel
+      // Fetch all data in parallel (for Reports, we need all data for accurate statistics)
+      // Use high limit to get all data for statistics calculation
       const [mediaResponse, campaignsResponse, templatesResponse] = await Promise.all([
-        axiosData.get(`upload/all?adminid=${adminId}`),
-        axiosData.get(`campaigns?adminid=${adminId}`),
-        axiosData.get('/photomerge/templates')
+        axiosData.get(`upload/all?adminid=${adminId}&page=1&limit=10000`),
+        axiosData.get(`campaigns?adminid=${adminId}&page=1&limit=10000`),
+        axiosData.get(`/photomerge/templates?page=1&limit=10000`)
       ]);
 
       // Log responses for debugging
-      console.log('Media Response:', { status: mediaResponse.status, dataLength: mediaResponse.data?.length });
-      console.log('Campaigns Response:', { status: campaignsResponse.status, dataLength: campaignsResponse.data?.length });
-      console.log('Templates Response:', { status: templatesResponse.status, dataLength: templatesResponse.data?.length });
+      console.log('Media Response:', { status: mediaResponse.status, dataLength: mediaResponse.data?.data?.length || mediaResponse.data?.length });
+      console.log('Campaigns Response:', { status: campaignsResponse.status, dataLength: campaignsResponse.data?.data?.length || campaignsResponse.data?.length });
+      console.log('Templates Response:', { status: templatesResponse.status, dataLength: templatesResponse.data?.data?.length || templatesResponse.data?.length });
 
-      // Ensure data is an array
-      const mediaDataArray = Array.isArray(mediaResponse.data) ? mediaResponse.data : [];
-      const campaignsDataArray = Array.isArray(campaignsResponse.data) ? campaignsResponse.data : [];
-      const templatesDataArray = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+      // Handle paginated or non-paginated responses
+      const mediaDataArray = Array.isArray(mediaResponse.data?.data) 
+        ? mediaResponse.data.data 
+        : (Array.isArray(mediaResponse.data) ? mediaResponse.data : []);
+      const campaignsDataArray = Array.isArray(campaignsResponse.data?.data)
+        ? campaignsResponse.data.data
+        : (Array.isArray(campaignsResponse.data) ? campaignsResponse.data : []);
+      const templatesDataArray = Array.isArray(templatesResponse.data?.data)
+        ? templatesResponse.data.data
+        : (Array.isArray(templatesResponse.data) ? templatesResponse.data : []);
+
+      // For Reports, we fetch all data for accurate statistics
+      // Pagination info is not needed for Reports page since we show aggregated data
 
       const rawItems = mediaDataArray.filter(item => item && item.source === 'Photo Merge App');
       const campaigns = campaignsDataArray;

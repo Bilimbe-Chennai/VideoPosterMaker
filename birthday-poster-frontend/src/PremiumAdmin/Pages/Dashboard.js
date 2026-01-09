@@ -597,9 +597,9 @@ const Dashboard = () => {
       try {
         // STEP 1: Fetch DATA first (completely independent of metrics)
         // Data should always display correctly regardless of metrics
-        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
-        console.log('DATA API Response - Total items:', response.data?.length || 0);
-
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`);
+        console.log('DATA API Response - Total items:', response.data?.data?.length || response.data?.length || 0);
+        
         // STEP 2: Fetch METRICS separately (only for growth percentages)
         // Metrics do NOT affect data display
         let apiMetrics = {};
@@ -612,10 +612,12 @@ const Dashboard = () => {
           // Metrics error should NOT affect data display
         }
 
-        // DATA PROCESSING: Use ALL data from API response
+        // DATA PROCESSING: Handle both paginated and non-paginated responses
         // Don't filter by source - show all available data
         // Data display is completely independent of metrics
-        const rawItems = response.data || [];
+        const rawItems = Array.isArray(response.data?.data) 
+          ? response.data.data 
+          : (Array.isArray(response.data) ? response.data : []);
         console.log('DATA Processing - Raw items count:', rawItems.length);
         const totalPhotos = rawItems.length;
 
