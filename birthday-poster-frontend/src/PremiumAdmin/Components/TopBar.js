@@ -206,8 +206,15 @@ const TopBar = ({ onMenuClick }) => {
           axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
         ]);
 
-        // Count all items that are UNREAD
-        const savedReadIds = JSON.parse(localStorage.getItem('readNotificationIds') || '[]');
+        // Count all items that are UNREAD - use user-specific key
+        const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
+        let savedReadIds = [];
+        try {
+          savedReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (e) {
+          console.error('Error reading readNotificationIds from localStorage:', e);
+          savedReadIds = [];
+        }
 
         const unreadTemplates = (templatesRes.data || [])
           .filter(t => !savedReadIds.includes(`template-${t._id}`));
@@ -228,8 +235,9 @@ const TopBar = ({ onMenuClick }) => {
     const interval = setInterval(fetchNotificationCount, 5 * 60 * 1000);
 
     // Listen for storage changes AND custom event from NotificationPanel
+    const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
     const handleStorageChange = (e) => {
-      if (e.key === 'readNotificationIds' || e.type === 'notificationStateChange') {
+      if (e.key === storageKey || e.type === 'notificationStateChange') {
         fetchNotificationCount();
       }
     };

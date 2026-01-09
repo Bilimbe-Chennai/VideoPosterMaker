@@ -336,11 +336,11 @@ const UserManager = () => {
   const fetchData = useCallback(async () => {
     try {
       const [usersRes, templatesRes] = await Promise.all([
-        axiosData.get('/users'),
-        axiosData.get('/templates'),
+        axiosData.get('users'),
+        axiosData.get('photomerge/templates'),
       ]);
       setUsers(usersRes.data.data || []);
-      setTemplates(templatesRes.data.data || []);
+      setTemplates(templatesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     }

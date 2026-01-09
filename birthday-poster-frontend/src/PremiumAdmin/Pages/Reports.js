@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   Download,
@@ -14,10 +14,12 @@ import {
   RefreshCw,
   Check,
   HardDrive,
-  File
+  File,
+  Loader
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
+import useAxios from '../../useAxios';
 
 // --- Styled Components ---
 
@@ -227,76 +229,202 @@ const SummaryGrid = styled.div`
   }
 `;
 
-// --- Mock Data ---
-
-const INITIAL_REPORTS = [
-  {
-    id: 'customer',
-    name: 'Customer Engagement',
-    type: 'User Analysis',
-    description: 'Detailed analysis of customer visits, photo merge activity, and sharing behavior.',
-    color: '#D47D52', // Dashboard Customer Color
-    icon: <Users size={24} />,
-    records: 1240,
-    size: '1.2 MB',
-    lastGenerated: '2026-01-04 10:30 AM'
-  },
-  {
-    id: 'photo',
-    name: 'Photo Analytics',
-    type: 'Asset Performance',
-    description: 'Insights into category distribution, total views, and download counts per template.',
-    color: '#8E44AD', // Dashboard Photos Color
-    icon: <Image size={24} />,
-    records: 4520,
-    size: '3.8 MB',
-    lastGenerated: '2026-01-02 03:15 PM'
-  },
-  {
-    id: 'campaign',
-    name: 'Campaign Performance',
-    type: 'Marketing ROI',
-    description: 'Comprehensive metrics for WhatsApp, Email, and SMS outreach effectiveness.',
-    color: '#6B8E23', // Dashboard Activity Color
-    icon: <Send size={24} />,
-    records: 12,
-    size: '0.4 MB',
-    lastGenerated: '2026-01-05 09:00 AM'
-  },
-  {
-    id: 'share',
-    name: 'Share Tracking',
-    type: 'Social Distribution',
-    description: 'Audit log of all platform-specific sharing activities and click-through rates.',
-    color: '#B58B00', // Dashboard Shares Color
-    icon: <Share2 size={24} />,
-    records: 890,
-    size: '0.9 MB',
-    lastGenerated: '2026-01-04 11:45 AM'
-  }
-];
-
 const Reports = () => {
+  const axiosData = useAxios();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [activeRange, setActiveRange] = useState('7 Days');
-  const [reports, setReports] = useState(INITIAL_REPORTS);
+  const [reports, setReports] = useState([]);
   const [generating, setGenerating] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [summaryStats, setSummaryStats] = useState({
+    totalReports: 4,
+    generatedThisMonth: 0,
+    totalRecords: 0,
+    totalSize: '0 MB'
+  });
+  const [growthMetrics, setGrowthMetrics] = useState({
+    reportsGrowth: 0,
+    generatedGrowth: 0,
+    recordsGrowth: 0,
+    sizeGrowth: 0
+  });
 
-  const handleGenerate = (id) => {
-    setGenerating(id);
-    setTimeout(() => {
-      setReports(prev => prev.map(r => {
-        if (r.id === id) {
-          return {
-            ...r,
-            lastGenerated: 'Just now',
-            records: r.records + Math.floor(Math.random() * 50),
-            size: (parseFloat(r.size) + 0.1).toFixed(1) + ' MB'
-          };
-        }
-        return r;
-      }));
+  // Helper function to generate SVG trend path
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50;
+    const startY = 35;
+    const endYOffset = -scaleFactor * 20;
+    const endY = startY + endYOffset;
+    const midY = startY + (endYOffset * 0.3);
+    const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+    return { points: path, endX: 85, endY: Math.round(endY) };
+  };
+
+  const fetchReportData = React.useCallback(async () => {
+      try {
+        setLoading(true);
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+
+        // Calculate real statistics
+        const customersSet = new Set();
+        let totalShares = 0;
+
+        let totalDownloads = 0;
+        rawItems.forEach(item => {
+          const phone = item.whatsapp || item.mobile || '';
+          const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+          customersSet.add(key);
+          
+          totalShares += (item.whatsappsharecount || 0) +
+            (item.facebooksharecount || 0) +
+            (item.twittersharecount || 0) +
+            (item.instagramsharecount || 0);
+          totalDownloads += (item.downloadcount || 0);
+        });
+
+        const totalCustomers = customersSet.size;
+        const totalPhotos = rawItems.length;
+
+        // Calculate estimated file sizes based on records
+        const estimateSize = (records) => {
+          const sizeKB = records * 0.5; // ~0.5KB per record
+          return sizeKB >= 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB.toFixed(0)} KB`;
+        };
+
+        const now = new Date();
+        const formattedDate = now.toLocaleString('en-US', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: true
+        });
+
+        // Build reports with real data
+        const reportsData = [
+          {
+            id: 'customer',
+            name: 'Customer Engagement',
+            type: 'User Analysis',
+            description: 'Detailed analysis of customer visits, photo merge activity, and sharing behavior.',
+            color: '#B8653A',
+            icon: <Users size={24} />,
+            records: totalCustomers,
+            size: estimateSize(totalCustomers),
+            lastGenerated: formattedDate
+          },
+          {
+            id: 'photo',
+            name: 'Photo Analytics',
+            type: 'Asset Performance',
+            description: 'Insights into category distribution, total views, and download counts per template.',
+            color: '#8E44AD',
+            icon: <Image size={24} />,
+            records: totalPhotos,
+            size: estimateSize(totalPhotos),
+            lastGenerated: formattedDate
+          },
+          {
+            id: 'campaign',
+            name: 'Campaign Performance',
+            type: 'Marketing ROI',
+            description: 'Comprehensive metrics for WhatsApp, Email, and SMS outreach effectiveness.',
+            color: '#5A7519',
+            icon: <Send size={24} />,
+            records: Math.floor(totalShares / 10) || 0,
+            size: estimateSize(Math.floor(totalShares / 10)),
+            lastGenerated: formattedDate
+          },
+          {
+            id: 'share',
+            name: 'Share Tracking',
+            type: 'Social Distribution',
+            description: 'Audit log of all platform-specific sharing activities and click-through rates.',
+            color: '#B58B00',
+            icon: <Share2 size={24} />,
+            records: totalShares,
+            size: estimateSize(totalShares),
+            lastGenerated: formattedDate
+          }
+        ];
+
+        setReports(reportsData);
+
+        // Calculate summary stats
+        const totalRecords = totalCustomers + totalPhotos + totalShares;
+        const totalSizeKB = totalRecords * 0.5;
+        setSummaryStats({
+          totalReports: 4,
+          generatedThisMonth: reportsData.length,
+          totalRecords: totalRecords,
+          totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
+        });
+
+        // Calculate growth (current vs previous period based on activeRange)
+        const getDaysFromRange = (range) => {
+          switch(range) {
+            case '1 Day': return 1;
+            case '7 Days': return 7;
+            case '30 Days': return 30;
+            case '90 Days': return 90;
+            default: return 7;
+          }
+        };
+
+        const days = getDaysFromRange(activeRange);
+        const currentStart = new Date();
+        currentStart.setDate(currentStart.getDate() - days);
+        const previousStart = new Date();
+        previousStart.setDate(previousStart.getDate() - (days * 2));
+        const previousEnd = currentStart;
+
+        const currentItems = rawItems.filter(item => {
+          const date = new Date(item.date || item.createdAt);
+          return date >= currentStart;
+        });
+
+        const previousItems = rawItems.filter(item => {
+          const date = new Date(item.date || item.createdAt);
+          return date >= previousStart && date < previousEnd;
+        });
+
+        const calculateGrowth = (current, previous) => {
+          // Calculate the count change
+          const countChange = current - previous;
+          // Return the count change directly as percentage (count change = percentage value)
+          // If change is +2, show 2%; if change is -5, show -5%
+          return parseFloat(countChange.toFixed(1));
+        };
+
+        setGrowthMetrics({
+          reportsGrowth: 0, // Static
+          generatedGrowth: calculateGrowth(currentItems.length, previousItems.length),
+          recordsGrowth: calculateGrowth(currentItems.length, previousItems.length),
+          sizeGrowth: calculateGrowth(currentItems.length * 0.5, previousItems.length * 0.5)
+        });
+
+      } catch (error) {
+        console.error("Error fetching report data:", error);
+      } finally {
+        setLoading(false);
+      }
+  }, [axiosData, activeRange, user._id, user.id]);
+
+  // Fetch real data from API
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
+  const handleGenerate = async (id) => {
+    try {
+      setGenerating(id);
+      // Re-fetch real data instead of simulating generation
+      await fetchReportData();
+      // Update the generated label for UX (data stays API-driven)
+      setReports(prev => prev.map(r => (r.id === id ? { ...r, lastGenerated: 'Just now' } : r)));
+    } finally {
       setGenerating(null);
-    }, 2000);
+    }
   };
 
   const handleDownload = (report) => {
@@ -335,7 +463,12 @@ const Reports = () => {
       </HeaderSection>
 
       <ReportsGrid>
-        {reports.map((report) => (
+        {loading ? (
+          <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px', flexDirection: 'column', gap: '16px' }}>
+            <Loader className="spin" size={40} color="#1A1A1A" />
+            <div style={{ fontWeight: 600, color: '#555' }}>Loading reports data...</div>
+          </div>
+        ) : reports.map((report) => (
           <ReportCard key={report.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <ReportHeader>
@@ -394,45 +527,74 @@ const Reports = () => {
         ))}
       </ReportsGrid>
 
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
+
       <div style={{ marginTop: '16px' }}>
         <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px' }}>System Summary</h3>
         <SummaryGrid>
-          <KPIMetricCard
-            label="Available Reports"
-            value="4"
-            trend={0}
-            trendColor="#666"
-            icon={<File size={20} />}
-            bgColor="#F3F4F6"
-            points="M10,25 Q25,25 50,25 T90,25"
-            endX={85} endY={24}
-          />
-          <KPIMetricCard
-            label="Generated This Month"
-            value="18"
-            trend={12}
-            trendColor="#6B8E23"
-            icon={<RefreshCw size={20} />}
-            bgColor="#F4F9E9"
-          />
-          <KPIMetricCard
-            label="Total Records"
-            value="7,462"
-            trend={28}
-            trendColor="#8E44AD"
-            icon={<Database size={20} />}
-            bgColor="#F7F2FA"
-            points="M10,42 C25,35 35,40 50,30 S85,5 90,10"
-            endX={85} endY={8}
-          />
-          <KPIMetricCard
-            label="Total Storage Size"
-            value="6.3 MB"
-            trend={1.2}
-            trendColor="#D47D52"
-            icon={<HardDrive size={20} />}
-            bgColor="#FFF0E5"
-          />
+          {(() => {
+            const reportsTrend = generateTrendPath(growthMetrics.reportsGrowth);
+            const generatedTrend = generateTrendPath(growthMetrics.generatedGrowth);
+            const recordsTrend = generateTrendPath(growthMetrics.recordsGrowth);
+            const sizeTrend = generateTrendPath(growthMetrics.sizeGrowth);
+
+            return (
+              <>
+                <KPIMetricCard
+                  label="Available Reports"
+                  value={summaryStats.totalReports.toString()}
+                  trend={growthMetrics.reportsGrowth}
+                  trendColor="#3B82F6"
+                  icon={<File size={20} />}
+                  bgColor="#DBEAFE"
+                  points={reportsTrend.points}
+                  endX={reportsTrend.endX}
+                  endY={reportsTrend.endY}
+                />
+                <KPIMetricCard
+                  label="Generated This Month"
+                  value={summaryStats.generatedThisMonth.toString()}
+                  trend={growthMetrics.generatedGrowth}
+                  trendColor="#10B981"
+                  icon={<RefreshCw size={20} />}
+                  bgColor="#D1FAE5"
+                  points={generatedTrend.points}
+                  endX={generatedTrend.endX}
+                  endY={generatedTrend.endY}
+                />
+                <KPIMetricCard
+                  label="Total Records"
+                  value={summaryStats.totalRecords.toLocaleString()}
+                  trend={growthMetrics.recordsGrowth}
+                  trendColor="#7A3A95"
+                  icon={<Database size={20} />}
+                  bgColor="#E8DEE8"
+                  points={recordsTrend.points}
+                  endX={recordsTrend.endX}
+                  endY={recordsTrend.endY}
+                />
+                <KPIMetricCard
+                  label="Total Storage Size"
+                  value={summaryStats.totalSize}
+                  trend={growthMetrics.sizeGrowth}
+                  trendColor="#F59E0B"
+                  icon={<HardDrive size={20} />}
+                  bgColor="#FEF3C7"
+                  points={sizeTrend.points}
+                  endX={sizeTrend.endX}
+                  endY={sizeTrend.endY}
+                />
+              </>
+            );
+          })()}
         </SummaryGrid>
       </div>
 

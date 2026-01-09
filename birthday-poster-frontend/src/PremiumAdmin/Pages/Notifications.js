@@ -203,18 +203,61 @@ const Notifications = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Get user-specific localStorage key
+    const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
+    
     const [readIds, setReadIds] = useState(() => {
-        const saved = localStorage.getItem('readNotificationIds');
-        return saved ? JSON.parse(saved) : [];
+        try {
+            const saved = localStorage.getItem(storageKey);
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Error reading readNotificationIds from localStorage:', e);
+            return [];
+        }
     });
 
     useEffect(() => {
-        localStorage.setItem('readNotificationIds', JSON.stringify(readIds));
-    }, [readIds]);
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(readIds));
+        } catch (e) {
+            console.error('Error saving readNotificationIds to localStorage:', e);
+        }
+    }, [readIds, storageKey]);
+
+    // Listen for storage changes from other tabs/windows
+    useEffect(() => {
+        const handleStorageChange = (e) => {
+            if (e.key === storageKey || e.type === 'notificationStateChange') {
+                try {
+                    const newReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                    setReadIds(newReadIds);
+                    // The useEffect with readIds dependency will automatically trigger fetchAllData
+                } catch (err) {
+                    console.error('Error reading readNotificationIds from localStorage:', err);
+                }
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('notificationStateChange', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('notificationStateChange', handleStorageChange);
+        };
+    }, [storageKey]);
 
     const fetchAllData = async () => {
         setLoading(true);
         try {
+            // Always read from localStorage to get the latest readIds
+            let currentReadIds = [];
+            try {
+                currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            } catch (e) {
+                console.error('Error reading readNotificationIds from localStorage:', e);
+                currentReadIds = [];
+            }
+            
             const [templatesRes, photosRes] = await Promise.all([
                 axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),
                 axiosData.get(`/upload/all?adminid=${user._id || user.id}`)
@@ -228,8 +271,9 @@ const Notifications = () => {
                 const createdTime = new Date(createdAt).getTime();
                 const updatedTime = new Date(t.updatedDate).getTime();
                 const isUpdate = updatedTime > createdTime;
+                const notificationId = `template-${t._id}`;
                 allNotifs.push({
-                    id: `template-${t._id}`,
+                    id: notificationId,
                     type: 'success',
                     title: isUpdate ? 'Template Updated' : 'New Template Created',
                     isUpdate,
@@ -237,7 +281,7 @@ const Notifications = () => {
                     timestamp: isUpdate ? updatedTime : createdTime,
                     date: isUpdate ? t.updatedDate : createdAt,
                     category: 'templates',
-                    isRead: readIds.includes(`template-${t._id}`)
+                    isRead: currentReadIds.includes(notificationId)
                 });
             });
 
@@ -248,8 +292,9 @@ const Notifications = () => {
                 const createdTime = new Date(createdAt).getTime();
                 const updatedTime = new Date(updatedAt).getTime();
                 const isUpdate = updatedTime > createdTime;
+                const notificationId = `photo-${p._id}`;
                 allNotifs.push({
-                    id: `photo-${p._id}`,
+                    id: notificationId,
                     type: 'info',
                     title: isUpdate ? 'Photo Updated' : 'Photo Created',
                     isUpdate,
@@ -257,7 +302,7 @@ const Notifications = () => {
                     timestamp: isUpdate ? updatedTime : createdTime,
                     date: isUpdate ? updatedAt : createdAt,
                     category: 'photos',
-                    isRead: readIds.includes(`photo-${p._id}`)
+                    isRead: currentReadIds.includes(notificationId)
                 });
             });
 
@@ -273,12 +318,27 @@ const Notifications = () => {
 
     useEffect(() => {
         fetchAllData();
-    }, []);
+    }, [readIds]);
 
     const handleMarkAsRead = (id) => {
-        if (!readIds.includes(id)) {
-            setReadIds(prev => [...prev, id]);
+        // Always read from localStorage to ensure we have the latest state
+        let currentReadIds = [];
+        try {
+            currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (e) {
+            console.error('Error reading readNotificationIds from localStorage:', e);
+            currentReadIds = [];
+        }
+        if (!currentReadIds.includes(id)) {
+            const newReadIds = [...currentReadIds, id];
+            setReadIds(newReadIds);
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(newReadIds));
+            } catch (e) {
+                console.error('Error saving readNotificationIds to localStorage:', e);
+            }
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+            window.dispatchEvent(new Event('notificationStateChange'));
         }
     };
 
@@ -287,9 +347,24 @@ const Notifications = () => {
     };
 
     const handleMarkAllRead = () => {
+        // Always read from localStorage to ensure we have the latest state
+        let currentReadIds = [];
+        try {
+            currentReadIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (e) {
+            console.error('Error reading readNotificationIds from localStorage:', e);
+            currentReadIds = [];
+        }
         const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
-        setReadIds(prev => [...new Set([...prev, ...unreadIds])]);
+        const newReadIds = [...new Set([...currentReadIds, ...unreadIds])];
+        setReadIds(newReadIds);
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(newReadIds));
+        } catch (e) {
+            console.error('Error saving readNotificationIds to localStorage:', e);
+        }
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        window.dispatchEvent(new Event('notificationStateChange'));
     };
 
     const filteredNotifications = notifications.filter(n => {

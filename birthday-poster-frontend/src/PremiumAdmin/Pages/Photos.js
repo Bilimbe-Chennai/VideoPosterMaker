@@ -3,7 +3,8 @@ import styled, { keyframes, css } from 'styled-components';
 import {
   Image, Share2, Star, Download, Filter, Grid, List as ListIcon,
   MoreVertical, Calendar, Search, Trash2, ExternalLink, MessageCircle, Eye,
-  BarChart2, ShoppingBag, X, ChevronLeft, ChevronRight, ChevronDown, CheckCircle
+  BarChart2, ShoppingBag, X, ChevronLeft, ChevronRight, ChevronDown, CheckCircle,
+  AlertCircle, XCircle
 } from 'react-feather';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -36,7 +37,7 @@ const HeaderTitle = styled.div`
     font-size: 32px;
     font-weight: 800;
     margin: 0 0 8px 0;
-    color: #1A1A1A;
+    color: #0F0F0F;
     letter-spacing: -0.5px;
   }
   p {
@@ -81,8 +82,8 @@ const ActionButton = styled.button`
 
   /* Variant: Outline (Default) */
   ${props => (!props.$variant || props.$variant === 'outline') && `
-    background: #F3F4F6;
-    color: #374151;
+  background: #E3E4E6;
+  color: #2A2F3A;
     border: 1px solid transparent;
     &:hover { background: #E5E7EB; color: #111827; }
   `}
@@ -157,7 +158,7 @@ const KPIMain = styled.div``;
 const KPIValue = styled.div`
   font-size: 32px;
   font-weight: 700;
-  color: #1A1A1A;
+  color: #0F0F0F;
   margin-bottom: 8px;
 `;
 
@@ -209,7 +210,7 @@ const DropdownButton = styled.button`
   border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #0F0F0F;
   cursor: pointer;
   transition: all 0.2s;
   min-width: 160px;
@@ -235,7 +236,7 @@ const DropdownMenu = styled.div`
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-  border: 1px solid #F0F0F0;
+  border: 1px solid #D8D8D8;
   padding: 8px;
   z-index: 100;
   opacity: ${({ $isOpen }) => $isOpen ? 1 : 0};
@@ -249,14 +250,14 @@ const DropdownItem = styled.div`
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
-  color: ${({ $active }) => $active ? '#1A1A1A' : '#666'};
-  background: ${({ $active }) => $active ? '#F5F5F5' : 'transparent'};
+  color: ${({ $active }) => $active ? '#0F0F0F' : '#555'};
+  background: ${({ $active }) => $active ? '#E5E5E5' : 'transparent'};
   cursor: pointer;
   transition: all 0.2s;
   
   &:hover {
     background: #F9F9F9;
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 `;
 
@@ -274,7 +275,7 @@ const SearchBox = styled.div`
     transition: all 0.2s;
     
     &:focus {
-      border-color: #1A1A1A;
+      border-color: #0F0F0F;
     }
   }
   
@@ -292,7 +293,7 @@ const SelectionBar = styled.div`
   bottom: 30px;
   left: 50%;
   transform: translateX(-50%) translateY(${props => props.$show ? '0' : '100px'});
-  background: #1A1A1A;
+  background: #0F0F0F;
   color: white;
   padding: 16px 32px;
   border-radius: 20px;
@@ -332,7 +333,7 @@ const SelectionAction = styled.button`
 
   &:hover {
     background: ${props => props.$variant === 'danger' ? '#FF4757' : 'white'};
-    color: ${props => props.$variant === 'danger' ? 'white' : '#1A1A1A'};
+    color: ${props => props.$variant === 'danger' ? 'white' : '#0F0F0F'};
     transform: translateY(-2px);
   }
 `;
@@ -372,7 +373,7 @@ const ModalTitle = styled.h2`
   margin: 0;
   font-size: 24px;
   font-weight: 800;
-  color: #1A1A1A;
+  color: #0F0F0F;
 `;
 
 const TextArea = styled.textarea`
@@ -380,8 +381,8 @@ const TextArea = styled.textarea`
   height: 150px;
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid #E5E7EB;
-  background: #F9FAFB;
+  border: 1px solid #D5D7DB;
+  background: #E8E9EA;
   font-family: inherit;
   font-size: 15px;
   margin-bottom: 24px;
@@ -400,6 +401,54 @@ const ModalFooter = styled.div`
   justify-content: flex-end;
 `;
 
+const AlertModalOverlay = styled(ModalOverlay)`
+  z-index: 3000;
+`;
+
+const AlertModalContent = styled(ModalContainer)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ConfirmModalContent = styled(ModalContainer)`
+  max-width: 450px;
+  text-align: center;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
 const IconButton = styled.button`
   background: none;
   border: none;
@@ -414,7 +463,7 @@ const IconButton = styled.button`
   
   &:hover {
     background: #F3F4F6;
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 `;
 
@@ -434,7 +483,7 @@ cursor: pointer;
 padding: 4px;
   
   &:hover {
-  color: #1A1A1A;
+  color: #0F0F0F;
 }
 `;
 
@@ -459,7 +508,7 @@ const PhotoGrid = styled.div`
 const PhotoTable = styled.div`
   background: white;
   border-radius: 16px;
-  border: 1px solid #F0F0F0;
+  border: 1px solid #D8D8D8;
   overflow: hidden;
   margin-top: 24px;
 `;
@@ -482,7 +531,7 @@ const pulseAnimation = keyframes`
 
 const HighlightedText = styled.span`
   background: #ffd54f;
-  color: #1A1A1A;
+  color: #0F0F0F;
   font-weight: 700;
   border-radius: 2px;
   padding: 0 2px;
@@ -541,7 +590,7 @@ const CustomerInfo = styled.div`
 
 const ListCustomerName = styled.span`
   font-weight: 700;
-  color: #1A1A1A;
+  color: #0F0F0F;
   font-size: 14px;
 `;
 
@@ -574,7 +623,7 @@ const ListActionButton = styled.button`
   border-radius: 8px;
   border: 1px solid #EEE;
   background: white;
-  color: #1A1A1A;
+  color: #0F0F0F;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -590,7 +639,7 @@ const ListActionButton = styled.button`
 const PhotoCard = styled.div`
   background: white;
   border-radius: 16px;
-  border: 1px solid #F0F0F0;
+  border: 1px solid #D8D8D8;
   transition: all 0.3s ease;
   position: relative;
   display: flex;
@@ -705,7 +754,7 @@ const CustomerName = styled.h4`
   font-size: 16px;
   font-weight: 700;
   margin: 0;
-  color: #1A1A1A;
+  color: #0F0F0F;
 `;
 
 const DateText = styled.p`
@@ -731,7 +780,7 @@ const SendMessageButton = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    background: #1A1A1A;
+    background: #0F0F0F;
     color: white;
   }
 `;
@@ -748,7 +797,7 @@ const MenuButton = styled.button`
   z-index: 10;
   
   &:hover {
-    color: #1A1A1A;
+    color: #0F0F0F;
   }
 `;
 
@@ -891,7 +940,7 @@ const EyeButton = styled.button`
   height: 42px;
   background: #F3F4F6;
   border: none;
-  color: #1A1A1A;
+  color: #0F0F0F;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
@@ -919,11 +968,24 @@ const Photos = () => {
   const [viewImage, setViewImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  
+  // Alert & Confirmation Modal States
+  const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
   const axiosData = useAxios();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [highlightedId, setHighlightedId] = useState(null);
   const photoRefs = useRef({});
+
+  // Helper Functions for Alerts and Confirmations
+  const showAlert = (message, type = 'info') => {
+    setAlertModal({ show: true, message, type });
+  };
+  
+  const showConfirm = (message, onConfirm) => {
+    setConfirmModal({ show: true, message, onConfirm });
+  };
 
   const highlightText = (text, query) => {
     if (!query || !text) return text;
@@ -932,6 +994,32 @@ const Photos = () => {
       part.toLowerCase() === query.toLowerCase() ?
         <HighlightedText key={index}>{part}</HighlightedText> : part
     );
+  };
+
+  // Helper function to generate SVG trend path based on growth value
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    
+    // Normalize growth to a 0-100 scale for better visualization
+    // Cap at ±50% for reasonable curve
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50; // -1 to 1
+    
+    // Calculate Y positions (lower Y = higher on screen)
+    const startY = 35; // Middle baseline
+    const endYOffset = -scaleFactor * 20; // Move up/down based on growth
+    const endY = startY + endYOffset;
+    
+    // Create smooth curve points
+    const midY = startY + (endYOffset * 0.3);
+    
+    const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+    
+    return {
+      points: path,
+      endX: 85,
+      endY: Math.round(endY)
+    };
   };
 
   // Filter States
@@ -957,7 +1045,11 @@ const Photos = () => {
     total: 0,
     today: 0,
     shares: 0,
-    rating: '4.8'
+    rating: '4.8',
+    totalPhotosGrowth: '0',
+    photosTodayGrowth: '0',
+    sharesGrowth: '0',
+    ratingGrowth: '0'
   });
 
   const itemsPerPage = 12;
@@ -985,6 +1077,15 @@ const Photos = () => {
         item.source === 'Photo Merge App'
       );
 
+      // Fetch metrics from API
+      let metricsData = { totalPhotosGrowth: '0', photosTodayGrowth: '0', sharesGrowth: '0', ratingGrowth: '0' };
+      try {
+        const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
+        metricsData = metricsResponse.data.metrics?.photos || { totalPhotosGrowth: '0', photosTodayGrowth: '0', sharesGrowth: '0', ratingGrowth: '0' };
+      } catch (metricsError) {
+        console.error("Error fetching metrics:", metricsError);
+      }
+
       // 1. Group by Customer to count total uploads (Visits)
       const customerCounts = {};
       data.forEach(item => {
@@ -993,7 +1094,21 @@ const Photos = () => {
         customerCounts[key] = (customerCounts[key] || 0) + 1;
       });
 
-      // 2. Process Individual Photos with Grouped Count
+      // 2. Calculate average rating from shares and engagement
+      const calculatePhotoRating = (item) => {
+        const shares = (item.whatsappsharecount || 0) +
+          (item.facebooksharecount || 0) +
+          (item.twittersharecount || 0) +
+          (item.instagramsharecount || 0);
+        const downloads = item.downloadcount || 0;
+        const totalEngagement = shares + downloads;
+        
+        // Base rating 3.0, add up to 2.0 based on engagement
+        const engagementBonus = Math.min(totalEngagement / 10, 2);
+        return (3.0 + engagementBonus).toFixed(1);
+      };
+
+      // 3. Process Individual Photos with Grouped Count
       const processed = data.map((item, index) => {
         const phone = item.whatsapp || item.mobile || '';
         const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
@@ -1016,7 +1131,7 @@ const Photos = () => {
             (item.twittersharecount || 0) +
             (item.instagramsharecount || 0),
           downloads: item.downloadcount || 0,
-          rating: (Math.random() * 2 + 3).toFixed(1)
+          rating: calculatePhotoRating(item)
         };
       }).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -1027,12 +1142,21 @@ const Photos = () => {
       today.setHours(0, 0, 0, 0);
       const todayCount = processed.filter(p => p.timestamp >= today.getTime()).length;
       const totalShares = processed.reduce((acc, curr) => acc + curr.shares + curr.downloads, 0);
+      
+      // Calculate average rating from all photos
+      const avgRating = processed.length > 0
+        ? (processed.reduce((acc, curr) => acc + parseFloat(curr.rating), 0) / processed.length).toFixed(1)
+        : '4.5';
 
       setStats({
         total: processed.length,
         today: todayCount,
         shares: totalShares,
-        rating: (Math.random() * 0.5 + 4.4).toFixed(1)
+        rating: avgRating,
+        totalPhotosGrowth: metricsData.totalPhotosGrowth || '0',
+        photosTodayGrowth: metricsData.photosTodayGrowth || '0',
+        sharesGrowth: metricsData.sharesGrowth || '0',
+        ratingGrowth: metricsData.ratingGrowth || '0'
       });
 
     } catch (error) {
@@ -1150,7 +1274,7 @@ const Photos = () => {
   const confirmSendMessage = async () => {
     if (!activePhoto) return;
     if (!activePhoto.phone || activePhoto.phone === 'N/A') {
-      alert("Customer phone number not available.");
+      showAlert("Customer phone number not available.", 'error');
       return;
     }
 
@@ -1166,14 +1290,14 @@ const Photos = () => {
       });
 
       if (response.data.success) {
-        // alert("Message sent successfully via ChatMyBot!");
+        showAlert("Message sent successfully!", 'success');
         setShowMsgModal(false);
       } else {
         throw new Error("Failed to send message");
       }
     } catch (error) {
       console.error("Messaging Error:", error);
-      alert("Failed to send message via WhatsApp.");
+      showAlert("Failed to send message via WhatsApp.", 'error');
       setShowMsgModal(false);
     } finally {
       setIsSending(false);
@@ -1186,14 +1310,14 @@ const Photos = () => {
       : [];
 
     if (photosToMessage.length === 0) {
-      alert("Please select photos to send bulk messages.");
+      showAlert("Please select photos to send bulk messages.", 'error');
       return;
     }
 
     const bulkMsg = prompt("Enter bulk message (photo link will be appended):", "Check out our latest collection! ");
     if (!bulkMsg) return;
 
-    if (window.confirm(`Send messages to ${photosToMessage.length} customers?`)) {
+    showConfirm(`Send messages to ${photosToMessage.length} customers?`, async () => {
       for (const photo of photosToMessage) {
         try {
           await axiosData.post('/upload/custom-share', {
@@ -1206,8 +1330,8 @@ const Photos = () => {
         }
         await new Promise(r => setTimeout(r, 500));
       }
-      alert("Bulk messaging process completed.");
-    }
+      showAlert("Bulk messaging process completed.", 'success');
+    });
   };
 
   const toggleSelect = (id) => {
@@ -1219,6 +1343,11 @@ const Photos = () => {
   };
 
 
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredPhotos.length / itemsPerPage);
@@ -1300,48 +1429,59 @@ const Photos = () => {
       </HeaderSection>
 
       <KPIBox>
-        {[
-          {
-            label: 'Total Photos',
-            value: stats.total.toLocaleString(),
-            change: '+12.5%',
-            icon: <Image size={20} />,
-            bgColor: '#FFF0E5',
-            trendColor: '#D47D52',
-            points: "M10,40 C25,38 35,45 50,35 S80,10 90,15",
-            endX: 85, endY: 14
-          },
-          {
-            label: 'Photos Today',
-            value: stats.today.toLocaleString(),
-            change: '+8.2%',
-            icon: <Calendar size={20} />,
-            bgColor: '#F4F9E9',
-            trendColor: '#6B8E23',
-            points: "M10,35 C25,38 35,25 50,30 S80,25 90,28",
-            endX: 85, endY: 27
-          },
-          {
-            label: 'Total Shares',
-            value: stats.shares.toLocaleString(),
-            change: '+23.1%',
-            icon: <Share2 size={20} />,
-            bgColor: '#F7F2FA',
-            trendColor: '#8E44AD',
-            points: "M10,42 C25,35 35,40 50,30 S85,5 90,10",
-            endX: 85, endY: 8
-          },
-          {
-            label: 'Avg Rating',
-            value: stats.rating,
-            change: '+2.1%',
-            icon: <Star size={20} />,
-            bgColor: '#FFF9E5',
-            trendColor: '#B58B00',
-            points: "M10,38 C25,35 35,38 50,32 S80,20 90,25",
-            endX: 85, endY: 23
-          }
-        ].map((kpi, idx) => (
+        {(() => {
+          const totalPhotosTrend = generateTrendPath(stats.totalPhotosGrowth);
+          const photosTodayTrend = generateTrendPath(stats.photosTodayGrowth);
+          const sharesTrend = generateTrendPath(stats.sharesGrowth);
+          const ratingTrend = generateTrendPath(stats.ratingGrowth);
+
+          return [
+            {
+              label: 'Total Photos',
+              value: stats.total.toLocaleString(),
+              change: stats.totalPhotosGrowth ? `${parseFloat(stats.totalPhotosGrowth) >= 0 ? '+' : ''}${stats.totalPhotosGrowth}%` : '0%',
+              icon: <Image size={20} />,
+              bgColor: '#FEF3C7',
+              trendColor: '#F59E0B',
+              points: totalPhotosTrend.points,
+              endX: totalPhotosTrend.endX,
+              endY: totalPhotosTrend.endY
+            },
+            {
+              label: 'Photos Today',
+              value: stats.today.toLocaleString(),
+              change: stats.photosTodayGrowth ? `${parseFloat(stats.photosTodayGrowth) >= 0 ? '+' : ''}${stats.photosTodayGrowth}%` : '0%',
+              icon: <Calendar size={20} />,
+              bgColor: '#D1FAE5',
+              trendColor: '#10B981',
+              points: photosTodayTrend.points,
+              endX: photosTodayTrend.endX,
+              endY: photosTodayTrend.endY
+            },
+            {
+              label: 'Total Shares',
+              value: stats.shares.toLocaleString(),
+              change: stats.sharesGrowth ? `${parseFloat(stats.sharesGrowth) >= 0 ? '+' : ''}${stats.sharesGrowth}%` : '0%',
+              icon: <Share2 size={20} />,
+              bgColor: '#E8DEE8',
+              trendColor: '#7A3A95',
+              points: sharesTrend.points,
+              endX: sharesTrend.endX,
+              endY: sharesTrend.endY
+            },
+            {
+              label: 'Avg Rating',
+              value: stats.rating,
+              change: stats.ratingGrowth ? `${parseFloat(stats.ratingGrowth) >= 0 ? '+' : ''}${stats.ratingGrowth}%` : '0%',
+              icon: <Star size={20} />,
+              bgColor: '#FED7AA',
+              trendColor: '#F97316',
+              points: ratingTrend.points,
+              endX: ratingTrend.endX,
+              endY: ratingTrend.endY
+            }
+          ];
+        })().map((kpi, idx) => (
           <KPICard key={idx} $bgColor={kpi.bgColor}>
             <KPITop>
               <KPIIconWrapper>
@@ -1715,6 +1855,62 @@ const Photos = () => {
           </ModalOverlay>
         )
       }
+
+      {/* Alert Modal */}
+      {alertModal.show && (
+        <AlertModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+          <AlertModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type={alertModal.type}>
+              {alertModal.type === 'success' ? (
+                <CheckCircle size={32} />
+              ) : alertModal.type === 'error' ? (
+                <XCircle size={32} />
+              ) : (
+                <AlertCircle size={32} />
+              )}
+            </AlertIconWrapper>
+            <AlertMessage>{alertModal.message}</AlertMessage>
+            <ModalFooter style={{ justifyContent: 'center' }}>
+              <ActionButton
+                $variant={alertModal.type === 'success' ? 'success' : 'primary'}
+                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+              >
+                OK
+              </ActionButton>
+            </ModalFooter>
+          </AlertModalContent>
+        </AlertModalOverlay>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <AlertModalOverlay onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>
+          <ConfirmModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type="info">
+              <AlertCircle size={32} />
+            </AlertIconWrapper>
+            <ConfirmMessage>{confirmModal.message}</ConfirmMessage>
+            <ModalFooter style={{ justifyContent: 'center' }}>
+              <ActionButton
+                onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}
+              >
+                Cancel
+              </ActionButton>
+              <ActionButton
+                $variant="success"
+                onClick={() => {
+                  if (confirmModal.onConfirm) {
+                    confirmModal.onConfirm();
+                  }
+                  setConfirmModal({ show: false, message: '', onConfirm: null });
+                }}
+              >
+                Confirm
+              </ActionButton>
+            </ModalFooter>
+          </ConfirmModalContent>
+        </AlertModalOverlay>
+      )}
     </PageContainer >
   );
 };

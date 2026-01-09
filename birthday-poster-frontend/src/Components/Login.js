@@ -178,14 +178,13 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axiosData.post('/users/login', {
+      const response = await axiosData.post('users/login', {
         email,
         password,
         type
       });
 
       if (response.data.success) {
-        localStorage.setItem('token', 'dummy-token');
         localStorage.setItem('user', JSON.stringify(response.data.data));
 
         if (response.data.data.type === 'superadmin') {

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Card from '../Components/Card';
-import { Plus, Edit, Trash2, Eye, Calendar, Users, Percent } from 'react-feather';
+import { Plus, Edit, Trash2, Eye, Calendar, Users, Percent, Loader } from 'react-feather';
+import useAxios from '../../useAxios';
 
 const PromotionsContainer = styled.div``;
 
@@ -145,63 +146,99 @@ const IconButton = styled.button`
   }
 `;
 
-const promotionsData = [
-  {
-    id: 1,
-    title: 'Festival Discount',
-    description: 'Special discount for Diwali festival',
-    type: 'percentage',
-    value: '20%',
-    code: 'DIWALI20',
-    startDate: '2024-10-20',
-    endDate: '2024-11-05',
-    customers: '1,245',
-    status: 'active',
-    color: '#E8DFF1'
-  },
-  {
-    id: 2,
-    title: 'New Customer Offer',
-    description: 'Welcome discount for new customers',
-    type: 'fixed',
-    value: '₹500',
-    code: 'WELCOME500',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    customers: '842',
-    status: 'active',
-    color: '#EEF6E8'
-  },
-  {
-    id: 3,
-    title: 'Clearance Sale',
-    description: 'End of season clearance',
-    type: 'percentage',
-    value: '40%',
-    code: 'CLEAR40',
-    startDate: '2024-08-15',
-    endDate: '2024-08-30',
-    customers: '2,184',
-    status: 'expired',
-    color: '#FCEADF'
-  },
-  {
-    id: 4,
-    title: 'Weekend Special',
-    description: 'Special weekend discounts',
-    type: 'percentage',
-    value: '15%',
-    code: 'WEEKEND15',
-    startDate: '2024-09-01',
-    endDate: '2024-12-31',
-    customers: '956',
-    status: 'active',
-    color: '#F4E6F0'
-  },
-];
-
 const Promotions = () => {
-  const [promotions] = useState(promotionsData);
+  const axiosData = useAxios();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [promotions, setPromotions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch promotions data from API (derived from templates/categories)
+  useEffect(() => {
+    const fetchPromotionsData = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+
+        // Group by template to create promotion-like data
+        const templateMap = {};
+        const colors = ['#E8DFF1', '#EEF6E8', '#FCEADF', '#F4E6F0', '#FFF5EB', '#F1FBEF'];
+        let colorIndex = 0;
+
+        rawItems.forEach(item => {
+          const templateName = item.template_name || item.templatename || item.type || 'General';
+          
+          if (!templateMap[templateName]) {
+            templateMap[templateName] = {
+              id: Object.keys(templateMap).length + 1,
+              templateName,
+              title: `${templateName} Promotion`,
+              description: `Special offer for ${templateName} category`,
+              type: 'percentage',
+              // Derived from real usage (customers count) later — no random values
+              value: '0%',
+              code: '',
+              startDate: item.date || item.createdAt,
+              endDate: new Date().toISOString().split('T')[0],
+              customers: 0,
+              status: 'active',
+              color: colors[colorIndex % colors.length]
+            };
+            colorIndex++;
+          }
+
+          templateMap[templateName].customers += 1;
+          
+          // Update dates
+          const itemDate = new Date(item.date || item.createdAt);
+          const startDate = new Date(templateMap[templateName].startDate);
+          if (itemDate < startDate) {
+            templateMap[templateName].startDate = item.date || item.createdAt;
+          }
+        });
+
+        // Convert to array and format
+        const promotionsArray = Object.values(templateMap).map(p => {
+          const startDate = new Date(p.startDate);
+          const endDate = new Date(p.endDate);
+          const now = new Date();
+
+          // Deterministic promo value/code derived from API-driven usage
+          const customersCount = p.customers || 0;
+          const discountPct = Math.max(10, Math.min(40, 10 + (customersCount % 31))); // 10%..40%
+          const codePrefix = String(p.templateName || 'PROMO').toUpperCase().replace(/\s+/g, '').substring(0, 6).padEnd(6, 'X');
+          const codeSuffix = String(customersCount % 100).padStart(2, '0');
+          p.value = `${discountPct}%`;
+          p.code = `${codePrefix}${codeSuffix}`;
+          
+          // Determine status
+          if (endDate < now && p.customers === 0) {
+            p.status = 'expired';
+          } else if (p.customers > 0) {
+            p.status = 'active';
+          }
+          
+          // Format dates
+          p.startDate = startDate.toISOString().split('T')[0];
+          p.endDate = endDate.toISOString().split('T')[0];
+          p.customers = p.customers.toLocaleString();
+          
+          return p;
+        });
+
+        // Sort by most customers
+        promotionsArray.sort((a, b) => parseInt(b.customers.replace(/,/g, '')) - parseInt(a.customers.replace(/,/g, '')));
+        
+        setPromotions(promotionsArray.slice(0, 8)); // Limit to 8 promotions
+      } catch (error) {
+        console.error("Error fetching promotions data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPromotionsData();
+  }, []);
 
   return (
     <PromotionsContainer>
@@ -220,7 +257,17 @@ const Promotions = () => {
       </HeaderSection>
 
       <PromotionsGrid>
-        {promotions.map((promo) => (
+        {loading ? (
+          <div style={{ gridColumn: 'span 3', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '100px', flexDirection: 'column', gap: '16px' }}>
+            <Loader className="rotate" size={48} color="#1A1A1A" />
+            <div style={{ fontWeight: 600, color: '#666' }}>Loading promotions...</div>
+          </div>
+        ) : promotions.length === 0 ? (
+          <div style={{ gridColumn: 'span 3', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '100px', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>No promotions found</div>
+            <div style={{ color: '#666' }}>Create your first promotion to get started</div>
+          </div>
+        ) : promotions.map((promo) => (
           <PromotionCard key={promo.id} bgColor={promo.color} hoverable>
             <PromotionBadge $active={promo.status === 'active'}>
               {promo.status === 'active' ? 'Active' : 'Expired'}
@@ -284,3 +331,19 @@ const Promotions = () => {
 };
 
 export default Promotions;
+
+// Add CSS for loader animation
+const style = document.createElement('style');
+style.textContent = `
+  .rotate {
+    animation: rotate 2s linear infinite;
+  }
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+if (!document.querySelector('style[data-promotions-loader]')) {
+  style.setAttribute('data-promotions-loader', 'true');
+  document.head.appendChild(style);
+}

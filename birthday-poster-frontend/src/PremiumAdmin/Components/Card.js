@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { MoreHorizontal } from 'react-feather';
 
 const CardContainer = styled.div`
-  background: ${props => props.$dark ? '#1A1A1A' : 'white'};
+  background: ${props => props.$dark ? '#0F0F0F' : 'white'};
   border-radius: 32px;
   padding: 24px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
@@ -42,7 +42,7 @@ const CardSubtitle = styled.p`
 const MenuButton = styled.button`
   background: none;
   border: none;
-  color: ${props => props.$dark ? '#7A7A7A' : '#999'};
+  color: ${props => props.$dark ? '#666666' : '#777'};
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -50,7 +50,7 @@ const MenuButton = styled.button`
   justify-content: center;
   transition: all 0.2s;
   &:hover {
-    color: ${props => props.$dark ? '#FFF' : '#333'};
+    color: ${props => props.$dark ? '#FFF' : '#222'};
   }
 `;
 

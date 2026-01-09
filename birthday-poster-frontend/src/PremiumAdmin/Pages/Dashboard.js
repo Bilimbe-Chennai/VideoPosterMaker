@@ -141,7 +141,7 @@ const KPIMain = styled.div``;
 const KPIValue = styled.div`
   font-size: 32px;
   font-weight: 700;
-  color: #1A1A1A;
+  color: #0F0F0F;
   margin-bottom: 8px;
 `;
 
@@ -300,6 +300,8 @@ const TooltipValue = styled.div`
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     const data = payload[0];
+    const count = data.payload?.count || data.count || 0;
+    const percentage = data.value || 0;
     return (
       <TooltipContainer>
         <TooltipLabel>
@@ -307,7 +309,10 @@ const CustomTooltip = ({ active, payload }) => {
           {data.name}
         </TooltipLabel>
         <TooltipValue>
-          {data.value}<span>%</span>
+          Count: {count}
+        </TooltipValue>
+        <TooltipValue>
+          {percentage}<span>%</span>
         </TooltipValue>
       </TooltipContainer>
     );
@@ -318,7 +323,7 @@ const CustomTooltip = ({ active, payload }) => {
 const DonutCard = styled(Card)`
   grid-column: span 4;
   padding: 24px;
-  background-color: #1A1A1A; /* Dark Theme as per screenshot */
+  background-color: #0F0F0F; /* Dark Theme as per screenshot */
   color: white;
   min-height: 400px;
   border-radius: 32px;
@@ -408,12 +413,12 @@ const ActivityIcon = styled.div`
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #F8F9FA;
+  background: #E8E9EA;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #1A1A1A;
-  border: 1px solid #F0F0F0;
+  color: #0F0F0F;
+  border: 1px solid #D8D8D8;
   flex-shrink: 0;
 `;
 
@@ -422,7 +427,7 @@ const ChartHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   padding-bottom: 20px;
-  border-bottom: 1px solid #F0F0F0;
+  border-bottom: 1px solid #D8D8D8;
   margin-bottom: 24px;
 `;
 
@@ -436,7 +441,7 @@ const ChartTab = styled.button`
   border: none;
   font-size: 14px;
   font-weight: 600;
-  color: ${({ $active }) => $active ? '#1A1A1A' : '#999'};
+  color: ${({ $active }) => $active ? '#0F0F0F' : '#777'};
   padding-bottom: 8px;
   position: relative;
   transition: all 0.2s;
@@ -449,7 +454,7 @@ const ChartTab = styled.button`
       left: 0;
       width: 100%;
       height: 2px;
-      background: #1A1A1A;
+      background: #0F0F0F;
     }
   `}
 `;
@@ -464,17 +469,17 @@ const DropdownButton = styled.button`
   gap: 8px;
   padding: 8px 16px;
   background: white;
-  border: 1px solid #EEE;
+  border: 1px solid #D0D0D0;
   border-radius: 20px;
   font-size: 14px;
   font-weight: 700;
-  color: #1A1A1A;
+  color: #0F0F0F;
   cursor: pointer;
   transition: all 0.2s;
   
   &:hover {
-    background: #F9F9F9;
-    border-color: #DDD;
+    background: #E8E8E8;
+    border-color: #C0C0C0;
   }
 `;
 
@@ -486,7 +491,7 @@ const DropdownMenu = styled.div`
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border: 1px solid #EEE;
+  border: 1px solid #D0D0D0;
   padding: 8px;
   min-width: 140px;
   z-index: 100;
@@ -504,28 +509,28 @@ const DropdownItem = styled.div`
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: ${({ $active }) => $active ? '#1A1A1A' : '#666'};
-  background: ${({ $active }) => $active ? '#F5F5F5' : 'transparent'};
+  color: ${({ $active }) => $active ? '#0F0F0F' : '#555'};
+  background: ${({ $active }) => $active ? '#E5E5E5' : 'transparent'};
   cursor: pointer;
   transition: all 0.2s;
   
   &:hover {
-    background: #F5F5F5;
-    color: #1A1A1A;
+    background: #E5E5E5;
+    color: #0F0F0F;
   }
 `;
 
 const Dashboard = () => {
   const [activeFilter, setActiveFilter] = useState('7 Day');
   const [activeChartTab, setActiveChartTab] = useState('Photos');
-  const [activePeriod, setActivePeriod] = useState('Last week');
+  const [activePeriod, setActivePeriod] = useState('This week');
   const [showDropdown, setShowDropdown] = useState(false);
   const [shareDistribution, setShareDistribution] = useState([
-    { name: 'WhatsApp', value: 0, color: '#E8DFF1', fill: '#E8DFF1' },
-    { name: 'Instagram', value: 0, color: '#EEF6E8', fill: '#EEF6E8' },
-    { name: 'Facebook', value: 0, color: '#FEF7E0', fill: '#FEF7E0' },
-    { name: 'Twitter', value: 0, color: '#DFF6FE', fill: '#DFF6FE' },
-    { name: 'Download', value: 0, color: '#FCEADF', fill: '#FCEADF' }
+    { name: 'WhatsApp', value: 0, color: '#10B981', fill: '#10B981' },
+    { name: 'Instagram', value: 0, color: '#EC4899', fill: '#EC4899' },
+    { name: 'Facebook', value: 0, color: '#3B82F6', fill: '#3B82F6' },
+    { name: 'Twitter', value: 0, color: '#06B6D4', fill: '#06B6D4' },
+    { name: 'Download', value: 0, color: '#F97316', fill: '#F97316' }
   ]);
   const [trends, setTrends] = useState({});
   const [recentActivities, setRecentActivities] = useState([]);
@@ -545,13 +550,42 @@ const Dashboard = () => {
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
 
+  // Helper function to generate SVG trend path based on growth value
+  const generateTrendPath = (growth) => {
+    const growthValue = parseFloat(growth) || 0;
+    
+    // Normalize growth to a 0-100 scale for better visualization
+    const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
+    const scaleFactor = normalizedGrowth / 50; // -1 to 1
+    
+    // Calculate Y positions (lower Y = higher on screen)
+    const startY = 35; // Middle baseline
+    const endYOffset = -scaleFactor * 20; // Move up/down based on growth
+    const endY = startY + endYOffset;
+    
+    // Create smooth curve points
+    const midY = startY + (endYOffset * 0.3);
+    
+    const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
+    
+    return {
+      points: path,
+      endX: 85,
+      endY: Math.round(endY)
+    };
+  };
+
   const axiosData = useAxios();
   const [stats, setStats] = useState({
     totalCustomers: 0,
     totalPhotos: 0,
     photosToday: 0,
     totalShares: 0,
-    conversion: '0%'
+    conversion: '0%',
+    customerGrowth: 0,
+    photosGrowth: 0,
+    photosTodayGrowth: 0,
+    sharesGrowth: 0
   });
   const [topCustomersData, setTopCustomersData] = useState([]);
 
@@ -560,12 +594,28 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        // STEP 1: Fetch DATA first (completely independent of metrics)
+        // Data should always display correctly regardless of metrics
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        console.log('DATA API Response - Total items:', response.data?.length || 0);
+        
+        // STEP 2: Fetch METRICS separately (only for growth percentages)
+        // Metrics do NOT affect data display
+        let apiMetrics = {};
+        try {
+          const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
+          apiMetrics = metricsResponse.data?.metrics?.dashboard || {};
+          console.log('METRICS API Response (growth only):', apiMetrics);
+        } catch (metricsError) {
+          console.error("Error fetching metrics (will use defaults for growth):", metricsError);
+          // Metrics error should NOT affect data display
+        }
 
-        // 1. Filter for Photo Merge App
-        const rawItems = response.data.filter(item =>
-          item.source === 'Photo Merge App'
-        );
+        // DATA PROCESSING: Use ALL data from API response
+        // Don't filter by source - show all available data
+        // Data display is completely independent of metrics
+        const rawItems = response.data || [];
+        console.log('DATA Processing - Raw items count:', rawItems.length);
         const totalPhotos = rawItems.length;
 
         // 2 & 3. Aggregate Duplicate Customers & Trends
@@ -600,6 +650,7 @@ const Dashboard = () => {
               visitCount: 0,
               photoCount: 0,
               shareCount: 0,
+              downloadCount: 0,
               initial: (item.name || 'U').charAt(0).toUpperCase()
             };
           }
@@ -607,15 +658,17 @@ const Dashboard = () => {
           const itemShares = (item.whatsappsharecount || 0) +
             (item.facebooksharecount || 0) +
             (item.twittersharecount || 0) +
-            (item.instagramsharecount || 0) +
-            (item.downloadcount || 0);
+            (item.instagramsharecount || 0);
+          const itemDownloads = item.downloadcount || 0;
 
           customersMap[key].visitCount += 1;
           customersMap[key].photoCount += 1;
           customersMap[key].shareCount += itemShares;
+          customersMap[key].downloadCount = (customersMap[key].downloadCount || 0) + itemDownloads;
 
           dailyTrends[dateKey].photos += 1;
           dailyTrends[dateKey].shares += itemShares;
+          dailyTrends[dateKey].downloads = (dailyTrends[dateKey].downloads || 0) + itemDownloads;
         });
 
         setTrends(dailyTrends);
@@ -637,28 +690,54 @@ const Dashboard = () => {
           counts.download += (item.downloadcount || 0);
         });
 
-        const totalShares = counts.whatsapp + counts.facebook + counts.twitter + counts.instagram + counts.download;
+        const totalShares = counts.whatsapp + counts.facebook + counts.twitter + counts.instagram;
+        const totalDownloads = counts.download;
+        const totalEngagement = totalShares + totalDownloads;
 
-        if (totalShares > 0) {
+        if (totalEngagement > 0) {
           const distribution = [
-            { name: 'WhatsApp', value: parseFloat(((counts.whatsapp / totalShares) * 100).toFixed(1)), color: '#E8DFF1', fill: '#E8DFF1' },
-            { name: 'Instagram', value: parseFloat(((counts.instagram / totalShares) * 100).toFixed(1)), color: '#EEF6E8', fill: '#EEF6E8' },
-            { name: 'Facebook', value: parseFloat(((counts.facebook / totalShares) * 100).toFixed(1)), color: '#FEF7E0', fill: '#FEF7E0' },
-            { name: 'Twitter', value: parseFloat(((counts.twitter / totalShares) * 100).toFixed(1)), color: '#DFF6FE', fill: '#DFF6FE' },
-            { name: 'Download', value: parseFloat(((counts.download / totalShares) * 100).toFixed(1)), color: '#FCEADF', fill: '#FCEADF' }
+            { name: 'WhatsApp', value: parseFloat(((counts.whatsapp / totalEngagement) * 100).toFixed(1)), count: counts.whatsapp, color: '#10B981', fill: '#10B981' },
+            { name: 'Instagram', value: parseFloat(((counts.instagram / totalEngagement) * 100).toFixed(1)), count: counts.instagram, color: '#EC4899', fill: '#EC4899' },
+            { name: 'Facebook', value: parseFloat(((counts.facebook / totalEngagement) * 100).toFixed(1)), count: counts.facebook, color: '#3B82F6', fill: '#3B82F6' },
+            { name: 'Twitter', value: parseFloat(((counts.twitter / totalEngagement) * 100).toFixed(1)), count: counts.twitter, color: '#06B6D4', fill: '#06B6D4' },
+            { name: 'Download', value: parseFloat(((counts.download / totalEngagement) * 100).toFixed(1)), count: counts.download, color: '#F97316', fill: '#F97316' }
           ];
           setShareDistribution(distribution);
         }
 
-        // Stats Update
+        // DATA VALUES: Calculated from actual data (NOT affected by metrics)
+        // These values are completely independent and always show correctly
         const totalCustomers = Object.keys(customersMap).length;
-        setStats({
+        const finalStats = {
+          // DATA VALUES - Always calculated from actual data, never from metrics
           totalCustomers: totalCustomers,
           totalPhotos: totalPhotos,
           photosToday: todayCount,
           totalShares: totalShares,
-          conversion: '18.5%'
+          totalDownloads: totalDownloads,
+          conversion: '18.5%',
+          // METRICS VALUES - Only for growth percentages, separate from data
+          // If metrics API fails, growth will be 0 but data will still display
+          customerGrowth: apiMetrics.totalCustomers?.growth ?? 0,
+          photosGrowth: apiMetrics.totalPhotos?.growth ?? 0,
+          photosTodayGrowth: apiMetrics.photosToday?.growth ?? 0,
+          sharesGrowth: apiMetrics.totalShares?.growth ?? 0
+        };
+        console.log('DATA Stats (from actual data):', {
+          totalCustomers,
+          totalPhotos,
+          photosToday: todayCount,
+          totalShares,
+          totalDownloads
         });
+        console.log('METRICS Stats (growth only):', {
+          customerGrowth: finalStats.customerGrowth,
+          photosGrowth: finalStats.photosGrowth,
+          photosTodayGrowth: finalStats.photosTodayGrowth,
+          sharesGrowth: finalStats.sharesGrowth
+        });
+        console.log('Final Stats (data + metrics):', finalStats);
+        setStats(finalStats);
 
         // Top Customers Update
         const sortedCustomers = Object.values(customersMap)
@@ -709,56 +788,77 @@ const Dashboard = () => {
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        // Set default stats even on error so UI shows something
+        setStats({
+          totalCustomers: 0,
+          totalPhotos: 0,
+          photosToday: 0,
+          totalShares: 0,
+          conversion: '0%',
+          customerGrowth: 0,
+          photosGrowth: 0,
+          photosTodayGrowth: 0,
+          sharesGrowth: 0
+        });
       }
     };
 
     fetchDashboardData();
   }, []);
 
+  const customerTrend = generateTrendPath(stats.customerGrowth);
+  const photosTrend = generateTrendPath(stats.photosGrowth);
+  const photosTodayTrend = generateTrendPath(stats.photosTodayGrowth);
+  const sharesTrend = generateTrendPath(stats.sharesGrowth);
+
   const kpis = [
     {
       label: 'Total Customers',
       value: stats.totalCustomers.toLocaleString(),
-      change: '+12.5%',
+      change: `${stats.customerGrowth >= 0 ? '+' : ''}${stats.customerGrowth}%`,
       icon: <Users size={20} />,
-      bgColor: '#FFF0E5',
-      trendColor: '#D47D52',
-      positive: true,
-      points: "M10,40 C25,38 35,45 50,35 S80,10 90,15",
-      endX: 85, endY: 14
+      bgColor: '#FEF3C7',
+      trendColor: '#F59E0B',
+      positive: stats.customerGrowth >= 0,
+      points: customerTrend.points,
+      endX: customerTrend.endX,
+      endY: customerTrend.endY
     },
     {
       label: 'Total Photos',
       value: stats.totalPhotos ? stats.totalPhotos.toLocaleString() : '0',
-      change: '+23.1%',
+      change: `${stats.photosGrowth >= 0 ? '+' : ''}${stats.photosGrowth}%`,
       icon: <Image size={20} />,
-      bgColor: '#F7F2FA',
-      trendColor: '#8E44AD',
-      positive: true,
-      points: "M10,42 C25,35 35,40 50,30 S85,5 90,10",
-      endX: 85, endY: 8
+      bgColor: '#E8D5FF',
+      trendColor: '#8B5CF6',
+      positive: stats.photosGrowth >= 0,
+      points: photosTrend.points,
+      endX: photosTrend.endX,
+      endY: photosTrend.endY
     },
     {
       label: 'Photos Today',
       value: stats.photosToday.toLocaleString(),
-      change: '+8.2%',
+      change: `${stats.photosTodayGrowth >= 0 ? '+' : ''}${stats.photosTodayGrowth}%`,
       icon: <Activity size={20} />,
-      bgColor: '#F4F9E9',
-      trendColor: '#6B8E23',
-      positive: true,
-      points: "M10,35 C25,38 35,25 50,30 S80,25 90,28",
-      endX: 85, endY: 27
+      bgColor: '#D1FAE5',
+      trendColor: '#10B981',
+      positive: stats.photosTodayGrowth >= 0,
+      points: photosTodayTrend.points,
+      endX: photosTodayTrend.endX,
+      endY: photosTodayTrend.endY
     },
     {
       label: 'Total Shares',
       value: stats.totalShares.toLocaleString(),
-      change: '+2.1%',
+      change: `${stats.sharesGrowth >= 0 ? '+' : ''}${stats.sharesGrowth}%`,
       icon: <Share2 size={20} />,
-      bgColor: '#FFF9E5',
-      trendColor: '#B58B00',
-      positive: true,
-      points: "M10,38 C25,35 35,38 50,32 S80,20 90,25",
-      endX: 85, endY: 23
+      bgColor: '#FED7AA',
+      trendColor: '#F97316',
+      positive: stats.sharesGrowth >= 0,
+      points: sharesTrend.points,
+      endX: sharesTrend.endX,
+      endY: sharesTrend.endY
     },
   ];
 
@@ -921,20 +1021,20 @@ const Dashboard = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '16px 0',
-                borderBottom: i === recentActivities.length - 1 ? 'none' : '1px solid #F0F0F0'
+                borderBottom: i === recentActivities.length - 1 ? 'none' : '1px solid #D8D8D8'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <ActivityIcon>{a.icon}</ActivityIcon>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <p style={{ margin: 0, fontSize: '15px', color: '#1A1A1A' }}>
-                      <strong style={{ fontWeight: 700 }}>{a.user}</strong> <span style={{ color: '#4B5563' }}>{a.action}</span>
+                    <p style={{ margin: 0, fontSize: '15px', color: '#0F0F0F' }}>
+                      <strong style={{ fontWeight: 700 }}>{a.user}</strong> <span style={{ color: '#3A4148' }}>{a.action}</span>
                     </p>
                   </div>
                 </div>
-                <TimeTag style={{ color: '#A0A0A0', fontSize: '12px' }}>{a.time}</TimeTag>
+                <TimeTag style={{ color: '#808080', fontSize: '12px' }}>{a.time}</TimeTag>
               </div>
             )) : (
-              <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>No recent activities</p>
+              <p style={{ textAlign: 'center', color: '#777', padding: '20px' }}>No recent activities</p>
             )}
           </div>
         </ListCard>
