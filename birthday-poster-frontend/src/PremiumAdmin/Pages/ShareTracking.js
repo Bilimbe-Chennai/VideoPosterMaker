@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import Card from '../Components/Card';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 import Pagination from '../Components/Pagination';
 
 // Configuration Constants (can be fetched from API or settings in future)
@@ -24,38 +25,38 @@ const SHARE_TRACKING_CONFIG = {
   itemsPerPage: 10,
   clicksMultiplier: 1.5, // Clicks = shares * multiplier
   platforms: [
-    { 
-      name: 'WhatsApp', 
-      key: 'WhatsApp', 
-      color: '#20BD5A', 
+    {
+      name: 'WhatsApp',
+      key: 'WhatsApp',
+      color: '#20BD5A',
       icon: 'MessageCircle',
       shareKey: 'whatsappsharecount'
     },
-    { 
-      name: 'Instagram', 
-      key: 'Instagram', 
-      color: '#E4405F', 
+    {
+      name: 'Instagram',
+      key: 'Instagram',
+      color: '#E4405F',
       icon: 'Instagram',
       shareKey: 'instagramsharecount'
     },
-    { 
-      name: 'Facebook', 
-      key: 'Facebook', 
-      color: '#1877F2', 
+    {
+      name: 'Facebook',
+      key: 'Facebook',
+      color: '#1877F2',
       icon: 'Facebook',
       shareKey: 'facebooksharecount'
     },
-    { 
+    {
       name: 'Twitter',
       key: 'Twitter',
       color: '#1DA1F2',
       icon: 'Share2',
       shareKey: 'twittersharecount'
     },
-    { 
-      name: 'Download', 
-      key: 'Download', 
-      color: '#D97706', 
+    {
+      name: 'Download',
+      key: 'Download',
+      color: '#D97706',
       icon: 'Download',
       shareKey: 'downloadcount'
     }
@@ -703,7 +704,7 @@ const ShareTracking = () => {
             clicksGrowth: apiMetrics.totalClicks?.growth || 0,
             photosGrowth: apiMetrics.photosShared?.growth || 0
           }));
-          
+
           // Store trend path configurations from API
           setTrendPaths({
             totalShares: apiMetrics.totalShares?.trendPath || null,
@@ -728,10 +729,10 @@ const ShareTracking = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(SHARE_TRACKING_CONFIG.itemsPerPage);
-  
+
   // Selection State
   const [selectedItems, setSelectedItems] = useState([]);
-  
+
   // Modal States
   const [viewingItem, setViewingItem] = useState(null);
   const [showMsgModal, setShowMsgModal] = useState(false);
@@ -739,41 +740,41 @@ const ShareTracking = () => {
   const [isSendingMsg, setIsSendingMsg] = useState(false);
   const [showResendModal, setShowResendModal] = useState(false);
   const [isResendingShare, setIsResendingShare] = useState(false);
-  
+
   // Alert & Confirmation Modal States
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
-  
+
   // Get dynamic platform list (exclude platforms with no data if needed)
   const getAvailablePlatforms = () => {
     const allPlatforms = ['All Platforms', ...SHARE_TRACKING_CONFIG.platforms.map(p => p.name)];
     return allPlatforms;
   };
-  
+
   // Helper function to generate SVG trend path based on growth value
   const generateTrendPath = (growth) => {
     const growthValue = parseFloat(growth) || 0;
-    
+
     // Normalize growth to a -50 to +50 scale for better visualization
     const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
     const scaleFactor = normalizedGrowth / 50; // -1 to 1
-    
+
     // For 60x30 viewBox: X ranges 0-60, Y ranges 0-30 (lower Y = higher on screen)
     const startY = 20; // Middle baseline
     const endYOffset = -scaleFactor * 12; // Move up/down based on growth (max 12px movement)
     const endY = startY + endYOffset;
-    
+
     // Ensure Y stays within viewBox bounds (0-30)
     const clampedEndY = Math.max(5, Math.min(25, endY));
-    
+
     // Create smooth curve points with control points for better curve
     const midY1 = startY + (endYOffset * 0.2);
     const midY2 = startY + (endYOffset * 0.6);
-    
+
     // Generate dynamic Bezier curve path
     // M = Move to start, C = Cubic Bezier curve (control points)
     const path = `M5,${startY} C18,${startY - scaleFactor * 2} 32,${midY1 + scaleFactor * 1} 45,${midY2} C48,${midY2 + scaleFactor * 1} 50,${clampedEndY - scaleFactor * 0.5} 55,${clampedEndY}`;
-    
+
     return {
       points: path,
       endX: 55,
@@ -781,43 +782,43 @@ const ShareTracking = () => {
       isPositive: growthValue >= 0
     };
   };
-  
+
   // Helper Functions for Alerts and Confirmations
   const showAlert = (message, type = 'info') => {
     setAlertModal({ show: true, message, type });
   };
-  
+
   const showConfirm = (message, onConfirm) => {
     setConfirmModal({ show: true, message, onConfirm });
   };
-  
+
   // Handler Functions
   const handleViewDetails = (item) => {
     setViewingItem(item);
   };
-  
+
   const handleResendShare = (item) => {
     if (!item) {
       showAlert('Item information not available.', 'error');
       return;
     }
-    
+
     // Check if customer has either WhatsApp or Email
     const hasWhatsApp = item.customerId && item.customerId !== 'N/A';
     const hasEmail = item.email && item.email !== 'N/A';
-    
+
     if (!hasWhatsApp && !hasEmail) {
       showAlert('Customer information (WhatsApp or Email) not available for resending share.', 'error');
       return;
     }
-    
+
     setViewingItem(item);
     setShowResendModal(true);
   };
-  
+
   const confirmResendShare = async (type) => {
     if (!viewingItem) return;
-    
+
     // Find the original raw data item to get posterVideoId
     const rawItem = rawData.find(r => r._id === viewingItem.id);
     if (!rawItem) {
@@ -826,32 +827,32 @@ const ShareTracking = () => {
       setViewingItem(null);
       return;
     }
-    
+
     // Check if required contact info is available based on type
     if (type === 'whatsapp' && (!viewingItem.customerId || viewingItem.customerId === 'N/A')) {
       showAlert('WhatsApp number not available for this customer.', 'error');
       return;
     }
-    
+
     if (type === 'email' && (!viewingItem.email || viewingItem.email === 'N/A')) {
       showAlert('Email address not available for this customer.', 'error');
       return;
     }
-    
+
     // Construct viewUrl from posterVideoId
     const posterVideoId = rawItem.posterVideoId;
     const viewUrl = `https://app.bilimbebrandactivations.com/photomergeapp/share/${posterVideoId}`;
-    
+
     // Ask for confirmation before sending
     const confirmMsg = type === 'email'
       ? `Send output message to ${viewingItem.email}?`
       : `Send output message to ${viewingItem.customerId} on WhatsApp?`;
-    
+
     showConfirm(confirmMsg, async () => {
       await executeResendShare(type, viewUrl);
     });
   };
-  
+
   const executeResendShare = async (type, viewUrl) => {
     if (!viewingItem) return;
 
@@ -863,7 +864,7 @@ const ShareTracking = () => {
         setIsResendingShare(false);
         return;
       }
-      
+
       const contact = type === 'email' ? viewingItem.email : viewingItem.customerId;
       const response = await axiosData.post(
         `client/client/share/${contact}`,
@@ -877,7 +878,7 @@ const ShareTracking = () => {
           headers: { 'Content-Type': 'application/json' },
         }
       );
-      
+
       if (response.data.success) {
         showAlert(`Share resent to ${viewingItem.customer} via ${type === 'email' ? 'Email' : 'WhatsApp'} successfully!`, 'success');
         setShowResendModal(false);
@@ -894,7 +895,7 @@ const ShareTracking = () => {
       setIsResendingShare(false);
     }
   };
-  
+
   const handleWhatsApp = (item) => {
     setViewingItem(item);
     const defaultMsg = item.photo
@@ -903,19 +904,19 @@ const ShareTracking = () => {
     setCustomMsg(defaultMsg);
     setShowMsgModal(true);
   };
-  
+
   const confirmSendMessage = async () => {
     if (!viewingItem) return;
     if (!viewingItem.customerId || viewingItem.customerId === 'N/A') {
       showAlert('Phone number not available for this customer.', 'error');
       return;
     }
-    
+
     if (!customMsg.trim()) {
       showAlert('Please enter a message.', 'error');
       return;
     }
-    
+
     setIsSendingMsg(true);
     try {
       // Find the original raw data item
@@ -925,13 +926,13 @@ const ShareTracking = () => {
         setIsSendingMsg(false);
         return;
       }
-      
+
       const response = await axiosData.post('/upload/custom-share', {
         mobile: viewingItem.customerId,
         _id: rawItem._id || rawItem.photoId,
         message: customMsg
       });
-      
+
       if (response.data.success) {
         showAlert(`Message sent to ${viewingItem.customer} successfully!`, 'success');
         setShowMsgModal(false);
@@ -978,7 +979,7 @@ const ShareTracking = () => {
     let totalShares = 0;
     const uniqueUsersSet = new Set();
     const photosSharedSet = new Set();
-    
+
     // Initialize platform stats dynamically
     const platformStats = {};
     SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
@@ -991,7 +992,7 @@ const ShareTracking = () => {
       // Calculate shares dynamically based on platform config
       let totalEngagement = 0;
       const platformShares = {};
-      
+
       SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
         const count = item[platform.shareKey] || 0;
         platformShares[platform.name] = count;
@@ -1005,14 +1006,18 @@ const ShareTracking = () => {
         photosSharedSet.add(item.photoId || item._id);
       }
 
-      const dateStr = new Date(item.date || item.createdAt).toLocaleDateString('en-GB');
+      const dObj = new Date(item.date || item.createdAt);
+      const year = dObj.getFullYear();
+      const month = String(dObj.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(dObj.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${dayNum}`;
       if (!sharesByDay[dateStr]) {
         sharesByDay[dateStr] = { date: dateStr };
         SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
           sharesByDay[dateStr][platform.name] = 0;
         });
       }
-      
+
       SHARE_TRACKING_CONFIG.platforms.forEach(platform => {
         sharesByDay[dateStr][platform.name] += platformShares[platform.name] || 0;
         platformStats[platform.name] += platformShares[platform.name] || 0;
@@ -1033,9 +1038,7 @@ const ShareTracking = () => {
         clicks: item.urlclickcount || 0, // Use actual URL click count from API
         status: item.whatsappstatus === 'yes' ? 'Success' : 'Pending',
         timestamp: new Date(item.date || item.createdAt),
-        formattedDate: new Date(item.date || item.createdAt).toLocaleString('en-GB', {
-          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-        })
+        formattedDate: formatDate(item.date || item.createdAt, getStoredDateFormat())
       };
     });
 
@@ -1061,8 +1064,9 @@ const ShareTracking = () => {
     // Dynamic date filter logic based on config
     let matchesDate = true;
     const now = new Date();
-    const todayStr = now.toLocaleDateString('en-CA');
-    const itemDateStr = new Date(item.timestamp).toLocaleDateString('en-CA');
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const itemDate = new Date(item.timestamp);
+    const itemDateStr = `${itemDate.getFullYear()}-${String(itemDate.getMonth() + 1).padStart(2, '0')}-${String(itemDate.getDate()).padStart(2, '0')}`;
     const diff = (now - item.timestamp) / (1000 * 60 * 60 * 24);
 
     if (selectedDateRange === 'Today') {
@@ -1070,7 +1074,11 @@ const ShareTracking = () => {
     } else if (selectedDateRange === 'Yesterday') {
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
-      matchesDate = itemDateStr === yesterday.toLocaleDateString('en-CA');
+      const yestYear = yesterday.getFullYear();
+      const yestMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+      const yestDay = String(yesterday.getDate()).padStart(2, '0');
+      const yestStr = `${yestYear}-${yestMonth}-${yestDay}`;
+      matchesDate = itemDateStr === yestStr;
     } else if (selectedDateRange.startsWith('Last ')) {
       // Extract number from "Last X Days"
       const daysMatch = selectedDateRange.match(/Last (\d+) Days/);
@@ -1111,7 +1119,7 @@ const ShareTracking = () => {
   const selectAll = () => {
     const allCurrentPageIds = currentItems.map(item => item.id);
     const allSelected = allCurrentPageIds.every(id => selectedItems.includes(id));
-    
+
     if (allSelected) {
       // Deselect all items on current page
       setSelectedItems(prev => prev.filter(id => !allCurrentPageIds.includes(id)));
@@ -1132,7 +1140,7 @@ const ShareTracking = () => {
   const selectAllFiltered = () => {
     const allFilteredIds = filteredData.map(item => item.id);
     const allSelected = allFilteredIds.every(id => selectedItems.includes(id));
-    
+
     if (allSelected) {
       setSelectedItems([]);
     } else {
@@ -1151,14 +1159,14 @@ const ShareTracking = () => {
       // filteredData is already calculated and in sync with the table display
       data = filteredData;
     }
-    
+
     // Validate that data is an array
     if (!Array.isArray(data)) {
       console.error('Export data is not an array:', data, 'Type:', typeof data);
       showAlert('No data available to export.', 'error');
       return;
     }
-    
+
     // Check if data has items
     if (data.length === 0) {
       // If filteredData is empty but processedData has items, it means filters are too restrictive
@@ -1190,7 +1198,7 @@ const ShareTracking = () => {
     const link = document.createElement("a");
     link.href = url;
     const dataType = dataToExport ? 'Selected' : 'All';
-    link.setAttribute("download", `ShareReport_${dataType}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `ShareReport_${dataType}_${formatDate(new Date(), getStoredDateFormat())}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1221,11 +1229,11 @@ const ShareTracking = () => {
           const growth = metrics[metricConfig.growthKey] || 0;
           const isPositive = growth >= 0;
           const growthColor = isPositive ? metricConfig.trendColor : "#E53935";
-          
+
           // Use trend path from API if available, otherwise generate locally as fallback
           const apiTrendPath = trendPaths[metricConfig.key];
           const trendPath = apiTrendPath || generateTrendPath(growth);
-          
+
           return (
             <MetricCard key={metricConfig.key} $bgColor={metricConfig.bgColor}>
               <CardHeader>
@@ -1238,20 +1246,20 @@ const ShareTracking = () => {
                   {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{growth}%
                 </GrowthTag>
                 <svg width="60" height="30" viewBox="0 0 60 30" fill="none" style={{ overflow: 'visible' }}>
-                  <path 
+                  <path
                     d={trendPath.points}
-                    stroke={growthColor} 
-                    strokeWidth="2.5" 
+                    stroke={growthColor}
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                     style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.1))' }}
                   />
-                  <circle 
+                  <circle
                     cx={trendPath.endX}
                     cy={trendPath.endY}
-                    r="2.5" 
-                    fill="white" 
-                    stroke={growthColor} 
-                    strokeWidth="2" 
+                    r="2.5"
+                    fill="white"
+                    stroke={growthColor}
+                    strokeWidth="2"
                   />
                 </svg>
               </CardFooter>
@@ -1389,11 +1397,11 @@ const ShareTracking = () => {
                   <div style={{ fontWeight: 600 }}>{row.photo}</div>
                 </td>
                 <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {row.platform !== 'No Share' && (() => {
                       const platformConfig = SHARE_TRACKING_CONFIG.platforms.find(p => p.name === row.platform);
                       if (!platformConfig) return null;
-                      
+
                       const IconComponent = iconComponents[platformConfig.icon];
                       return (
                         <PlatformIcon $color={platformConfig.color}>
@@ -1434,20 +1442,20 @@ const ShareTracking = () => {
         <BulkActionBar>
           <div className="count">{selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'} selected</div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <PrimaryButton 
-              onClick={() => exportToExcel(processedData.filter(item => selectedItems.includes(item.id)))} 
+            <PrimaryButton
+              onClick={() => exportToExcel(processedData.filter(item => selectedItems.includes(item.id)))}
               style={{ padding: '8px 16px', fontSize: '12px', background: '#333' }}
             >
               <Download size={14} /> Export Selected
             </PrimaryButton>
-            <PrimaryButton 
+            <PrimaryButton
               onClick={selectAllFiltered}
               style={{ padding: '8px 16px', fontSize: '12px', background: '#666' }}
             >
               {filteredData.every(item => selectedItems.includes(item.id)) ? 'Deselect All' : 'Select All'}
             </PrimaryButton>
-            <IconButton 
-              style={{ color: 'white' }} 
+            <IconButton
+              style={{ color: 'white' }}
               onClick={() => setSelectedItems([])}
               title="Clear selection"
             >
@@ -1465,7 +1473,7 @@ const ShareTracking = () => {
               <ModalTitle>Share Details</ModalTitle>
               <IconButton onClick={() => setViewingItem(null)}><X size={20} /></IconButton>
             </ModalHeader>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               <InfoBox>
                 <div className="label">Customer</div>
@@ -1489,8 +1497,8 @@ const ShareTracking = () => {
               </InfoBox>
               <InfoBox>
                 <div className="label">Message Send Status</div>
-                <div className="value" style={{ 
-                  color: viewingItem.status === 'Success' ? '#10B981' : '#F59E0B' 
+                <div className="value" style={{
+                  color: viewingItem.status === 'Success' ? '#10B981' : '#F59E0B'
                 }}>{viewingItem.status}</div>
               </InfoBox>
               <InfoBox>
@@ -1502,12 +1510,12 @@ const ShareTracking = () => {
                 <div className="value">{viewingItem.clicks}</div>
               </InfoBox>
             </div>
-            
+
             <InfoBox style={{ marginBottom: '24px' }}>
               <div className="label">Date & Time</div>
               <div className="value">{viewingItem.formattedDate}</div>
             </InfoBox>
-            
+
             <ModalActionFooter>
               <PrimaryButton $variant="outline" onClick={() => setViewingItem(null)}>
                 Close
@@ -1567,7 +1575,7 @@ const ShareTracking = () => {
             <div style={{ marginBottom: '24px', fontSize: '14px', color: '#666' }}>
               Choose how to resend the output message to <strong>{viewingItem.customer}</strong>
             </div>
-            
+
             <div style={{ marginBottom: '24px' }}>
               <ShareTypeButton
                 $color="#25D366"
@@ -1581,13 +1589,13 @@ const ShareTracking = () => {
                 <div style={{ flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 700, marginBottom: '4px' }}>WhatsApp</div>
                   <div style={{ fontSize: '13px', fontWeight: 400, color: '#666' }}>
-                    {viewingItem.customerId && viewingItem.customerId !== 'N/A' 
+                    {viewingItem.customerId && viewingItem.customerId !== 'N/A'
                       ? `Send to ${viewingItem.customerId}`
                       : 'WhatsApp number not available'}
                   </div>
                 </div>
               </ShareTypeButton>
-              
+
               <ShareTypeButton
                 $color="#1877F2"
                 $selected={true}
@@ -1607,12 +1615,12 @@ const ShareTracking = () => {
                 </div>
               </ShareTypeButton>
             </div>
-            
+
             {isResendingShare && (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 gap: '12px',
                 padding: '16px',
                 background: '#F9FAFB',
@@ -1623,10 +1631,10 @@ const ShareTracking = () => {
                 <span style={{ fontSize: '14px', color: '#666' }}>Sending...</span>
               </div>
             )}
-            
+
             <ModalActionFooter>
-              <PrimaryButton 
-                $variant="outline" 
+              <PrimaryButton
+                $variant="outline"
                 onClick={() => { setShowResendModal(false); setViewingItem(null); }}
                 disabled={isResendingShare}
               >

@@ -23,6 +23,7 @@ import {
   MoreHorizontal
 } from 'react-feather';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const DashboardContainer = styled.div`
   max-width: 1400px;
@@ -553,21 +554,21 @@ const Dashboard = () => {
   // Helper function to generate SVG trend path based on growth value
   const generateTrendPath = (growth) => {
     const growthValue = parseFloat(growth) || 0;
-    
+
     // Normalize growth to a 0-100 scale for better visualization
     const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
     const scaleFactor = normalizedGrowth / 50; // -1 to 1
-    
+
     // Calculate Y positions (lower Y = higher on screen)
     const startY = 35; // Middle baseline
     const endYOffset = -scaleFactor * 20; // Move up/down based on growth
     const endY = startY + endYOffset;
-    
+
     // Create smooth curve points
     const midY = startY + (endYOffset * 0.3);
-    
+
     const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
-    
+
     return {
       points: path,
       endX: 85,
@@ -598,7 +599,7 @@ const Dashboard = () => {
         // Data should always display correctly regardless of metrics
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
         console.log('DATA API Response - Total items:', response.data?.length || 0);
-        
+
         // STEP 2: Fetch METRICS separately (only for growth percentages)
         // Metrics do NOT affect data display
         let apiMetrics = {};

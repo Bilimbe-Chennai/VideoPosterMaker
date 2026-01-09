@@ -25,6 +25,7 @@ import jsPDF from 'jspdf';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 // --- Styled Components ---
 
@@ -396,7 +397,7 @@ const Reports = () => {
 
   // Get days from range
   const getDaysFromRange = (range) => {
-    switch(range) {
+    switch (range) {
       case 'Today': return 1;
       case '7 Days': return 7;
       case '30 Days': return 30;
@@ -425,7 +426,7 @@ const Reports = () => {
 
     return data.filter(item => {
       // For campaigns, use startDate or createdAt; for media items, use date or createdAt
-      const itemDate = isCampaign 
+      const itemDate = isCampaign
         ? new Date(item.startDate || item.createdAt)
         : new Date(item.date || item.createdAt);
       return itemDate >= startDate && itemDate <= endDate;
@@ -442,7 +443,7 @@ const Reports = () => {
   const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const adminId = user._id || user.id;
       if (!adminId) {
         console.warn('No admin ID found in user object');
@@ -471,10 +472,10 @@ const Reports = () => {
       const campaigns = campaignsDataArray;
       const templates = templatesDataArray.filter(t => t && (t.adminid === user.id || t.adminid === user._id));
 
-      console.log('Processed Data:', { 
-        rawItems: rawItems.length, 
-        campaigns: campaigns.length, 
-        templates: templates.length 
+      console.log('Processed Data:', {
+        rawItems: rawItems.length,
+        campaigns: campaigns.length,
+        templates: templates.length
       });
 
       setMediaData(rawItems);
@@ -491,7 +492,7 @@ const Reports = () => {
         const phone = item.whatsapp || item.mobile || '';
         const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
         customersSet.add(key);
-        
+
         totalShares += (item.whatsappsharecount || 0) +
           (item.facebooksharecount || 0) +
           (item.twittersharecount || 0) +
@@ -513,7 +514,7 @@ const Reports = () => {
         const phone = item.whatsapp || item.mobile || '';
         const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
         filteredCustomersSet.add(key);
-        
+
         filteredShares += (item.whatsappsharecount || 0) +
           (item.facebooksharecount || 0) +
           (item.twittersharecount || 0) +
@@ -543,7 +544,7 @@ const Reports = () => {
         currentStart = new Date(now);
         currentStart.setHours(0, 0, 0, 0);
         currentEnd = now;
-        
+
         // Previous period: yesterday (00:00:00 to 23:59:59)
         previousStart = new Date(now);
         previousStart.setDate(previousStart.getDate() - 1);
@@ -555,7 +556,7 @@ const Reports = () => {
         currentStart.setDate(currentStart.getDate() - days);
         currentStart.setHours(0, 0, 0, 0);
         currentEnd = now;
-        
+
         previousStart = new Date(currentStart);
         previousStart.setDate(previousStart.getDate() - days);
         previousStart.setHours(0, 0, 0, 0);
@@ -583,10 +584,7 @@ const Reports = () => {
       });
 
       // Build reports with dynamic data from APIs
-      const nowFormatted = new Date().toLocaleString('en-US', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', hour12: true
-      });
+      const nowFormatted = formatDate(new Date(), getStoredDateFormat() + ' HH:mm');
 
       // Get current download counts from state
       const currentDownloadCounts = downloadCounts;
@@ -656,7 +654,7 @@ const Reports = () => {
       // Calculate summary stats dynamically (using filtered data for current period)
       const totalRecords = filteredTotalCustomers + filteredTotalPhotos + filteredTotalCampaigns + filteredTotalSharesAndDownloads;
       const totalSizeKB = totalRecords * 0.5;
-      
+
       // Fetch downloads this month from API
       let downloadsThisMonth = 0;
       try {
@@ -709,16 +707,16 @@ const Reports = () => {
           return downloadDate >= previousMonth && downloadDate < currentMonth;
         }).length;
       }
-      
+
       // Current period totals
       const currentTotalRecords = totalRecords;
       const currentTotalSize = currentTotalRecords * 0.5;
-      
+
       // Previous period totals (for comparison)
       const prevCustomersSet = new Set();
       let prevShares = 0;
       let prevDataDownloads = 0;
-      
+
       previousItems.forEach(item => {
         const phone = item.whatsapp || item.mobile || '';
         const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
@@ -729,7 +727,7 @@ const Reports = () => {
           (item.instagramsharecount || 0);
         prevDataDownloads += (item.downloadcount || 0);
       });
-      
+
       const prevTotalRecords = prevCustomersSet.size + previousItems.length + previousCampaigns.length + prevShares + prevDataDownloads;
       const prevTotalSize = prevTotalRecords * 0.5;
 
@@ -798,18 +796,18 @@ const Reports = () => {
 
       // Fetch updated counts
       await fetchDownloadCounts();
-      
+
       // Update the report in state
-      setReports(prev => prev.map(r => 
-        r.id === reportId 
+      setReports(prev => prev.map(r =>
+        r.id === reportId
           ? { ...r, downloadCount: (r.downloadCount || 0) + 1 }
           : r
       ));
     } catch (error) {
       console.error('Error tracking download:', error);
       // Still update UI even if API call fails
-      setReports(prev => prev.map(r => 
-        r.id === reportId 
+      setReports(prev => prev.map(r =>
+        r.id === reportId
           ? { ...r, downloadCount: (r.downloadCount || 0) + 1 }
           : r
       ));
@@ -862,7 +860,7 @@ const Reports = () => {
   const handleDownloadCSV = async (report) => {
     try {
       setDownloading(`csv-${report.id}`);
-      
+
       // Validate data
       const dataToExport = report.allData || report.data;
       if (!dataToExport || dataToExport.length === 0) {
@@ -872,19 +870,19 @@ const Reports = () => {
 
       let csvContent = '';
       const timestamp = new Date().toISOString().split('T')[0];
-      
-      switch(report.id) {
+
+      switch (report.id) {
         case 'customer': {
           // Customer Engagement Report
           const headers = ['Name', 'Phone', 'Email', 'Total Photos', 'Total Shares', 'Total Downloads', 'Last Activity'];
           csvContent = headers.join(',') + '\n';
-          
+
           // Group by customer
           const customerMap = {};
           dataToExport.forEach(item => {
             const phone = item.whatsapp || item.mobile || '';
             const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-            
+
             if (!customerMap[key]) {
               customerMap[key] = {
                 name: item.name || 'Unknown',
@@ -896,21 +894,21 @@ const Reports = () => {
                 lastActivity: item.date || item.createdAt
               };
             }
-            
+
             customerMap[key].photos += 1;
             customerMap[key].shares += (item.whatsappsharecount || 0) +
               (item.facebooksharecount || 0) +
               (item.twittersharecount || 0) +
               (item.instagramsharecount || 0);
             customerMap[key].downloads += (item.downloadcount || 0);
-            
+
             const itemDate = new Date(item.date || item.createdAt);
             const lastDate = new Date(customerMap[key].lastActivity);
             if (itemDate > lastDate) {
               customerMap[key].lastActivity = item.date || item.createdAt;
             }
           });
-          
+
           Object.values(customerMap).forEach(customer => {
             csvContent += [
               escapeCSV(customer.name),
@@ -919,22 +917,22 @@ const Reports = () => {
               customer.photos,
               customer.shares,
               customer.downloads,
-              escapeCSV(new Date(customer.lastActivity).toLocaleDateString('en-GB'))
+              escapeCSV(formatDate(customer.lastActivity, getStoredDateFormat()))
             ].join(',') + '\n';
           });
           break;
         }
-        
+
         case 'photo': {
           // Photo Analytics Report
           const headers = ['Template Name', 'Category', 'Total Photos', 'Total Shares', 'WhatsApp Shares', 'Facebook Shares', 'Twitter Shares', 'Instagram Shares', 'Total Downloads'];
           csvContent = headers.join(',') + '\n';
-          
+
           // Group by template
           const templateMap = {};
           dataToExport.forEach(item => {
             const templateName = item.template_name || item.templatename || item.type || 'Others';
-            
+
             if (!templateMap[templateName]) {
               templateMap[templateName] = {
                 name: templateName,
@@ -948,7 +946,7 @@ const Reports = () => {
                 downloads: 0
               };
             }
-            
+
             templateMap[templateName].photos += 1;
             templateMap[templateName].whatsapp += (item.whatsappsharecount || 0);
             templateMap[templateName].facebook += (item.facebooksharecount || 0);
@@ -960,7 +958,7 @@ const Reports = () => {
               (item.instagramsharecount || 0);
             templateMap[templateName].downloads += (item.downloadcount || 0);
           });
-          
+
           Object.values(templateMap).forEach(template => {
             csvContent += [
               escapeCSV(template.name),
@@ -976,26 +974,26 @@ const Reports = () => {
           });
           break;
         }
-        
+
         case 'campaign': {
           // Campaign Performance Report
           const headers = ['Campaign Name', 'Type', 'Status', 'Start Date', 'End Date', 'Sent', 'Delivered', 'Clicks', 'Delivery Rate (%)', 'CTR (%)'];
           csvContent = headers.join(',') + '\n';
-          
+
           dataToExport.forEach(campaign => {
-            const deliveryRate = (campaign.sent || 0) > 0 
-              ? (((campaign.delivered || 0) / campaign.sent) * 100).toFixed(2) 
+            const deliveryRate = (campaign.sent || 0) > 0
+              ? (((campaign.delivered || 0) / campaign.sent) * 100).toFixed(2)
               : '0.00';
-            const ctr = (campaign.delivered || 0) > 0 
-              ? (((campaign.clicks || 0) / campaign.delivered) * 100).toFixed(2) 
+            const ctr = (campaign.delivered || 0) > 0
+              ? (((campaign.clicks || 0) / campaign.delivered) * 100).toFixed(2)
               : '0.00';
-            
+
             csvContent += [
               escapeCSV(campaign.name),
               escapeCSV(campaign.type),
               escapeCSV(campaign.status),
-              escapeCSV(new Date(campaign.startDate).toLocaleDateString('en-GB')),
-              escapeCSV(new Date(campaign.endDate).toLocaleDateString('en-GB')),
+              escapeCSV(formatDate(campaign.startDate, getStoredDateFormat())),
+              escapeCSV(formatDate(campaign.endDate, getStoredDateFormat())),
               campaign.sent || 0,
               campaign.delivered || 0,
               campaign.clicks || 0,
@@ -1005,20 +1003,20 @@ const Reports = () => {
           });
           break;
         }
-        
+
         case 'share': {
           // Share Tracking Report
           const headers = ['Date', 'Customer Name', 'Template', 'WhatsApp Shares', 'Facebook Shares', 'Twitter Shares', 'Instagram Shares', 'Total Shares', 'Downloads'];
           csvContent = headers.join(',') + '\n';
-          
+
           dataToExport.forEach(item => {
             const totalShares = (item.whatsappsharecount || 0) +
               (item.facebooksharecount || 0) +
               (item.twittersharecount || 0) +
               (item.instagramsharecount || 0);
-            
+
             csvContent += [
-              escapeCSV(new Date(item.date || item.createdAt).toLocaleDateString('en-GB')),
+              escapeCSV(formatDate(item.date || item.createdAt, getStoredDateFormat())),
               escapeCSV(item.name || 'Unknown'),
               escapeCSV(item.template_name || item.templatename || item.type || 'N/A'),
               item.whatsappsharecount || 0,
@@ -1031,7 +1029,7 @@ const Reports = () => {
           });
           break;
         }
-        
+
         default:
           showAlert('Unknown report type', 'error');
           return;
@@ -1047,10 +1045,10 @@ const Reports = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       // Increment download count via API
       await incrementDownloadCount(report.id, 'csv');
-      
+
       showAlert(`${report.name} CSV exported successfully!`, 'success');
     } catch (error) {
       console.error('Error downloading CSV:', error);
@@ -1064,7 +1062,7 @@ const Reports = () => {
   const handleDownloadPDF = async (report) => {
     try {
       setDownloading(`pdf-${report.id}`);
-      
+
       // Validate data
       const dataToExport = report.allData || report.data;
       if (!dataToExport || dataToExport.length === 0) {
@@ -1096,7 +1094,7 @@ const Reports = () => {
         pdf.setFontSize(fontSize);
         pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
         pdf.setTextColor(color[0], color[1], color[2]);
-        
+
         const lines = pdf.splitTextToSize(text, maxWidth);
         lines.forEach((line) => {
           checkNewPage();
@@ -1108,19 +1106,19 @@ const Reports = () => {
       // Header
       addText(report.name.toUpperCase(), 18, true, [26, 26, 26]);
       yPosition += 5;
-      addText(`Generated: ${new Date().toLocaleString()}`, 10, false, [100, 100, 100]);
+      addText(`Generated: ${formatDate(new Date(), getStoredDateFormat() + ' HH:mm')}`, 10, false, [100, 100, 100]);
       addText(`Time Range: ${activeRange}`, 10, false, [100, 100, 100]);
       addText(`Total Records: ${report.records.toLocaleString()}`, 10, false, [100, 100, 100]);
       yPosition += 10;
 
       // Report-specific content
-      switch(report.id) {
+      switch (report.id) {
         case 'customer': {
           addText('CUSTOMER ENGAGEMENT SUMMARY', 14, true);
           yPosition += 5;
           addText(`Total Unique Customers: ${report.records.toLocaleString()}`, 12);
           yPosition += 10;
-          
+
           // Group by customer
           const customerMap = {};
           dataToExport.forEach(item => {
@@ -1141,7 +1139,7 @@ const Reports = () => {
               (item.instagramsharecount || 0);
             customerMap[key].downloads += (item.downloadcount || 0);
           });
-          
+
           addText('Top 10 Customers by Activity:', 12, true);
           yPosition += 5;
           const topCustomers = Object.values(customerMap)
@@ -1157,7 +1155,7 @@ const Reports = () => {
           yPosition += 5;
           addText(`Total Photos: ${report.records.toLocaleString()}`, 12);
           yPosition += 10;
-          
+
           // Group by template
           const templateMap = {};
           dataToExport.forEach(item => {
@@ -1172,7 +1170,7 @@ const Reports = () => {
               (item.instagramsharecount || 0);
             templateMap[templateName].downloads += (item.downloadcount || 0);
           });
-          
+
           addText('Template Performance:', 12, true);
           yPosition += 5;
           Object.entries(templateMap)
@@ -1187,14 +1185,14 @@ const Reports = () => {
           yPosition += 5;
           addText(`Total Campaigns: ${report.records.toLocaleString()}`, 12);
           yPosition += 10;
-          
+
           let totalSent = 0, totalDelivered = 0, totalClicks = 0;
           dataToExport.forEach(campaign => {
             totalSent += campaign.sent || 0;
             totalDelivered += campaign.delivered || 0;
             totalClicks += campaign.clicks || 0;
           });
-          
+
           addText('Overall Campaign Metrics:', 12, true);
           yPosition += 5;
           addText(`Total Sent: ${totalSent.toLocaleString()}`, 10);
@@ -1211,7 +1209,7 @@ const Reports = () => {
           yPosition += 5;
           addText(`Total Shares: ${report.records.toLocaleString()}`, 12);
           yPosition += 10;
-          
+
           let whatsapp = 0, facebook = 0, twitter = 0, instagram = 0, downloads = 0;
           dataToExport.forEach(item => {
             whatsapp += item.whatsappsharecount || 0;
@@ -1220,7 +1218,7 @@ const Reports = () => {
             instagram += item.instagramsharecount || 0;
             downloads += item.downloadcount || 0;
           });
-          
+
           addText('Platform Breakdown:', 12, true);
           yPosition += 5;
           addText(`WhatsApp: ${whatsapp.toLocaleString()}`, 10);
@@ -1244,10 +1242,10 @@ const Reports = () => {
       // Save PDF
       const fileName = `${report.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
-      
+
       // Increment download count via API
       await incrementDownloadCount(report.id, 'pdf');
-      
+
       showAlert(`${report.name} PDF exported successfully!`, 'success');
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -1339,7 +1337,7 @@ const Reports = () => {
             </MetadataGrid>
 
             <ActionRow>
-              <DownloadButton 
+              <DownloadButton
                 $variant="csv"
                 onClick={() => handleDownloadCSV(report)}
                 disabled={downloading === `csv-${report.id}` || !report.data || report.data.length === 0}
@@ -1356,7 +1354,7 @@ const Reports = () => {
                   </>
                 )}
               </DownloadButton>
-              <DownloadButton 
+              <DownloadButton
                 $variant="pdf"
                 onClick={() => handleDownloadPDF(report)}
                 disabled={downloading === `pdf-${report.id}` || !report.data || report.data.length === 0}

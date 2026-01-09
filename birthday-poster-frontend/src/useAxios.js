@@ -8,8 +8,8 @@ const getAxiosInstance = () => {
   //   baseURL: isLocal ? "http://127.0.0.1:7000/api/" : "https://api.bilimbebrandactivations.com/api/"
   // });
   const getAxios = axios.create({
-    //baseURL: "http://localhost:5000/api/",
-    baseURL:"https://api.bilimbebrandactivations.com/api/"
+    baseURL: "http://localhost:7000/api/",
+    // baseURL:"https://api.bilimbebrandactivations.com/api/"
   });
   return getAxios;
 };
@@ -23,19 +23,19 @@ const useAxios = () => {
       (error) => {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           // Don't show alert for login endpoint - it handles its own errors
-          const isLoginEndpoint = error.config?.url?.includes('/users/login') || 
-                                  error.config?.url?.includes('/login');
-          
+          const isLoginEndpoint = error.config?.url?.includes('/users/login') ||
+            error.config?.url?.includes('/login');
+
           // Check if user is logged in (has user data in localStorage)
           const hasUser = localStorage.getItem('user');
-          
+
           // Only show logout alert if:
           // 1. It's NOT a login endpoint
           // 2. We're NOT on the login page
           // 3. User was previously logged in (has user data)
-          if (!isLoginEndpoint && 
-              !window.location.pathname.includes('/admin/login') && 
-              hasUser) {
+          if (!isLoginEndpoint &&
+            !window.location.pathname.includes('/admin/login') &&
+            hasUser) {
             showGlobalAlert('You are logged out. Please login and continue browsing.', 'error');
             setTimeout(() => {
               localStorage.clear();

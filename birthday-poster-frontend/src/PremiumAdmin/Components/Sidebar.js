@@ -212,7 +212,15 @@ const ModalButton = styled.button`
 `;
 
 const Sidebar = ({ isOpen, onToggle, onClose }) => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
+
+  React.useEffect(() => {
+    const handleUserUpdate = () => {
+      setUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    };
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+  }, []);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const navItems = [

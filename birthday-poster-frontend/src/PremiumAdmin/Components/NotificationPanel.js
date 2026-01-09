@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, AlertCircle, Info, Trash2 } from 'react-feather';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const PanelOverlay = styled.div`
   position: fixed;
@@ -259,11 +260,11 @@ const NotificationPanel = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Get user-specific localStorage key
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const storageKey = `readNotificationIds_${user._id || user.id || 'default'}`;
-  
+
   const [readIds, setReadIds] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -298,7 +299,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
     if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
+    return formatDate(date, getStoredDateFormat());
   };
 
   // Listen for storage changes from other tabs/windows
@@ -400,7 +401,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
         console.error('Error reading readNotificationIds from localStorage:', e);
         currentReadIds = [];
       }
-      
+
       try {
         const [templatesRes, photosRes] = await Promise.all([
           axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}`),

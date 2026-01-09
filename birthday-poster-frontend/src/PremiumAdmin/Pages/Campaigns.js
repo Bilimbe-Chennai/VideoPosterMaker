@@ -34,6 +34,7 @@ import {
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 // --- Styled Components ---
 
@@ -530,7 +531,7 @@ const DetailRow = styled.div`
 const Campaigns = () => {
   const axiosData = useAxios();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  
+
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -689,23 +690,23 @@ const Campaigns = () => {
   // Form validation
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.name || formData.name.trim() === '') {
       errors.name = 'Campaign name is required';
     }
-    
+
     if (!formData.type) {
       errors.type = 'Channel type is required';
     }
-    
+
     if (!formData.startDate) {
       errors.startDate = 'Start date is required';
     }
-    
+
     if (!formData.endDate) {
       errors.endDate = 'End date is required';
     }
-    
+
     if (formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
@@ -713,7 +714,7 @@ const Campaigns = () => {
         errors.endDate = 'End date must be after start date';
       }
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -762,7 +763,7 @@ const Campaigns = () => {
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : editingCampaign.startDate,
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : editingCampaign.endDate
       };
-      
+
       await axiosData.put(`campaigns/${editingCampaign._id}`, updateData);
       setShowEditModal(false);
       setEditingCampaign(null);
@@ -800,7 +801,7 @@ const Campaigns = () => {
     const campaign = campaigns.find(c => (c._id || c.id) === campaignId);
     const customerCount = photoMergeCustomers.length;
     const campaignType = campaign?.type || 'WhatsApp';
-    
+
     showConfirm(
       `Are you sure you want to send this ${campaignType} campaign? It will be sent to ${customerCount} Photo Merge App customers.`,
       async () => {
@@ -808,25 +809,25 @@ const Campaigns = () => {
           setOperationLoading(true);
           const response = await axiosData.post(`campaigns/${campaignId}/send`);
           await fetchCampaigns();
-          
+
           // Build detailed success message
           let message = response.data?.message || 'Campaign sent successfully!';
           if (response.data?.stats) {
             const { sent, delivered, failed, total } = response.data.stats;
             if (campaignType === 'WhatsApp') {
               message = `Campaign sent successfully!\n\n` +
-                       `📊 Statistics:\n` +
-                       `• Total customers: ${total}\n` +
-                       `• Sent: ${sent}\n` +
-                       `• Delivered: ${delivered}\n` +
-                       (failed > 0 ? `• Failed: ${failed}\n` : '');
-              
+                `📊 Statistics:\n` +
+                `• Total customers: ${total}\n` +
+                `• Sent: ${sent}\n` +
+                `• Delivered: ${delivered}\n` +
+                (failed > 0 ? `• Failed: ${failed}\n` : '');
+
               if (response.data.errors && response.data.errors.length > 0) {
                 message += `\n⚠️ Some messages failed to send. Check campaign details for more info.`;
               }
             }
           }
-          
+
           showAlert(message, 'success');
         } catch (error) {
           console.error('Error sending campaign:', error);
@@ -968,7 +969,7 @@ const Campaigns = () => {
 
     // Export all campaigns, not just filtered ones
     const dataToExport = campaigns;
-    
+
     // CSV headers
     const headers = [
       'Name',
@@ -991,14 +992,14 @@ const Campaigns = () => {
       ...dataToExport.map(c => {
         const deliveryRate = (c.sent || 0) > 0 ? (((c.delivered || 0) / c.sent) * 100).toFixed(2) : '0.00';
         const ctr = (c.delivered || 0) > 0 ? (((c.clicks || 0) / c.delivered) * 100).toFixed(2) : '0.00';
-        
+
         return [
           escapeCSV(c.name || ''),
           escapeCSV(c.description || ''),
           escapeCSV(c.type || ''),
           escapeCSV(c.status || ''),
-          escapeCSV(c.startDate ? new Date(c.startDate).toLocaleDateString('en-GB') : ''),
-          escapeCSV(c.endDate ? new Date(c.endDate).toLocaleDateString('en-GB') : ''),
+          escapeCSV(c.startDate ? formatDate(c.startDate, getStoredDateFormat()) : ''),
+          escapeCSV(c.endDate ? formatDate(c.endDate, getStoredDateFormat()) : ''),
           escapeCSV(c.sent || 0),
           escapeCSV(c.delivered || 0),
           escapeCSV(c.clicks || 0),
@@ -1013,7 +1014,7 @@ const Campaigns = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `campaign_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `campaign_report_${formatDate(new Date(), getStoredDateFormat()).replace(/\//g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1129,14 +1130,14 @@ const Campaigns = () => {
               <Filter size={16} /> {filterType} <ChevronDown size={14} />
             </DropdownSelector>
             <DropdownMenu $show={showTypeDropdown}>
-              <DropdownItem 
+              <DropdownItem
                 $active={filterType === 'All Channels'}
                 onClick={() => { setFilterType('All Channels'); setShowTypeDropdown(false); }}
               >
                 All Channels
               </DropdownItem>
               {channelTypes.map(type => (
-                <DropdownItem 
+                <DropdownItem
                   key={type}
                   $active={filterType === type}
                   onClick={() => { setFilterType(type); setShowTypeDropdown(false); }}
@@ -1151,14 +1152,14 @@ const Campaigns = () => {
               <Calendar size={16} /> {filterStatus} <ChevronDown size={14} />
             </DropdownSelector>
             <DropdownMenu $show={showStatusDropdown}>
-              <DropdownItem 
+              <DropdownItem
                 $active={filterStatus === 'All Status'}
                 onClick={() => { setFilterStatus('All Status'); setShowStatusDropdown(false); }}
               >
                 All Status
               </DropdownItem>
               {statusTypes.map(status => (
-                <DropdownItem 
+                <DropdownItem
                   key={status}
                   $active={filterStatus === status}
                   onClick={() => { setFilterStatus(status); setShowStatusDropdown(false); }}
@@ -1279,43 +1280,43 @@ const Campaigns = () => {
                   </td>
                   <td>
                     <InfoGroup>
-                      <p>{new Date(c.startDate).toLocaleDateString('en-GB')}</p>
-                      <p style={{ color: '#999' }}>to {new Date(c.endDate).toLocaleDateString('en-GB')}</p>
+                      <p>{formatDate(c.startDate, getStoredDateFormat())}</p>
+                      <p style={{ color: '#999' }}>to {formatDate(c.endDate, getStoredDateFormat())}</p>
                     </InfoGroup>
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <IconButton 
-                        title="View Details" 
+                      <IconButton
+                        title="View Details"
                         onClick={() => handleViewCampaign(c)}
                       >
                         <Eye size={18} />
                       </IconButton>
                       {c.status !== 'Completed' && (
-                        <IconButton 
-                          title="Send Campaign" 
+                        <IconButton
+                          title="Send Campaign"
                           onClick={() => handleSendCampaign(c._id || c.id)}
                           disabled={operationLoading}
                         >
                           <Send size={18} />
                         </IconButton>
                       )}
-                      <IconButton 
-                        title="Duplicate Campaign" 
+                      <IconButton
+                        title="Duplicate Campaign"
                         onClick={() => handleDuplicateCampaign(c)}
                         disabled={operationLoading}
                       >
                         <Copy size={18} />
                       </IconButton>
-                      <IconButton 
-                        title="Edit Campaign" 
+                      <IconButton
+                        title="Edit Campaign"
                         onClick={() => openEditModal(c)}
                         disabled={operationLoading}
                       >
                         <Edit3 size={18} />
                       </IconButton>
-                      <IconButton 
-                        title="Delete Campaign" 
+                      <IconButton
+                        title="Delete Campaign"
                         onClick={() => handleDeleteCampaign(c._id || c.id)}
                         disabled={operationLoading}
                       >
@@ -1412,10 +1413,10 @@ const Campaigns = () => {
                   placeholder="Enter campaign message"
                 />
               </FormGroup>
-              <div style={{ 
-                padding: '16px', 
-                background: '#F0F9FF', 
-                borderRadius: '12px', 
+              <div style={{
+                padding: '16px',
+                background: '#F0F9FF',
+                borderRadius: '12px',
                 marginTop: '20px',
                 fontSize: '13px',
                 color: '#1E40AF'
@@ -1427,7 +1428,7 @@ const Campaigns = () => {
               <SecondaryButton onClick={() => { setShowCreateModal(false); resetForm(); }}>
                 Cancel
               </SecondaryButton>
-              <PrimaryButton 
+              <PrimaryButton
                 onClick={handleCreateCampaign}
                 disabled={operationLoading || !formData.name || !formData.startDate || !formData.endDate}
               >
@@ -1539,7 +1540,7 @@ const Campaigns = () => {
               <SecondaryButton onClick={() => { setShowEditModal(false); setEditingCampaign(null); resetForm(); }}>
                 Cancel
               </SecondaryButton>
-              <PrimaryButton 
+              <PrimaryButton
                 onClick={handleEditCampaign}
                 disabled={operationLoading || !formData.name || !formData.startDate || !formData.endDate}
               >
@@ -1601,19 +1602,11 @@ const Campaigns = () => {
               </DetailRow>
               <DetailRow>
                 <span className="label">Start Date</span>
-                <span className="value">{new Date(viewingCampaign.startDate).toLocaleDateString('en-GB', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}</span>
+                <span className="value">{formatDate(viewingCampaign.startDate, getStoredDateFormat())}</span>
               </DetailRow>
               <DetailRow>
                 <span className="label">End Date</span>
-                <span className="value">{new Date(viewingCampaign.endDate).toLocaleDateString('en-GB', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}</span>
+                <span className="value">{formatDate(viewingCampaign.endDate, getStoredDateFormat())}</span>
               </DetailRow>
               <DetailRow>
                 <span className="label">Sent</span>
@@ -1630,7 +1623,7 @@ const Campaigns = () => {
               <DetailRow>
                 <span className="label">Delivery Rate</span>
                 <span className="value">
-                  {viewingCampaign.sent > 0 
+                  {viewingCampaign.sent > 0
                     ? ((viewingCampaign.delivered / viewingCampaign.sent) * 100).toFixed(1) + '%'
                     : '0%'}
                 </span>
@@ -1638,7 +1631,7 @@ const Campaigns = () => {
               <DetailRow>
                 <span className="label">CTR (Click-Through Rate)</span>
                 <span className="value">
-                  {viewingCampaign.delivered > 0 
+                  {viewingCampaign.delivered > 0
                     ? ((viewingCampaign.clicks / viewingCampaign.delivered) * 100).toFixed(1) + '%'
                     : '0%'}
                 </span>
@@ -1651,23 +1644,11 @@ const Campaigns = () => {
               )}
               <DetailRow>
                 <span className="label">Created At</span>
-                <span className="value">{new Date(viewingCampaign.createdAt).toLocaleDateString('en-GB', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</span>
+                <span className="value">{formatDate(viewingCampaign.createdAt, getStoredDateFormat())}</span>
               </DetailRow>
               <DetailRow>
                 <span className="label">Last Updated</span>
-                <span className="value">{new Date(viewingCampaign.updatedAt || viewingCampaign.createdAt).toLocaleDateString('en-GB', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</span>
+                <span className="value">{formatDate(viewingCampaign.updatedAt || viewingCampaign.createdAt, getStoredDateFormat())}</span>
               </DetailRow>
             </ModalBody>
             <ModalFooter>

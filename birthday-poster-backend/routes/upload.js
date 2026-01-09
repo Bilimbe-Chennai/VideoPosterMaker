@@ -13,6 +13,8 @@ const fs = require("fs/promises"); // ✅ promise-based fs
 const router = express.Router();
 const { getConnection } = require("../InitDB");
 const OpenAI = require("openai");
+const dayjs = require("dayjs");
+const PremiumAdminSettings = require("../models/PremiumAdminSettings");
 require("dotenv").config();
 const archiver = require("archiver");
 const QRCode = require("qrcode");
@@ -579,11 +581,11 @@ router.get("/all", async (req, res) => {
     if (adminid) {
       query.adminid = adminid;
     }
-    
+
     console.log('Fetching media items with query:', query);
     const mediaItems = await Media.find(query).sort({ createdAt: -1 }).lean(); // Get all items, newest first, use lean() for better performance
     console.log(`Found ${mediaItems.length} media items`);
-    
+
     // Return as array directly (no need to reverse since we're sorting by createdAt: -1)
     res.json(mediaItems || []);
   } catch (err) {
@@ -689,26 +691,26 @@ router.get("/dashboard-metrics", async (req, res) => {
     // Helper function to generate trend path configuration based on growth value
     const generateTrendPathConfig = (growth) => {
       const growthValue = parseFloat(growth) || 0;
-      
+
       // Normalize growth to a -50 to +50 scale for better visualization
       const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
       const scaleFactor = normalizedGrowth / 50; // -1 to 1
-      
+
       // For 60x30 viewBox: X ranges 0-60, Y ranges 0-30 (lower Y = higher on screen)
       const startY = 20; // Middle baseline
       const endYOffset = -scaleFactor * 12; // Move up/down based on growth (max 12px movement)
       const endY = startY + endYOffset;
-      
+
       // Ensure Y stays within viewBox bounds (0-30)
       const clampedEndY = Math.max(5, Math.min(25, endY));
-      
+
       // Create smooth curve points with control points for better curve
       const midY1 = startY + (endYOffset * 0.2);
       const midY2 = startY + (endYOffset * 0.6);
-      
+
       // Generate dynamic Bezier curve path
       const path = `M5,${startY} C18,${startY - scaleFactor * 2} 32,${midY1 + scaleFactor * 1} 45,${midY2} C48,${midY2 + scaleFactor * 1} 50,${clampedEndY - scaleFactor * 0.5} 55,${clampedEndY}`;
-      
+
       return {
         points: path,
         endX: 55,
@@ -723,17 +725,17 @@ router.get("/dashboard-metrics", async (req, res) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     today.setHours(0, 0, 0, 0);
-    
+
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
     lastMonthEnd.setHours(23, 59, 59, 999);
 
     const last30DaysStart = new Date(today);
     last30DaysStart.setDate(last30DaysStart.getDate() - 30);
-    
+
     const last60DaysStart = new Date(today);
     last60DaysStart.setDate(last60DaysStart.getDate() - 60);
     const last30DaysEnd = new Date(today);
@@ -776,16 +778,16 @@ router.get("/dashboard-metrics", async (req, res) => {
     // Calculate current metrics
     const totalCustomersSet = new Set();
     const lastMonthCustomersSet = new Set();
-    
+
     allItems.forEach(item => {
       const phone = item.whatsapp || item.mobile || '';
       const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
       const itemDate = new Date(item.date || item.createdAt);
-      
+
       if (itemDate >= lastMonthStart && itemDate <= now) {
         totalCustomersSet.add(key);
       }
-      
+
       if (itemDate >= new Date(now.getFullYear(), now.getMonth() - 2, 1) && itemDate < lastMonthStart) {
         lastMonthCustomersSet.add(key);
       }
@@ -825,7 +827,7 @@ router.get("/dashboard-metrics", async (req, res) => {
     // Calculate unique users for Share Tracking
     const uniqueUsersSet = new Set();
     const prevUniqueUsersSet = new Set();
-    
+
     last30DaysItems.forEach(item => {
       const phone = item.whatsapp || item.mobile || item.name;
       if (phone) uniqueUsersSet.add(phone);
@@ -1016,7 +1018,7 @@ router.get("/analytics", async (req, res) => {
       (item.facebooksharecount || 0) +
       (item.twittersharecount || 0) +
       (item.instagramsharecount || 0);
-    
+
     const getDownloadCount = (item) => (item.downloadcount || 0);
 
     const currentData = allItems.filter((item) => {
@@ -1119,7 +1121,7 @@ router.get("/analytics", async (req, res) => {
     const sortedTemplates = Object.entries(templateCounts)
       .filter(([name]) => name !== "Others")
       .sort((a, b) => b[1] - a[1]);
-    
+
     const top4Templates = sortedTemplates.slice(0, 4);
     const remainingTemplates = sortedTemplates.slice(4);
 
@@ -1365,7 +1367,7 @@ router.post("/videophoto", async (req, res) => {
       const boundaryBuffer = Buffer.from(boundary);
 
       const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
-      let name, date, type;
+      let name, date, type, adminid;
       let photoBuffer, videoBuffer;
       const whatsappstatus = "pending";
       // Split by boundary, keep binary intact
@@ -1388,6 +1390,8 @@ router.post("/videophoto", async (req, res) => {
           photoBuffer = body;
         } else if (headersText.includes('name="video"')) {
           videoBuffer = body;
+        } else if (headersText.includes('name="adminid"')) {
+          adminid = body.toString().trim();
         }
       });
 
@@ -1584,27 +1588,39 @@ router.post("/videophoto", async (req, res) => {
         photoY + photoAreaHeight + 220
       );
 
-      // Date with subtle styling
-      function formatDateToDayMonth(dateStr) {
-        const dateObj = new Date(dateStr);
+      // Dynamic Date Formatting
+      async function getFormattedDate(dateStr, currentAdminId) {
+        try {
+          // Default formatting logic
+          const defaultFormat = (dStr) => {
+            const dateObj = new Date(dStr);
+            const day = dateObj.getDate();
+            const month = dateObj.toLocaleString("default", { month: "long" });
+            const suffix = (day % 10 === 1 && day !== 11) ? "st" :
+              (day % 10 === 2 && day !== 12) ? "nd" :
+                (day % 10 === 3 && day !== 13) ? "rd" : "th";
+            return `${day}${suffix} ${month}`;
+          };
 
-        const day = dateObj.getDate();
-        const month = dateObj.toLocaleString("default", { month: "long" });
-        const suffix =
-          day % 10 === 1 && day !== 11
-            ? "st"
-            : day % 10 === 2 && day !== 12
-              ? "nd"
-              : day % 10 === 3 && day !== 13
-                ? "rd"
-                : "th";
+          if (!currentAdminId) return defaultFormat(dateStr);
 
-        return `${day}${suffix} ${month}`;
+          const doc = await PremiumAdminSettings.findOne({ adminid: String(currentAdminId) }).lean();
+          const format = doc?.settings?.general?.dateFormat;
+
+          if (format) {
+            return dayjs(dateStr).format(format);
+          }
+
+          return defaultFormat(dateStr);
+        } catch (e) {
+          console.error('Error in dynamic date formatting:', e);
+          return dateStr;
+        }
       }
 
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
       ctx.font = 'italic 48px "Arial", sans-serif';
-      const formattedDate = formatDateToDayMonth(date);
+      const formattedDate = await getFormattedDate(date, adminid);
       ctx.fillText(
         formattedDate,
         posterWidth / 2,
@@ -1722,6 +1738,7 @@ router.post("/videophoto", async (req, res) => {
         posterVideoId,
         mergedVideoId,
         whatsappstatus,
+        adminid: adminid || "",
         createdAt: new Date(),
       });
 
@@ -1762,7 +1779,7 @@ router.post("/photogif", async (req, res) => {
       const boundaryBuffer = Buffer.from(boundary);
 
       const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
-      let name, date, type;
+      let name, date, type, adminid;
       let photoBuffer, gifBuffer;
       const whatsappstatus = "pending";
       // Split by boundary, keep binary intact
@@ -1785,6 +1802,8 @@ router.post("/photogif", async (req, res) => {
           photoBuffer = body;
         } else if (headersText.includes('name="gif"')) {
           gifBuffer = body;
+        } else if (headersText.includes('name="adminid"')) {
+          adminid = body.toString().trim();
         }
       });
 
@@ -1921,6 +1940,7 @@ router.post("/photogif", async (req, res) => {
         gifId,
         posterVideoId,
         whatsappstatus,
+        adminid: adminid || "",
         createdAt: new Date(),
       });
       const downloadUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${media.posterVideoId}?download=true`;

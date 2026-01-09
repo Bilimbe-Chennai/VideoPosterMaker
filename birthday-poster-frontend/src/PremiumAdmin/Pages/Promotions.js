@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import Card from '../Components/Card';
 import { Plus, Edit, Trash2, Eye, Calendar, Users, Percent, Loader } from 'react-feather';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const PromotionsContainer = styled.div``;
 
@@ -167,7 +168,7 @@ const Promotions = () => {
 
         rawItems.forEach(item => {
           const templateName = item.template_name || item.templatename || item.type || 'General';
-          
+
           if (!templateMap[templateName]) {
             templateMap[templateName] = {
               id: Object.keys(templateMap).length + 1,
@@ -179,7 +180,7 @@ const Promotions = () => {
               value: '0%',
               code: '',
               startDate: item.date || item.createdAt,
-              endDate: new Date().toISOString().split('T')[0],
+              endDate: formatDate(new Date(), 'YYYY-MM-DD'), // Keep ISO for input fields but using utility logic if needed
               customers: 0,
               status: 'active',
               color: colors[colorIndex % colors.length]
@@ -188,7 +189,7 @@ const Promotions = () => {
           }
 
           templateMap[templateName].customers += 1;
-          
+
           // Update dates
           const itemDate = new Date(item.date || item.createdAt);
           const startDate = new Date(templateMap[templateName].startDate);
@@ -210,25 +211,25 @@ const Promotions = () => {
           const codeSuffix = String(customersCount % 100).padStart(2, '0');
           p.value = `${discountPct}%`;
           p.code = `${codePrefix}${codeSuffix}`;
-          
+
           // Determine status
           if (endDate < now && p.customers === 0) {
             p.status = 'expired';
           } else if (p.customers > 0) {
             p.status = 'active';
           }
-          
+
           // Format dates
           p.startDate = startDate.toISOString().split('T')[0];
           p.endDate = endDate.toISOString().split('T')[0];
           p.customers = p.customers.toLocaleString();
-          
+
           return p;
         });
 
         // Sort by most customers
         promotionsArray.sort((a, b) => parseInt(b.customers.replace(/,/g, '')) - parseInt(a.customers.replace(/,/g, '')));
-        
+
         setPromotions(promotionsArray.slice(0, 8)); // Limit to 8 promotions
       } catch (error) {
         console.error("Error fetching promotions data:", error);
@@ -292,7 +293,7 @@ const Promotions = () => {
                   <Calendar size={16} />
                   Duration
                 </DetailItem>
-                <DetailValue>{promo.startDate} to {promo.endDate}</DetailValue>
+                <DetailValue>{formatDate(promo.startDate, getStoredDateFormat())} to {formatDate(promo.endDate, getStoredDateFormat())}</DetailValue>
               </DetailRow>
 
               <DetailRow>

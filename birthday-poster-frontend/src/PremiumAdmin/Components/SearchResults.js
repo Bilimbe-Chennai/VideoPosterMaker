@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { FileText, Users, Image, Calendar, ChevronRight } from 'react-feather';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const SearchContainer = styled.div`
   position: absolute;
@@ -182,7 +183,7 @@ const SearchResults = ({ query, show, onResultClick }) => {
                         id: t._id,
                         name: t.templatename,
                         category: t.accessType || 'Photo Merge',
-                        date: (t.createdAt || t.createdDate) ? new Date(t.createdAt || t.createdDate).toLocaleDateString() : 'N/A'
+                        date: (t.createdAt || t.createdDate) ? formatDate(t.createdAt || t.createdDate, getStoredDateFormat()) : 'N/A'
                     }));
 
                 // AGGREGATE Unique Customers from posters (Matches Customers.js logic)
@@ -232,7 +233,7 @@ const SearchResults = ({ query, show, onResultClick }) => {
                         id: p._id,
                         name: p.name || 'Anonymous',
                         template: p.template_name || p.templatename || p.type || 'Custom',
-                        date: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'
+                        date: p.createdAt ? formatDate(p.createdAt, getStoredDateFormat()) : 'N/A'
                     }));
 
                 setResults({

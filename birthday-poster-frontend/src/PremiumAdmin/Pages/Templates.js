@@ -25,6 +25,7 @@ import {
 } from 'react-feather';
 // import Card from '../Components/Card'; // Unused
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 // --- Styled Components ---
 
@@ -551,19 +552,19 @@ const AlertIconWrapper = styled.div`
   height: 64px;
   border-radius: 50%;
   background: ${props => {
-    if (props.$type === 'success') return '#10B98120';
-    if (props.$type === 'error') return '#EF444420';
-    return '#F59E0B20';
-  }};
+        if (props.$type === 'success') return '#10B98120';
+        if (props.$type === 'error') return '#EF444420';
+        return '#F59E0B20';
+    }};
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 24px;
   color: ${props => {
-    if (props.$type === 'success') return '#10B981';
-    if (props.$type === 'error') return '#EF4444';
-    return '#F59E0B';
-  }};
+        if (props.$type === 'success') return '#10B981';
+        if (props.$type === 'error') return '#EF4444';
+        return '#F59E0B';
+    }};
 `;
 
 const AlertMessage = styled.div`
@@ -846,32 +847,32 @@ const Templates = () => {
     const [templateCount, setTemplateCount] = useState(3);
     const [userAccess, setUserAccess] = useState([]);
     const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
-    
+
     // Alert & Confirmation Modal States
     const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
     const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
-    
+
     // Image Modal State
     const [imageModal, setImageModal] = useState({ show: false, photos: [], currentIndex: 0 });
-    
+
     // Helper Functions for Alerts and Confirmations
     const showAlert = (message, type = 'info') => {
         setAlertModal({ show: true, message, type });
     };
-    
+
     const showConfirm = (message, onConfirm) => {
         setConfirmModal({ show: true, message, onConfirm });
     };
-    
+
     // Image Modal Handlers
     const handleImageClick = (photos, initialIndex) => {
         setImageModal({ show: true, photos, currentIndex: initialIndex });
     };
-    
+
     const handleCloseImageModal = () => {
         setImageModal({ show: false, photos: [], currentIndex: 0 });
     };
-    
+
     const handleNextImage = (e) => {
         if (e) e.stopPropagation();
         setImageModal(prev => ({
@@ -879,7 +880,7 @@ const Templates = () => {
             currentIndex: (prev.currentIndex + 1) % prev.photos.length
         }));
     };
-    
+
     const handlePrevImage = (e) => {
         if (e) e.stopPropagation();
         setImageModal(prev => ({
@@ -887,15 +888,15 @@ const Templates = () => {
             currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
         }));
     };
-    
+
     const handleDotClick = (index) => {
         setImageModal(prev => ({ ...prev, currentIndex: index }));
     };
-    
+
     // Keyboard navigation for image modal
     useEffect(() => {
         if (!imageModal.show) return;
-        
+
         const handleKeyDown = (e) => {
             if (e.key === 'ArrowRight') {
                 setImageModal(prev => ({
@@ -911,7 +912,7 @@ const Templates = () => {
                 setImageModal({ show: false, photos: [], currentIndex: 0 });
             }
         };
-        
+
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [imageModal.show, imageModal.photos.length]);
@@ -986,13 +987,13 @@ const Templates = () => {
         // Validate image dimensions (3000x4000)
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
-        
+
         img.onload = () => {
             URL.revokeObjectURL(objectUrl);
-            
+
             const width = img.width;
             const height = img.height;
-            
+
             if (width !== 3000 || height !== 4000) {
                 showAlert(
                     `Photo ${index + 1}: Image dimensions must be exactly 3000x4000 pixels. Current size: ${width}x${height}px. Please upload an image with the correct dimensions.`,
@@ -1056,8 +1057,8 @@ const Templates = () => {
                     category: 'Photo Merge', // defaulting for now, or derive from type/accessType
                     status: t.status || 'active',
                     usage: usageCounts[name] || 0, // Using real aggregated usage
-                    lastUsed: t.updatedDate ? new Date(t.updatedDate).toLocaleDateString() : 'Never',
-                    createdAt: t.createdDate ? new Date(t.createdDate).toLocaleDateString() : new Date().toLocaleDateString(),
+                    lastUsed: t.updatedDate ? formatDate(t.updatedDate, getStoredDateFormat()) : 'Never',
+                    createdAt: t.createdDate ? formatDate(t.createdDate, getStoredDateFormat()) : formatDate(new Date(), getStoredDateFormat()),
                     overlayUrl: (t.templatePhotos && t.templatePhotos.length > 0)
                         ? `https://api.bilimbebrandactivations.com/api/upload/file/${t.templatePhotos[0]}`
                         : 'https://via.placeholder.com/150?text=No+Image',
@@ -1321,7 +1322,7 @@ const Templates = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `Templates_Report_${new Date().toLocaleDateString()}.csv`);
+        link.setAttribute("download", `Templates_Report_${formatDate(new Date(), getStoredDateFormat())}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1783,32 +1784,32 @@ const Templates = () => {
                         <ImageCloseButton onClick={handleCloseImageModal}>
                             <X size={20} />
                         </ImageCloseButton>
-                        
+
                         {imageModal.photos.length > 1 && (
-                            <ImageNavButton 
-                                $left 
+                            <ImageNavButton
+                                $left
                                 onClick={handlePrevImage}
                                 disabled={imageModal.photos.length <= 1}
                             >
                                 <ChevronLeft size={24} />
                             </ImageNavButton>
                         )}
-                        
+
                         <FullImage
                             src={`https://api.bilimbebrandactivations.com/api/upload/file/${imageModal.photos[imageModal.currentIndex]}`}
                             alt={`Template image ${imageModal.currentIndex + 1}`}
                         />
-                        
+
                         {imageModal.photos.length > 1 && (
-                            <ImageNavButton 
-                                $right 
+                            <ImageNavButton
+                                $right
                                 onClick={handleNextImage}
                                 disabled={imageModal.photos.length <= 1}
                             >
                                 <ChevronRight size={24} />
                             </ImageNavButton>
                         )}
-                        
+
                         {imageModal.photos.length > 1 && (
                             <>
                                 <ImageCounter>

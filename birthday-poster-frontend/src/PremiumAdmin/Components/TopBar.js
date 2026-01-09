@@ -195,7 +195,15 @@ const TopBar = ({ onMenuClick }) => {
   const searchRef = useRef(null);
   const navigate = useNavigate();
   const axiosData = useAxios();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
+
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      setUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    };
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+  }, []);
 
   // Fetch notification count
   useEffect(() => {

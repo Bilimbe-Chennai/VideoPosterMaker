@@ -21,6 +21,7 @@ import {
 } from 'react-feather';
 import Card from '../Components/Card';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 // --- Styled Components ---
 
@@ -286,11 +287,10 @@ const AuditInfo = styled.div`
 
 const DEFAULT_SETTINGS = {
     general: {
-        appName: 'P Poster Maker Admin',
+        adminName: 'P Poster Maker Admin',
         companyName: 'Bilimbe Chennai',
         email: 'contact@bilimbe.com',
         phone: '+91 98844 55663',
-        timezone: 'India (IST)',
         dateFormat: 'DD/MM/YYYY',
         exportFormat: 'Excel'
     },
@@ -416,7 +416,27 @@ const SettingsPage = () => {
                 }
                 const res = await axios.get(`users/premium-settings?adminid=${adminid}`);
                 if (res.data?.success && res.data?.settings) {
-                    setSettings(res.data.settings);
+                    // Deep merge with defaults to ensure UI safety
+                    const merged = {
+                        general: { ...DEFAULT_SETTINGS.general, ...res.data.settings.general },
+                        notifications: { ...DEFAULT_SETTINGS.notifications, ...res.data.settings.notifications },
+                        integrations: {
+                            whatsapp: { ...DEFAULT_SETTINGS.integrations.whatsapp, ...(res.data.settings.integrations?.whatsapp || {}) },
+                            email: { ...DEFAULT_SETTINGS.integrations.email, ...(res.data.settings.integrations?.email || {}) },
+                            sms: { ...DEFAULT_SETTINGS.integrations.sms, ...(res.data.settings.integrations?.sms || {}) }
+                        },
+                        export: { ...DEFAULT_SETTINGS.export, ...res.data.settings.export },
+                        backup: { ...DEFAULT_SETTINGS.backup, ...res.data.settings.backup },
+                        audit: res.data.settings.audit || {}
+                    };
+                    setSettings(merged);
+                    // Sync to localStorage
+                    localStorage.setItem('admin_settings', JSON.stringify(merged));
+                    if (merged.general?.adminName) {
+                        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                        currentUser.name = merged.general.adminName;
+                        localStorage.setItem('user', JSON.stringify(currentUser));
+                    }
                 } else {
                     setSettings(DEFAULT_SETTINGS);
                 }
@@ -428,30 +448,46 @@ const SettingsPage = () => {
             }
         };
         fetchSettings();
-    }, [axios, adminid]);
+    }, [axios, adminid, user._id, user.id]);
 
     const handleSave = async () => {
         try {
             setSaving(true);
+            const adminid = user._id || user.id;
             if (!adminid) {
                 showAlert('Admin not found. Please login again.', 'error');
                 return;
             }
-            const updatedBy = user.name || user.email || 'Admin User';
+            const updatedBy = settings.general?.adminName || user.name || user.email || 'Admin User';
             const res = await axios.put(`users/premium-settings?adminid=${adminid}`, {
                 settings,
                 updatedBy
             });
-            if (res.data?.success && res.data?.settings) {
-                setSettings(res.data.settings);
+            if (res.data?.success) {
+                // Success: res.data.settings might have audit info
+                const savedSettings = res.data.settings || settings;
+                setSettings(prev => ({ ...prev, ...savedSettings, audit: savedSettings.audit || prev.audit }));
+
+                // Propagate to localStorage for other components
+                localStorage.setItem('admin_settings', JSON.stringify(savedSettings));
+
+                // If adminName changed, we might want to update the displayed name
+                if (savedSettings.general?.adminName) {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    currentUser.name = savedSettings.general.adminName;
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    window.dispatchEvent(new Event('userUpdated'));
+                }
+
                 setShowSuccess(true);
+                showAlert(`${activeTab} settings saved successfully!`, 'success');
                 setTimeout(() => setShowSuccess(false), 3000);
             } else {
-                throw new Error('Failed to save settings');
+                throw new Error(res.data?.error || 'Failed to save settings');
             }
         } catch (e) {
             console.error('Error saving settings:', e);
-            showAlert('Failed to save settings. Please try again.', 'error');
+            showAlert(e.message || 'Failed to save settings. Please try again.', 'error');
         } finally {
             setSaving(false);
         }
@@ -470,9 +506,9 @@ const SettingsPage = () => {
     const tabs = [
         { id: 'General', icon: <Settings size={18} /> },
         { id: 'Notifications', icon: <Bell size={18} /> },
-        { id: 'Integrations', icon: <Link2 size={18} /> },
+        // { id: 'Integrations', icon: <Link2 size={18} /> },
         { id: 'Export Settings', icon: <Download size={18} /> },
-        { id: 'Backup', icon: <Shield size={18} /> }
+        // { id: 'Backup', icon: <Shield size={18} /> }
     ];
 
     return (
@@ -507,10 +543,10 @@ const SettingsPage = () => {
                                     <SectionTitle><Globe size={20} /> General Settings</SectionTitle>
                                     <FormGrid>
                                         <FormGroup>
-                                            <Label>Application Name</Label>
+                                            <Label>Admin Name</Label>
                                             <Input
-                                                value={settings.general.appName}
-                                                onChange={e => updateSetting('general', 'appName', e.target.value)}
+                                                value={settings.general.adminName}
+                                                onChange={e => updateSetting('general', 'adminName', e.target.value)}
                                             />
                                         </FormGroup>
                                         <FormGroup>
@@ -533,17 +569,6 @@ const SettingsPage = () => {
                                                 value={settings.general.phone}
                                                 onChange={e => updateSetting('general', 'phone', e.target.value)}
                                             />
-                                        </FormGroup>
-                                        <FormGroup>
-                                            <Label>Timezone</Label>
-                                            <Select
-                                                value={settings.general.timezone}
-                                                onChange={e => updateSetting('general', 'timezone', e.target.value)}
-                                            >
-                                                <option>India (IST)</option>
-                                                <option>US (EST)</option>
-                                                <option>UK (GMT)</option>
-                                            </Select>
                                         </FormGroup>
                                         <FormGroup>
                                             <Label>Date Format</Label>
@@ -753,7 +778,7 @@ const SettingsPage = () => {
                         <FooterBar>
                             <AuditInfo>
                                 <Clock size={14} />
-                                Last updated: {settings?.audit?.lastUpdated || 'Never'} {settings?.audit?.updatedBy ? `by ${settings.audit.updatedBy}` : ''}
+                                Last updated: {settings?.audit?.lastUpdated ? formatDate(settings.audit.lastUpdated, getStoredDateFormat()) : 'Never'} {settings?.audit?.updatedBy ? `by ${settings.audit.updatedBy}` : ''}
                             </AuditInfo>
                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                 {showSuccess && (

@@ -5,11 +5,10 @@ const PremiumAdminSettings = require('../models/PremiumAdminSettings');
 
 const DEFAULT_PREMIUM_SETTINGS = {
     general: {
-        appName: 'P Poster Maker Admin',
+        adminName: 'P Poster Maker Admin',
         companyName: '',
         email: '',
         phone: '',
-        timezone: 'India (IST)',
         dateFormat: 'DD/MM/YYYY',
         exportFormat: 'Excel'
     },
@@ -159,6 +158,8 @@ router.get('/premium-settings', async (req, res) => {
         }
 
         const doc = await PremiumAdminSettings.findOne({ adminid }).lean();
+
+        // Deep merge: Database settings take precedence over defaults
         const settings = doc?.settings || DEFAULT_PREMIUM_SETTINGS;
 
         // Return audit derived from db timestamps if not present
@@ -185,6 +186,7 @@ router.put('/premium-settings', async (req, res) => {
         if (!settings || typeof settings !== 'object') {
             return res.status(400).json({ success: false, error: 'settings object is required' });
         }
+
 
         const doc = await PremiumAdminSettings.findOneAndUpdate(
             { adminid },

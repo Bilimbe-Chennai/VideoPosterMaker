@@ -1,5 +1,6 @@
 import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, AreaChart, Area } from 'recharts';
+import { formatDate, getStoredDateFormat } from '../../../utils/dateUtils';
 
 const TrendAnalytics = ({ data, range }) => {
     const chartData = React.useMemo(() => {
@@ -9,10 +10,7 @@ const TrendAnalytics = ({ data, range }) => {
             .sort()
             .map(dateKey => {
                 const date = new Date(dateKey);
-                // Always use DD/MM format as per screenshot
-                const dayNum = String(date.getDate()).padStart(2, '0');
-                const monthNum = String(date.getMonth() + 1).padStart(2, '0');
-                const label = `${dayNum}/${monthNum}`;
+                const label = formatDate(date, getStoredDateFormat());
 
                 return {
                     name: label,

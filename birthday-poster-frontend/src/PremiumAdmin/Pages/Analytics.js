@@ -7,6 +7,7 @@ import DonutActivity from '../Components/charts/DonutActivity';
 import BarActivity from '../Components/charts/BarActivity';
 import MetricCircularCard from '../Components/charts/MetricCircularCard';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 import { PieChart, TrendingUp, Filter, Download, Image, Calendar, Share2, Star, User, Facebook, RefreshCw, BarChart2, AlertCircle, CheckCircle, XCircle } from 'react-feather';
 
 const AnalyticsContainer = styled.div``;
@@ -255,10 +256,10 @@ const iconComponents = {
 const Analytics = () => {
   // 1. State Management
   const [timeRange, setTimeRange] = React.useState(ANALYTICS_CONFIG.defaultTimeRange);
-  
+
   // Alert Modal State
   const [alertModal, setAlertModal] = React.useState({ show: false, message: '', type: 'info' });
-  
+
   // Helper Functions for Alerts
   const showAlert = (message, type = 'info') => {
     setAlertModal({ show: true, message, type });
@@ -275,21 +276,21 @@ const Analytics = () => {
   // Helper function to generate SVG trend path based on growth value
   const generateTrendPath = (growth) => {
     const growthValue = parseFloat(growth) || 0;
-    
+
     // Normalize growth to a 0-100 scale for better visualization
     const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
     const scaleFactor = normalizedGrowth / 50; // -1 to 1
-    
+
     // Calculate Y positions (lower Y = higher on screen)
     const startY = 35; // Middle baseline
     const endYOffset = -scaleFactor * 20; // Move up/down based on growth
     const endY = startY + endYOffset;
-    
+
     // Create smooth curve points
     const midY = startY + (endYOffset * 0.3);
-    
+
     const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
-    
+
     return {
       points: path,
       endX: 85,
@@ -316,7 +317,7 @@ const Analytics = () => {
   const processAnalytics = React.useCallback((data, growthValue = 0, range = timeRange) => {
     const now = new Date();
     const currentPeriodStart = new Date();
-    
+
     // For 1 day, show only today (from 00:00:00 today to now)
     // For other ranges, show last N days
     if (range === 1) {
@@ -334,10 +335,10 @@ const Analytics = () => {
       previousPeriodStart.setHours(0, 0, 0, 0);
       const previousPeriodEnd = new Date(previousPeriodStart);
       previousPeriodEnd.setHours(23, 59, 59, 999);
-      
+
       // Current period: today (00:00 to now)
       const currentPeriodEnd = now;
-      
+
       // -- Filter Data by Date Ranges
       currentData = data.filter(item => {
         const d = new Date(item.date || item.createdAt);
@@ -367,7 +368,7 @@ const Analytics = () => {
     const getShareCount = (item) =>
       (item.whatsappsharecount || 0) + (item.facebooksharecount || 0) +
       (item.twittersharecount || 0) + (item.instagramsharecount || 0);
-    
+
     const getDownloadCount = (item) => (item.downloadcount || 0);
 
     const getUniqueCustomers = (dataset) => {
@@ -392,18 +393,18 @@ const Analytics = () => {
     // Calculate average session duration from actual data
     const calculateAvgSessionDuration = (dataset) => {
       if (dataset.length === 0) return { seconds: 0, display: '0s' };
-      
+
       // Estimate session time based on activity using config values
       const { avgTimePerPhoto, avgTimePerShare } = ANALYTICS_CONFIG.sessionCalculation;
-      
+
       const totalPhotos = dataset.length;
       const totalShares = dataset.reduce((acc, item) => acc + getShareCount(item), 0);
       const avgSeconds = Math.round((totalPhotos * avgTimePerPhoto + totalShares * avgTimePerShare) / totalPhotos);
-      
+
       const minutes = Math.floor(avgSeconds / 60);
       const seconds = avgSeconds % 60;
       const display = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-      
+
       return { seconds: avgSeconds, display };
     };
 
@@ -477,7 +478,7 @@ const Analytics = () => {
     const sortedTemplates = Object.entries(templateCounts)
       .filter(([name]) => name !== "Others")
       .sort((a, b) => b[1] - a[1]);
-    
+
     const topTemplates = sortedTemplates.slice(0, topCategoriesLimit);
     const remainingTemplates = sortedTemplates.slice(topCategoriesLimit);
 
@@ -498,12 +499,12 @@ const Analytics = () => {
     const platformKeys = ['WhatsApp', 'Facebook', 'Twitter', 'Instagram'];
     const platforms = {};
     const downloads = { Direct: 0 };
-    
+
     // Initialize platforms dynamically
     platformKeys.forEach(key => {
       platforms[key] = 0;
     });
-    
+
     currentData.forEach(item => {
       if (item.whatsappsharecount) platforms.WhatsApp = (platforms.WhatsApp || 0) + (item.whatsappsharecount || 0);
       if (item.facebooksharecount) platforms.Facebook = (platforms.Facebook || 0) + (item.facebooksharecount || 0);
@@ -515,12 +516,12 @@ const Analytics = () => {
     // Calculate platform growth (current vs previous period)
     const previousPlatforms = {};
     const previousDownloads = { Direct: 0 };
-    
+
     // Initialize previous platforms dynamically
     platformKeys.forEach(key => {
       previousPlatforms[key] = 0;
     });
-    
+
     previousData.forEach(item => {
       if (item.whatsappsharecount) previousPlatforms.WhatsApp = (previousPlatforms.WhatsApp || 0) + (item.whatsappsharecount || 0);
       if (item.facebooksharecount) previousPlatforms.Facebook = (previousPlatforms.Facebook || 0) + (item.facebooksharecount || 0);
@@ -533,7 +534,7 @@ const Analytics = () => {
     Object.keys(platforms).forEach(key => {
       platformGrowth[key] = calculateGrowth(platforms[key], previousPlatforms[key]);
     });
-    
+
     const downloadGrowth = {};
     Object.keys(downloads).forEach(key => {
       downloadGrowth[key] = calculateGrowth(downloads[key], previousDownloads[key]);
@@ -717,7 +718,7 @@ const Analytics = () => {
     }
 
     // Return unique tags (remove duplicates)
-    return tags.filter((tag, index, self) => 
+    return tags.filter((tag, index, self) =>
       index === self.findIndex(t => t.label === tag.label)
     );
   };
@@ -737,8 +738,8 @@ const Analytics = () => {
       // Detailed CSV with all analytics data
       const timeRangeText = timeRange === 1 ? 'Today' : `Last ${timeRange} Days`;
       let csv = `Analytics Report - ${timeRangeText}\n`;
-      csv += `Generated: ${new Date().toLocaleString()}\n\n`;
-      
+      csv += `Generated: ${formatDate(new Date(), getStoredDateFormat() + ' HH:mm')}\n\n`;
+
       // KPI Metrics
       csv += `KPI Metrics\n`;
       csv += `Metric,Value,Growth\n`;
@@ -789,7 +790,7 @@ const Analytics = () => {
       const a = document.createElement('a');
       a.href = url;
       const fileNameSuffix = timeRange === 1 ? 'Today' : `${timeRange}Days`;
-      a.download = `Analytics_Report_${fileNameSuffix}_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `Analytics_Report_${fileNameSuffix}_${formatDate(new Date(), getStoredDateFormat()).replace(/\//g, '-')}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -823,8 +824,8 @@ const Analytics = () => {
               <ActionButton
                 key={days}
                 onClick={() => handleTimeRangeChange(days)}
-                style={{ 
-                  background: timeRange === days ? '#E0E7FF' : 'transparent', 
+                style={{
+                  background: timeRange === days ? '#E0E7FF' : 'transparent',
                   borderColor: timeRange === days ? '#6366F1' : '#E5E7EB',
                   fontWeight: timeRange === days ? 600 : 500
                 }}
@@ -833,10 +834,10 @@ const Analytics = () => {
               </ActionButton>
             ))}
           </div>
-          <ActionButton 
+          <ActionButton
             onClick={handleRefresh}
             disabled={loading}
-            style={{ 
+            style={{
               opacity: loading ? 0.6 : 1,
               cursor: loading ? 'wait' : 'pointer'
             }}
@@ -854,8 +855,8 @@ const Analytics = () => {
       {loading ? (
         <div style={{ padding: '40px', textAlign: 'center' }}>Loading analytics...</div>
       ) : !analyticsData || !analyticsData.kpis?.photos?.value || analyticsData.kpis.photos.value === 0 ? (
-        <div style={{ 
-          padding: '80px 40px', 
+        <div style={{
+          padding: '80px 40px',
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
@@ -876,15 +877,15 @@ const Analytics = () => {
           }}>
             <BarChart2 size={40} />
           </div>
-          <div style={{ 
-            fontSize: '20px', 
-            fontWeight: 800, 
+          <div style={{
+            fontSize: '20px',
+            fontWeight: 800,
             color: '#111827',
             marginBottom: '8px'
           }}>
             No data for this filter
           </div>
-          <div style={{ 
+          <div style={{
             color: '#6B7280',
             textAlign: 'center',
             maxWidth: '400px',
@@ -935,7 +936,7 @@ const Analytics = () => {
                 const kpiData = kpiDataMap[kpiConfig.label];
                 const trend = generateTrendPath(kpiData?.growth || 0);
                 const IconComponent = iconComponents[kpiConfig.icon];
-                
+
                 let displayValue = kpiData?.value;
                 if (kpiConfig.label === 'Conversion Rate') {
                   displayValue = `${displayValue || 0}%`;
@@ -1024,7 +1025,7 @@ const Analytics = () => {
             }}>
               {(() => {
                 const totalEngagement = Object.values(analyticsData?.totalEngagement || {}).reduce((a, b) => a + b, 0) || 1;
-                
+
                 // Dynamically build platform list based on config and data availability
                 return ANALYTICS_CONFIG.platforms
                   .filter(platform => {
@@ -1035,7 +1036,7 @@ const Analytics = () => {
                   .map(platform => {
                     const key = platform.key || platform.name;
                     const IconComponent = iconComponents[platform.icon];
-                    
+
                     return (
                       <MetricCircularCard
                         key={key}
@@ -1079,15 +1080,15 @@ const Analytics = () => {
                 <p style={{ color: '#4B5563', lineHeight: '1.5' }}>{analyticsData?.insights.recommendation}</p>
                 <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {getRecommendationTags().map((tag, index) => (
-                    <span 
+                    <span
                       key={index}
-                      style={{ 
-                        padding: '4px 12px', 
-                        background: tag.bgColor, 
-                        color: tag.textColor, 
-                        borderRadius: '100px', 
-                        fontSize: '12px', 
-                        fontWeight: 600 
+                      style={{
+                        padding: '4px 12px',
+                        background: tag.bgColor,
+                        color: tag.textColor,
+                        borderRadius: '100px',
+                        fontSize: '12px',
+                        fontWeight: 600
                       }}
                     >
                       {tag.label}

@@ -13,6 +13,7 @@ import {
 import useAxios from '../../useAxios';
 import Card from '../Components/Card';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const PageContainer = styled.div`
 padding: 0;
@@ -968,7 +969,7 @@ const Photos = () => {
   const [viewImage, setViewImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  
+
   // Alert & Confirmation Modal States
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
@@ -982,7 +983,7 @@ const Photos = () => {
   const showAlert = (message, type = 'info') => {
     setAlertModal({ show: true, message, type });
   };
-  
+
   const showConfirm = (message, onConfirm) => {
     setConfirmModal({ show: true, message, onConfirm });
   };
@@ -999,22 +1000,22 @@ const Photos = () => {
   // Helper function to generate SVG trend path based on growth value
   const generateTrendPath = (growth) => {
     const growthValue = parseFloat(growth) || 0;
-    
+
     // Normalize growth to a 0-100 scale for better visualization
     // Cap at ±50% for reasonable curve
     const normalizedGrowth = Math.max(-50, Math.min(50, growthValue));
     const scaleFactor = normalizedGrowth / 50; // -1 to 1
-    
+
     // Calculate Y positions (lower Y = higher on screen)
     const startY = 35; // Middle baseline
     const endYOffset = -scaleFactor * 20; // Move up/down based on growth
     const endY = startY + endYOffset;
-    
+
     // Create smooth curve points
     const midY = startY + (endYOffset * 0.3);
-    
+
     const path = `M10,${startY} C25,${startY - scaleFactor * 3} 35,${midY} 50,${midY + scaleFactor * 5} S80,${endY + 5} 90,${endY}`;
-    
+
     return {
       points: path,
       endX: 85,
@@ -1102,7 +1103,7 @@ const Photos = () => {
           (item.instagramsharecount || 0);
         const downloads = item.downloadcount || 0;
         const totalEngagement = shares + downloads;
-        
+
         // Base rating 3.0, add up to 2.0 based on engagement
         const engagementBonus = Math.min(totalEngagement / 10, 2);
         return (3.0 + engagementBonus).toFixed(1);
@@ -1123,7 +1124,7 @@ const Photos = () => {
           branch: item.source || 'Head Office',
           customer: item.name || 'Anonymous',
           phone: phone, // Added phone field
-          date: new Date(item.date || item.createdAt).toLocaleDateString(),
+          date: formatDate(item.date || item.createdAt, getStoredDateFormat()),
           timestamp: new Date(item.date || item.createdAt).getTime(),
           views: customerCounts[key] || 0,
           shares: (item.whatsappsharecount || 0) +
@@ -1142,7 +1143,7 @@ const Photos = () => {
       today.setHours(0, 0, 0, 0);
       const todayCount = processed.filter(p => p.timestamp >= today.getTime()).length;
       const totalShares = processed.reduce((acc, curr) => acc + curr.shares + curr.downloads, 0);
-      
+
       // Calculate average rating from all photos
       const avgRating = processed.length > 0
         ? (processed.reduce((acc, curr) => acc + parseFloat(curr.rating), 0) / processed.length).toFixed(1)
@@ -1259,7 +1260,7 @@ const Photos = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Photos_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+    link.setAttribute("download", `Photos_Report_${formatDate(new Date(), getStoredDateFormat())}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

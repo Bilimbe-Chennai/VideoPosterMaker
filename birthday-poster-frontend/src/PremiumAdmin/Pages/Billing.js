@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Home
 } from 'react-feather';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const PageContainer = styled.div`
   max-width: 1200px;
@@ -323,7 +324,7 @@ const Billing = () => {
               <div className="icon"><Calendar size={18} /></div>
               <div className="details">
                 <h4>Next Billing Date</h4>
-                <p>{address.planEndDate}</p>
+                <p>{formatDate(address.planEndDate, getStoredDateFormat())}</p>
               </div>
             </AddressInfo>
           </AddressContent>
@@ -346,7 +347,7 @@ const Billing = () => {
             <TableRow key={inv.id}>
               <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{inv.id}</div>
               <div><PeriodBadge>{inv.period}</PeriodBadge></div>
-              <div style={{ color: '#7A7A7A', fontSize: '14px' }}>{inv.date}</div>
+              <div style={{ color: '#7A7A7A', fontSize: '14px' }}>{formatDate(inv.date, getStoredDateFormat())}</div>
               <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{inv.plan}</div>
               <div style={{ fontWeight: 700, color: '#1A1A1A' }}>{inv.amount}</div>
               <div>

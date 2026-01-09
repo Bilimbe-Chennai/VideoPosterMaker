@@ -28,6 +28,7 @@ import {
   Loader,
 } from 'react-feather';
 import useAxios from '../../useAxios';
+import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 // --- Styled Components ---
 
@@ -621,7 +622,7 @@ const Customers = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  
+
   // Alert & Confirmation Modal States
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
@@ -630,7 +631,7 @@ const Customers = () => {
   const showAlert = (message, type = 'info') => {
     setAlertModal({ show: true, message, type });
   };
-  
+
   const showConfirm = (message, onConfirm) => {
     setConfirmModal({ show: true, message, onConfirm });
   };
@@ -661,10 +662,10 @@ const Customers = () => {
       try {
         setLoading(true);
         console.log('Fetching customers data for admin:', user._id || user.id);
-        
+
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
         console.log('Raw response data:', response.data);
-        
+
         const rawItems = response.data.filter(item =>
           item.source === 'Photo Merge App'
         );
@@ -718,7 +719,7 @@ const Customers = () => {
 
         const mappedData = Object.values(customersMap).map((item, index) => {
           const dateObj = new Date(item.latestTimeStamp);
-          const formattedDate = dateObj.toLocaleDateString('en-GB').replace(/\//g, '.');
+          const formattedDate = formatDate(dateObj, getStoredDateFormat());
 
           return {
             id: item._id || `CUST-${index}`,
@@ -741,11 +742,7 @@ const Customers = () => {
           };
         });
 
-        mappedData.sort((a, b) => {
-          const dateA = new Date(a.lastVisit.split('.').reverse().join('-'));
-          const dateB = new Date(b.lastVisit.split('.').reverse().join('-'));
-          return dateB - dateA;
-        });
+        mappedData.sort((a, b) => b.timestamp - a.timestamp);
 
         console.log('Mapped customers data:', mappedData.length, 'customers');
         setCustomers(mappedData);
@@ -910,7 +907,7 @@ const Customers = () => {
   // Calculate metrics using local data for values and API for growth
   const calculateMetrics = () => {
     console.log('Calculating metrics - customers:', customers?.length, 'apiMetrics:', apiMetrics);
-    
+
     // Return default values if customers data is not loaded yet
     if (!customers || customers.length === 0) {
       console.log('No customers yet, using API metrics or defaults');
@@ -983,7 +980,7 @@ const Customers = () => {
     const data = dataToExport || (selectedCustomers.length > 0
       ? filteredCustomers.filter(c => selectedCustomers.includes(c.id))
       : filteredCustomers);
-    
+
     // Validate that data is an array
     if (!Array.isArray(data) || data.length === 0) {
       showAlert('No data available to export.', 'error');
@@ -997,7 +994,7 @@ const Customers = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Customers_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`;
+    link.download = `Customers_Report_${formatDate(new Date(), getStoredDateFormat())}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1081,7 +1078,7 @@ const Customers = () => {
     try {
       const phone = customer.phone && customer.phone !== 'N/A' ? customer.phone : null;
       const name = customer.name || 'Unknown';
-      
+
       let response;
       if (phone) {
         response = await axiosData.get(`/activity-history/customer/${encodeURIComponent(phone)}?adminid=${user._id || user.id}&limit=100`);
@@ -1125,7 +1122,7 @@ const Customers = () => {
     return <Activity size={16} />;
   };
 
-  const formatDate = (dateString) => {
+  const formatRelativeDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
@@ -1137,7 +1134,7 @@ const Customers = () => {
     if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatDate(date, getStoredDateFormat());
   };
 
   return (
@@ -1577,7 +1574,7 @@ const Customers = () => {
                         {activity.activityDescription}
                       </div>
                       <div style={{ fontSize: '12px', color: '#999' }}>
-                        {formatDate(activity.createdAt)}
+                        {formatRelativeDate(activity.createdAt)}
                         {activity.branchName && ` • ${activity.branchName}`}
                       </div>
                     </div>
