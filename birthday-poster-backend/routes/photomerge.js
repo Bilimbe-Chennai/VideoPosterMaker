@@ -273,11 +273,13 @@ router.get('/templates', async (req, res) => {
             query.status = 'active';
         }
 
-        const templates = await PhotoMergeTemplate.find(query).sort({ createdAt: -1 });
-        res.json(templates);
+        console.log('Fetching templates with query:', query);
+        const templates = await PhotoMergeTemplate.find(query).sort({ createdAt: -1 }).lean();
+        console.log(`Found ${templates.length} templates`);
+        res.json(templates || []);
     } catch (err) {
         console.error('Error fetching templates:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'Internal Server Error', message: err.message });
     }
 });
 

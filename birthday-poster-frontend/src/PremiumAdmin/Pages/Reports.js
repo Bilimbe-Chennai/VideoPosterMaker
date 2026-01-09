@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import {
   Download,
@@ -15,8 +15,13 @@ import {
   Check,
   HardDrive,
   File,
-  Loader
+  Loader,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  X
 } from 'react-feather';
+import jsPDF from 'jspdf';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
 import useAxios from '../../useAxios';
@@ -88,7 +93,7 @@ const ReportsGrid = styled.div`
 `;
 
 const ReportCard = styled(Card)`
-  padding: 24px;
+  padding: 32px;
   border-radius: 32px;
   display: flex;
   flex-direction: column;
@@ -177,40 +182,70 @@ const ActionRow = styled.div`
   margin-top: auto;
 `;
 
-const GenerateButton = styled.button`
+const DownloadButton = styled.button`
   flex: 1;
-  padding: 12px;
-  border-radius: 14px;
-  border: none;
-  background: #1A1A1A;
+  padding: 14px 20px;
+  border-radius: 16px;
+  border: 2px solid ${props => props.$variant === 'csv' ? '#10B981' : '#3B82F6'};
+  background: ${props => props.$variant === 'csv' ? '#10B981' : '#3B82F6'};
   color: white;
   font-weight: 700;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: all 0.2s;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
   
-  &:disabled {
-    opacity: 0.6;
-    cursor: wait;
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
   }
-`;
-
-const DownloadButton = styled.button`
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 1.5px solid #EEE;
-  background: white;
-  color: #1A1A1A;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   
-  &:hover {
-    border-color: #DDD;
-    background: #FAFAFA;
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px ${props => props.$variant === 'csv' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)'};
+    border-color: ${props => props.$variant === 'csv' ? '#059669' : '#2563EB'};
+    background: ${props => props.$variant === 'csv' ? '#059669' : '#2563EB'};
+    
+    &::before {
+      width: 300px;
+      height: 300px;
+    }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  svg {
+    position: relative;
+    z-index: 1;
+  }
+
+  span {
+    position: relative;
+    z-index: 1;
   }
 `;
 
@@ -229,18 +264,104 @@ const SummaryGrid = styled.div`
   }
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(5px);
+  padding: 20px;
+`;
+
+const AlertModalContent = styled.div`
+  background: white;
+  width: 100%;
+  max-width: 450px;
+  padding: 32px;
+  border-radius: 32px;
+  position: relative;
+  text-align: center;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+  white-space: pre-line;
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
+const PrimaryButton = styled.button`
+  background: #1A1A1A;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  }
+`;
+
 const Reports = () => {
   const axiosData = useAxios();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const [activeRange, setActiveRange] = useState('7 Days');
+  const [activeRange, setActiveRange] = useState('Today');
   const [reports, setReports] = useState([]);
-  const [generating, setGenerating] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(null);
+  const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+  const [downloadCounts, setDownloadCounts] = useState({});
+  const [downloadHistory, setDownloadHistory] = useState([]);
+  const [mediaData, setMediaData] = useState([]);
+  const [campaignsData, setCampaignsData] = useState([]);
+  const [templatesData, setTemplatesData] = useState([]);
   const [summaryStats, setSummaryStats] = useState({
-    totalReports: 4,
+    totalReports: 0,
     generatedThisMonth: 0,
     totalRecords: 0,
-    totalSize: '0 MB'
+    totalSize: '0 KB'
   });
   const [growthMetrics, setGrowthMetrics] = useState({
     reportsGrowth: 0,
@@ -262,184 +383,879 @@ const Reports = () => {
     return { points: path, endX: 85, endY: Math.round(endY) };
   };
 
-  const fetchReportData = React.useCallback(async () => {
-      try {
-        setLoading(true);
-        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
-        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+  // Helper functions for alerts
+  const showAlert = useCallback((message, type = 'info') => {
+    setAlertModal({ show: true, message, type });
+  }, []);
 
-        // Calculate real statistics
-        const customersSet = new Set();
-        let totalShares = 0;
+  // Calculate estimated file sizes based on records
+  const estimateSize = (records) => {
+    const sizeKB = records * 0.5; // ~0.5KB per record
+    return sizeKB >= 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB.toFixed(0)} KB`;
+  };
 
-        let totalDownloads = 0;
-        rawItems.forEach(item => {
-          const phone = item.whatsapp || item.mobile || '';
-          const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-          customersSet.add(key);
-          
-          totalShares += (item.whatsappsharecount || 0) +
-            (item.facebooksharecount || 0) +
-            (item.twittersharecount || 0) +
-            (item.instagramsharecount || 0);
-          totalDownloads += (item.downloadcount || 0);
-        });
-
-        const totalCustomers = customersSet.size;
-        const totalPhotos = rawItems.length;
-
-        // Calculate estimated file sizes based on records
-        const estimateSize = (records) => {
-          const sizeKB = records * 0.5; // ~0.5KB per record
-          return sizeKB >= 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB.toFixed(0)} KB`;
-        };
-
-        const now = new Date();
-        const formattedDate = now.toLocaleString('en-US', {
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit', hour12: true
-        });
-
-        // Build reports with real data
-        const reportsData = [
-          {
-            id: 'customer',
-            name: 'Customer Engagement',
-            type: 'User Analysis',
-            description: 'Detailed analysis of customer visits, photo merge activity, and sharing behavior.',
-            color: '#B8653A',
-            icon: <Users size={24} />,
-            records: totalCustomers,
-            size: estimateSize(totalCustomers),
-            lastGenerated: formattedDate
-          },
-          {
-            id: 'photo',
-            name: 'Photo Analytics',
-            type: 'Asset Performance',
-            description: 'Insights into category distribution, total views, and download counts per template.',
-            color: '#8E44AD',
-            icon: <Image size={24} />,
-            records: totalPhotos,
-            size: estimateSize(totalPhotos),
-            lastGenerated: formattedDate
-          },
-          {
-            id: 'campaign',
-            name: 'Campaign Performance',
-            type: 'Marketing ROI',
-            description: 'Comprehensive metrics for WhatsApp, Email, and SMS outreach effectiveness.',
-            color: '#5A7519',
-            icon: <Send size={24} />,
-            records: Math.floor(totalShares / 10) || 0,
-            size: estimateSize(Math.floor(totalShares / 10)),
-            lastGenerated: formattedDate
-          },
-          {
-            id: 'share',
-            name: 'Share Tracking',
-            type: 'Social Distribution',
-            description: 'Audit log of all platform-specific sharing activities and click-through rates.',
-            color: '#B58B00',
-            icon: <Share2 size={24} />,
-            records: totalShares,
-            size: estimateSize(totalShares),
-            lastGenerated: formattedDate
-          }
-        ];
-
-        setReports(reportsData);
-
-        // Calculate summary stats
-        const totalRecords = totalCustomers + totalPhotos + totalShares;
-        const totalSizeKB = totalRecords * 0.5;
-        setSummaryStats({
-          totalReports: 4,
-          generatedThisMonth: reportsData.length,
-          totalRecords: totalRecords,
-          totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
-        });
-
-        // Calculate growth (current vs previous period based on activeRange)
-        const getDaysFromRange = (range) => {
-          switch(range) {
-            case '1 Day': return 1;
-            case '7 Days': return 7;
-            case '30 Days': return 30;
-            case '90 Days': return 90;
-            default: return 7;
-          }
-        };
-
-        const days = getDaysFromRange(activeRange);
-        const currentStart = new Date();
-        currentStart.setDate(currentStart.getDate() - days);
-        const previousStart = new Date();
-        previousStart.setDate(previousStart.getDate() - (days * 2));
-        const previousEnd = currentStart;
-
-        const currentItems = rawItems.filter(item => {
-          const date = new Date(item.date || item.createdAt);
-          return date >= currentStart;
-        });
-
-        const previousItems = rawItems.filter(item => {
-          const date = new Date(item.date || item.createdAt);
-          return date >= previousStart && date < previousEnd;
-        });
-
-        const calculateGrowth = (current, previous) => {
-          // Calculate the count change
-          const countChange = current - previous;
-          // Return the count change directly as percentage (count change = percentage value)
-          // If change is +2, show 2%; if change is -5, show -5%
-          return parseFloat(countChange.toFixed(1));
-        };
-
-        setGrowthMetrics({
-          reportsGrowth: 0, // Static
-          generatedGrowth: calculateGrowth(currentItems.length, previousItems.length),
-          recordsGrowth: calculateGrowth(currentItems.length, previousItems.length),
-          sizeGrowth: calculateGrowth(currentItems.length * 0.5, previousItems.length * 0.5)
-        });
-
-      } catch (error) {
-        console.error("Error fetching report data:", error);
-      } finally {
-        setLoading(false);
-      }
-  }, [axiosData, activeRange, user._id, user.id]);
-
-  // Fetch real data from API
-  useEffect(() => {
-    fetchReportData();
-  }, [fetchReportData]);
-
-  const handleGenerate = async (id) => {
-    try {
-      setGenerating(id);
-      // Re-fetch real data instead of simulating generation
-      await fetchReportData();
-      // Update the generated label for UX (data stays API-driven)
-      setReports(prev => prev.map(r => (r.id === id ? { ...r, lastGenerated: 'Just now' } : r)));
-    } finally {
-      setGenerating(null);
+  // Get days from range
+  const getDaysFromRange = (range) => {
+    switch(range) {
+      case 'Today': return 1;
+      case '7 Days': return 7;
+      case '30 Days': return 30;
+      case '90 Days': return 90;
+      default: return 7;
     }
   };
 
-  const handleDownload = (report) => {
-    const content = JSON.stringify({
-      report: report.name,
-      generated: new Date().toISOString(),
-      range: activeRange,
-      records: report.records
-    }, null, 2);
-    const blob = new Blob([content], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${report.name.toLowerCase().replace(/\s+/g, '_')}_report.json`;
-    a.click();
+  // Filter data based on active range
+  const filterDataByRange = useCallback((data, range, isCampaign = false) => {
+    const now = new Date();
+    let startDate, endDate;
+
+    if (range === 'Today') {
+      // Today: from 00:00:00 today to now
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    } else {
+      const days = getDaysFromRange(range);
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = now;
+    }
+
+    return data.filter(item => {
+      // For campaigns, use startDate or createdAt; for media items, use date or createdAt
+      const itemDate = isCampaign 
+        ? new Date(item.startDate || item.createdAt)
+        : new Date(item.date || item.createdAt);
+      return itemDate >= startDate && itemDate <= endDate;
+    });
+  }, []);
+
+  // Calculate growth
+  const calculateGrowth = (current, previous) => {
+    const countChange = current - previous;
+    return parseFloat(countChange.toFixed(1));
+  };
+
+  // Fetch all data from APIs
+  const fetchReportData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      const adminId = user._id || user.id;
+      if (!adminId) {
+        console.warn('No admin ID found in user object');
+        showAlert('User information not found. Please log in again.', 'error');
+        return;
+      }
+
+      // Fetch all data in parallel
+      const [mediaResponse, campaignsResponse, templatesResponse] = await Promise.all([
+        axiosData.get(`upload/all?adminid=${adminId}`),
+        axiosData.get(`campaigns?adminid=${adminId}`),
+        axiosData.get('/photomerge/templates')
+      ]);
+
+      // Log responses for debugging
+      console.log('Media Response:', { status: mediaResponse.status, dataLength: mediaResponse.data?.length });
+      console.log('Campaigns Response:', { status: campaignsResponse.status, dataLength: campaignsResponse.data?.length });
+      console.log('Templates Response:', { status: templatesResponse.status, dataLength: templatesResponse.data?.length });
+
+      // Ensure data is an array
+      const mediaDataArray = Array.isArray(mediaResponse.data) ? mediaResponse.data : [];
+      const campaignsDataArray = Array.isArray(campaignsResponse.data) ? campaignsResponse.data : [];
+      const templatesDataArray = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+
+      const rawItems = mediaDataArray.filter(item => item && item.source === 'Photo Merge App');
+      const campaigns = campaignsDataArray;
+      const templates = templatesDataArray.filter(t => t && (t.adminid === user.id || t.adminid === user._id));
+
+      console.log('Processed Data:', { 
+        rawItems: rawItems.length, 
+        campaigns: campaigns.length, 
+        templates: templates.length 
+      });
+
+      setMediaData(rawItems);
+      setCampaignsData(campaigns);
+      setTemplatesData(templates);
+
+      // Calculate all-time statistics from API data (for comparison)
+      const customersSet = new Set();
+      let totalShares = 0;
+      let totalDownloads = 0;
+      let totalClicks = 0;
+
+      rawItems.forEach(item => {
+        const phone = item.whatsapp || item.mobile || '';
+        const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+        customersSet.add(key);
+        
+        totalShares += (item.whatsappsharecount || 0) +
+          (item.facebooksharecount || 0) +
+          (item.twittersharecount || 0) +
+          (item.instagramsharecount || 0);
+        totalDownloads += (item.downloadcount || 0);
+        totalClicks += (item.urlclickcount || 0);
+      });
+
+      // Filter data based on active range
+      const filteredItems = filterDataByRange(rawItems, activeRange, false);
+      const filteredCampaigns = filterDataByRange(campaigns, activeRange, true);
+
+      // Calculate statistics from filtered data
+      const filteredCustomersSet = new Set();
+      let filteredShares = 0;
+      let filteredDownloads = 0;
+
+      filteredItems.forEach(item => {
+        const phone = item.whatsapp || item.mobile || '';
+        const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+        filteredCustomersSet.add(key);
+        
+        filteredShares += (item.whatsappsharecount || 0) +
+          (item.facebooksharecount || 0) +
+          (item.twittersharecount || 0) +
+          (item.instagramsharecount || 0);
+        filteredDownloads += (item.downloadcount || 0);
+      });
+
+      // Calculate all-time stats for comparison
+      const totalCustomers = customersSet.size;
+      const totalPhotos = rawItems.length;
+      const totalCampaigns = campaigns.length;
+
+      // Calculate filtered stats
+      const filteredTotalCustomers = filteredCustomersSet.size;
+      const filteredTotalPhotos = filteredItems.length;
+      const filteredTotalCampaigns = filteredCampaigns.length;
+      const filteredTotalShares = filteredShares;
+      const filteredTotalSharesAndDownloads = filteredShares + filteredDownloads;
+
+      // Calculate growth metrics (current period vs previous period)
+      const days = getDaysFromRange(activeRange);
+      const now = new Date();
+      let currentStart, currentEnd, previousStart, previousEnd;
+
+      if (activeRange === 'Today') {
+        // Today: from 00:00:00 today to now
+        currentStart = new Date(now);
+        currentStart.setHours(0, 0, 0, 0);
+        currentEnd = now;
+        
+        // Previous period: yesterday (00:00:00 to 23:59:59)
+        previousStart = new Date(now);
+        previousStart.setDate(previousStart.getDate() - 1);
+        previousStart.setHours(0, 0, 0, 0);
+        previousEnd = new Date(previousStart);
+        previousEnd.setHours(23, 59, 59, 999);
+      } else {
+        currentStart = new Date(now);
+        currentStart.setDate(currentStart.getDate() - days);
+        currentStart.setHours(0, 0, 0, 0);
+        currentEnd = now;
+        
+        previousStart = new Date(currentStart);
+        previousStart.setDate(previousStart.getDate() - days);
+        previousStart.setHours(0, 0, 0, 0);
+        previousEnd = currentStart;
+      }
+
+      const currentItems = rawItems.filter(item => {
+        const date = new Date(item.date || item.createdAt);
+        return date >= currentStart && date <= currentEnd;
+      });
+
+      const previousItems = rawItems.filter(item => {
+        const date = new Date(item.date || item.createdAt);
+        return date >= previousStart && date <= previousEnd;
+      });
+
+      const currentCampaigns = campaigns.filter(c => {
+        const date = new Date(c.startDate || c.createdAt);
+        return date >= currentStart && date <= currentEnd;
+      });
+
+      const previousCampaigns = campaigns.filter(c => {
+        const date = new Date(c.startDate || c.createdAt);
+        return date >= previousStart && date <= previousEnd;
+      });
+
+      // Build reports with dynamic data from APIs
+      const nowFormatted = new Date().toLocaleString('en-US', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+
+      // Get current download counts from state
+      const currentDownloadCounts = downloadCounts;
+
+      const reportsData = [
+        {
+          id: 'customer',
+          name: 'Customer Engagement',
+          type: 'User Analysis',
+          description: 'Detailed analysis of customer visits, photo merge activity, and sharing behavior.',
+          color: '#B8653A',
+          icon: <Users size={24} />,
+          records: filteredTotalCustomers,
+          size: estimateSize(filteredTotalCustomers),
+          lastGenerated: nowFormatted,
+          downloadCount: currentDownloadCounts['customer'] || 0,
+          data: filteredItems, // Use filtered data
+          allData: rawItems // Keep all data for export
+        },
+        {
+          id: 'photo',
+          name: 'Photo Analytics',
+          type: 'Asset Performance',
+          description: 'Insights into category distribution, total views, and download counts per template.',
+          color: '#8E44AD',
+          icon: <Image size={24} />,
+          records: filteredTotalPhotos,
+          size: estimateSize(filteredTotalPhotos),
+          lastGenerated: nowFormatted,
+          downloadCount: currentDownloadCounts['photo'] || 0,
+          data: filteredItems, // Use filtered data
+          allData: rawItems, // Keep all data for export
+          templates: templates
+        },
+        {
+          id: 'campaign',
+          name: 'Campaign Performance',
+          type: 'Marketing ROI',
+          description: 'Comprehensive metrics for WhatsApp, Email, and SMS outreach effectiveness.',
+          color: '#5A7519',
+          icon: <Send size={24} />,
+          records: filteredTotalCampaigns,
+          size: estimateSize(filteredTotalCampaigns),
+          lastGenerated: nowFormatted,
+          downloadCount: currentDownloadCounts['campaign'] || 0,
+          data: filteredCampaigns, // Use filtered data
+          allData: campaigns // Keep all data for export
+        },
+        {
+          id: 'share',
+          name: 'Share Tracking',
+          type: 'Social Distribution',
+          description: 'Audit log of all platform-specific sharing activities and click-through rates.',
+          color: '#B58B00',
+          icon: <Share2 size={24} />,
+          records: filteredTotalSharesAndDownloads, // Include shares + downloads
+          size: estimateSize(filteredTotalSharesAndDownloads),
+          lastGenerated: nowFormatted,
+          downloadCount: currentDownloadCounts['share'] || 0,
+          data: filteredItems, // Use filtered data
+          allData: rawItems // Keep all data for export
+        }
+      ];
+
+      setReports(reportsData);
+
+      // Calculate summary stats dynamically (using filtered data for current period)
+      const totalRecords = filteredTotalCustomers + filteredTotalPhotos + filteredTotalCampaigns + filteredTotalSharesAndDownloads;
+      const totalSizeKB = totalRecords * 0.5;
+      
+      // Fetch downloads this month from API
+      let downloadsThisMonth = 0;
+      try {
+        const adminId = user._id || user.id;
+        if (adminId) {
+          const response = await axiosData.get(`/report-downloads/this-month?adminid=${adminId}`);
+          if (response.data && response.data.success) {
+            downloadsThisMonth = response.data.count || 0;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching this month downloads:', error);
+        // Fallback to calculating from history if API fails
+        const currentMonth = new Date();
+        currentMonth.setDate(1);
+        currentMonth.setHours(0, 0, 0, 0);
+        downloadsThisMonth = downloadHistory.filter(d => {
+          const downloadDate = new Date(d.downloadedAt || d.timestamp);
+          return downloadDate >= currentMonth;
+        }).length;
+      }
+
+      setSummaryStats({
+        totalReports: reportsData.length,
+        generatedThisMonth: downloadsThisMonth, // Show downloads this month
+        totalRecords: totalRecords,
+        totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
+      });
+
+      // Fetch downloads previous month from API
+      let downloadsPreviousMonth = 0;
+      try {
+        const adminId = user._id || user.id;
+        if (adminId) {
+          const response = await axiosData.get(`/report-downloads/previous-month?adminid=${adminId}`);
+          if (response.data && response.data.success) {
+            downloadsPreviousMonth = response.data.count || 0;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching previous month downloads:', error);
+        // Fallback to calculating from history if API fails
+        const currentMonth = new Date();
+        currentMonth.setDate(1);
+        currentMonth.setHours(0, 0, 0, 0);
+        const previousMonth = new Date(currentMonth);
+        previousMonth.setMonth(previousMonth.getMonth() - 1);
+        downloadsPreviousMonth = downloadHistory.filter(d => {
+          const downloadDate = new Date(d.downloadedAt || d.timestamp);
+          return downloadDate >= previousMonth && downloadDate < currentMonth;
+        }).length;
+      }
+      
+      // Current period totals
+      const currentTotalRecords = totalRecords;
+      const currentTotalSize = currentTotalRecords * 0.5;
+      
+      // Previous period totals (for comparison)
+      const prevCustomersSet = new Set();
+      let prevShares = 0;
+      let prevDataDownloads = 0;
+      
+      previousItems.forEach(item => {
+        const phone = item.whatsapp || item.mobile || '';
+        const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+        prevCustomersSet.add(key);
+        prevShares += (item.whatsappsharecount || 0) +
+          (item.facebooksharecount || 0) +
+          (item.twittersharecount || 0) +
+          (item.instagramsharecount || 0);
+        prevDataDownloads += (item.downloadcount || 0);
+      });
+      
+      const prevTotalRecords = prevCustomersSet.size + previousItems.length + previousCampaigns.length + prevShares + prevDataDownloads;
+      const prevTotalSize = prevTotalRecords * 0.5;
+
+      setGrowthMetrics({
+        reportsGrowth: 0, // Always 4 reports, no growth
+        generatedGrowth: calculateGrowth(downloadsThisMonth, downloadsPreviousMonth), // Compare downloads this month vs previous month
+        recordsGrowth: calculateGrowth(currentTotalRecords, prevTotalRecords), // Compare total records
+        sizeGrowth: calculateGrowth(currentTotalSize, prevTotalSize) // Compare sizes
+      });
+
+    } catch (error) {
+      console.error("Error fetching report data:", error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load report data. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [axiosData, activeRange, user._id, user.id, filterDataByRange, showAlert]);
+
+  // Fetch download counts from API
+  const fetchDownloadCounts = useCallback(async () => {
+    try {
+      const adminId = user._id || user.id;
+      if (!adminId) return;
+
+      const response = await axiosData.get(`/report-downloads/counts?adminid=${adminId}`);
+      if (response.data && response.data.success) {
+        setDownloadCounts(response.data.counts || {});
+      }
+    } catch (error) {
+      console.error('Error fetching download counts:', error);
+    }
+  }, [axiosData, user._id, user.id]);
+
+  // Fetch download history from API
+  const fetchDownloadHistory = useCallback(async () => {
+    try {
+      const adminId = user._id || user.id;
+      if (!adminId) return;
+
+      const response = await axiosData.get(`/report-downloads/history?adminid=${adminId}&limit=1000`);
+      if (response.data && response.data.success) {
+        setDownloadHistory(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching download history:', error);
+    }
+  }, [axiosData, user._id, user.id]);
+
+  // Track download count via API
+  const incrementDownloadCount = useCallback(async (reportId, reportType) => {
+    try {
+      const adminId = user._id || user.id;
+      if (!adminId) {
+        console.warn('No admin ID found');
+        return;
+      }
+
+      // Track download in API
+      await axiosData.post('/report-downloads', {
+        adminid: adminId,
+        reportId: reportId,
+        reportType: reportType // 'csv' or 'pdf'
+      });
+
+      // Fetch updated counts
+      await fetchDownloadCounts();
+      
+      // Update the report in state
+      setReports(prev => prev.map(r => 
+        r.id === reportId 
+          ? { ...r, downloadCount: (r.downloadCount || 0) + 1 }
+          : r
+      ));
+    } catch (error) {
+      console.error('Error tracking download:', error);
+      // Still update UI even if API call fails
+      setReports(prev => prev.map(r => 
+        r.id === reportId 
+          ? { ...r, downloadCount: (r.downloadCount || 0) + 1 }
+          : r
+      ));
+    }
+  }, [axiosData, user._id, user.id, fetchDownloadCounts]);
+
+  // Fetch data when component mounts or range changes
+  useEffect(() => {
+    fetchReportData();
+    fetchDownloadCounts();
+    fetchDownloadHistory();
+  }, [fetchReportData, fetchDownloadCounts, fetchDownloadHistory]);
+
+  // Update download counts in reports when downloadCounts state changes
+  useEffect(() => {
+    setReports(prev => prev.map(r => ({
+      ...r,
+      downloadCount: downloadCounts[r.id] || 0
+    })));
+  }, [downloadCounts]);
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchReportData();
+      await fetchDownloadCounts();
+      await fetchDownloadHistory();
+      showAlert('Reports data refreshed successfully!', 'success');
+    } catch (error) {
+      console.error('Error refreshing reports:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to refresh reports. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Helper to escape CSV values
+  const escapeCSV = (value) => {
+    if (value === null || value === undefined) return '';
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  // Track download count
+
+  const handleDownloadCSV = async (report) => {
+    try {
+      setDownloading(`csv-${report.id}`);
+      
+      // Validate data
+      const dataToExport = report.allData || report.data;
+      if (!dataToExport || dataToExport.length === 0) {
+        showAlert('No data available to export for this report.', 'warning');
+        return;
+      }
+
+      let csvContent = '';
+      const timestamp = new Date().toISOString().split('T')[0];
+      
+      switch(report.id) {
+        case 'customer': {
+          // Customer Engagement Report
+          const headers = ['Name', 'Phone', 'Email', 'Total Photos', 'Total Shares', 'Total Downloads', 'Last Activity'];
+          csvContent = headers.join(',') + '\n';
+          
+          // Group by customer
+          const customerMap = {};
+          dataToExport.forEach(item => {
+            const phone = item.whatsapp || item.mobile || '';
+            const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+            
+            if (!customerMap[key]) {
+              customerMap[key] = {
+                name: item.name || 'Unknown',
+                phone: phone || 'N/A',
+                email: item.email || 'N/A',
+                photos: 0,
+                shares: 0,
+                downloads: 0,
+                lastActivity: item.date || item.createdAt
+              };
+            }
+            
+            customerMap[key].photos += 1;
+            customerMap[key].shares += (item.whatsappsharecount || 0) +
+              (item.facebooksharecount || 0) +
+              (item.twittersharecount || 0) +
+              (item.instagramsharecount || 0);
+            customerMap[key].downloads += (item.downloadcount || 0);
+            
+            const itemDate = new Date(item.date || item.createdAt);
+            const lastDate = new Date(customerMap[key].lastActivity);
+            if (itemDate > lastDate) {
+              customerMap[key].lastActivity = item.date || item.createdAt;
+            }
+          });
+          
+          Object.values(customerMap).forEach(customer => {
+            csvContent += [
+              escapeCSV(customer.name),
+              escapeCSV(customer.phone),
+              escapeCSV(customer.email),
+              customer.photos,
+              customer.shares,
+              customer.downloads,
+              escapeCSV(new Date(customer.lastActivity).toLocaleDateString('en-GB'))
+            ].join(',') + '\n';
+          });
+          break;
+        }
+        
+        case 'photo': {
+          // Photo Analytics Report
+          const headers = ['Template Name', 'Category', 'Total Photos', 'Total Shares', 'WhatsApp Shares', 'Facebook Shares', 'Twitter Shares', 'Instagram Shares', 'Total Downloads'];
+          csvContent = headers.join(',') + '\n';
+          
+          // Group by template
+          const templateMap = {};
+          dataToExport.forEach(item => {
+            const templateName = item.template_name || item.templatename || item.type || 'Others';
+            
+            if (!templateMap[templateName]) {
+              templateMap[templateName] = {
+                name: templateName,
+                category: 'Photo Merge',
+                photos: 0,
+                shares: 0,
+                whatsapp: 0,
+                facebook: 0,
+                twitter: 0,
+                instagram: 0,
+                downloads: 0
+              };
+            }
+            
+            templateMap[templateName].photos += 1;
+            templateMap[templateName].whatsapp += (item.whatsappsharecount || 0);
+            templateMap[templateName].facebook += (item.facebooksharecount || 0);
+            templateMap[templateName].twitter += (item.twittersharecount || 0);
+            templateMap[templateName].instagram += (item.instagramsharecount || 0);
+            templateMap[templateName].shares += (item.whatsappsharecount || 0) +
+              (item.facebooksharecount || 0) +
+              (item.twittersharecount || 0) +
+              (item.instagramsharecount || 0);
+            templateMap[templateName].downloads += (item.downloadcount || 0);
+          });
+          
+          Object.values(templateMap).forEach(template => {
+            csvContent += [
+              escapeCSV(template.name),
+              escapeCSV(template.category),
+              template.photos,
+              template.shares,
+              template.whatsapp,
+              template.facebook,
+              template.twitter,
+              template.instagram,
+              template.downloads
+            ].join(',') + '\n';
+          });
+          break;
+        }
+        
+        case 'campaign': {
+          // Campaign Performance Report
+          const headers = ['Campaign Name', 'Type', 'Status', 'Start Date', 'End Date', 'Sent', 'Delivered', 'Clicks', 'Delivery Rate (%)', 'CTR (%)'];
+          csvContent = headers.join(',') + '\n';
+          
+          dataToExport.forEach(campaign => {
+            const deliveryRate = (campaign.sent || 0) > 0 
+              ? (((campaign.delivered || 0) / campaign.sent) * 100).toFixed(2) 
+              : '0.00';
+            const ctr = (campaign.delivered || 0) > 0 
+              ? (((campaign.clicks || 0) / campaign.delivered) * 100).toFixed(2) 
+              : '0.00';
+            
+            csvContent += [
+              escapeCSV(campaign.name),
+              escapeCSV(campaign.type),
+              escapeCSV(campaign.status),
+              escapeCSV(new Date(campaign.startDate).toLocaleDateString('en-GB')),
+              escapeCSV(new Date(campaign.endDate).toLocaleDateString('en-GB')),
+              campaign.sent || 0,
+              campaign.delivered || 0,
+              campaign.clicks || 0,
+              deliveryRate,
+              ctr
+            ].join(',') + '\n';
+          });
+          break;
+        }
+        
+        case 'share': {
+          // Share Tracking Report
+          const headers = ['Date', 'Customer Name', 'Template', 'WhatsApp Shares', 'Facebook Shares', 'Twitter Shares', 'Instagram Shares', 'Total Shares', 'Downloads'];
+          csvContent = headers.join(',') + '\n';
+          
+          dataToExport.forEach(item => {
+            const totalShares = (item.whatsappsharecount || 0) +
+              (item.facebooksharecount || 0) +
+              (item.twittersharecount || 0) +
+              (item.instagramsharecount || 0);
+            
+            csvContent += [
+              escapeCSV(new Date(item.date || item.createdAt).toLocaleDateString('en-GB')),
+              escapeCSV(item.name || 'Unknown'),
+              escapeCSV(item.template_name || item.templatename || item.type || 'N/A'),
+              item.whatsappsharecount || 0,
+              item.facebooksharecount || 0,
+              item.twittersharecount || 0,
+              item.instagramsharecount || 0,
+              totalShares,
+              item.downloadcount || 0
+            ].join(',') + '\n';
+          });
+          break;
+        }
+        
+        default:
+          showAlert('Unknown report type', 'error');
+          return;
+      }
+
+      // Create and download CSV
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${report.name.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Increment download count via API
+      await incrementDownloadCount(report.id, 'csv');
+      
+      showAlert(`${report.name} CSV exported successfully!`, 'success');
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      const errorMessage = error.message || 'Failed to download CSV report. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleDownloadPDF = async (report) => {
+    try {
+      setDownloading(`pdf-${report.id}`);
+      
+      // Validate data
+      const dataToExport = report.allData || report.data;
+      if (!dataToExport || dataToExport.length === 0) {
+        showAlert('No data available to export for this report.', 'warning');
+        return;
+      }
+
+      // Create PDF document
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
+      const margin = 20;
+      const lineHeight = 7;
+      const maxWidth = pageWidth - (margin * 2);
+
+      // Helper function to add new page if needed
+      const checkNewPage = (requiredSpace = lineHeight) => {
+        if (yPosition + requiredSpace > pageHeight - margin) {
+          pdf.addPage();
+          yPosition = 20;
+          return true;
+        }
+        return false;
+      };
+
+      // Helper function to add text with word wrap
+      const addText = (text, fontSize = 10, isBold = false, color = [0, 0, 0]) => {
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+        pdf.setTextColor(color[0], color[1], color[2]);
+        
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        lines.forEach((line) => {
+          checkNewPage();
+          pdf.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+      };
+
+      // Header
+      addText(report.name.toUpperCase(), 18, true, [26, 26, 26]);
+      yPosition += 5;
+      addText(`Generated: ${new Date().toLocaleString()}`, 10, false, [100, 100, 100]);
+      addText(`Time Range: ${activeRange}`, 10, false, [100, 100, 100]);
+      addText(`Total Records: ${report.records.toLocaleString()}`, 10, false, [100, 100, 100]);
+      yPosition += 10;
+
+      // Report-specific content
+      switch(report.id) {
+        case 'customer': {
+          addText('CUSTOMER ENGAGEMENT SUMMARY', 14, true);
+          yPosition += 5;
+          addText(`Total Unique Customers: ${report.records.toLocaleString()}`, 12);
+          yPosition += 10;
+          
+          // Group by customer
+          const customerMap = {};
+          dataToExport.forEach(item => {
+            const phone = item.whatsapp || item.mobile || '';
+            const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+            if (!customerMap[key]) {
+              customerMap[key] = {
+                name: item.name || 'Unknown',
+                photos: 0,
+                shares: 0,
+                downloads: 0
+              };
+            }
+            customerMap[key].photos += 1;
+            customerMap[key].shares += (item.whatsappsharecount || 0) +
+              (item.facebooksharecount || 0) +
+              (item.twittersharecount || 0) +
+              (item.instagramsharecount || 0);
+            customerMap[key].downloads += (item.downloadcount || 0);
+          });
+          
+          addText('Top 10 Customers by Activity:', 12, true);
+          yPosition += 5;
+          const topCustomers = Object.values(customerMap)
+            .sort((a, b) => (b.photos + b.shares + b.downloads) - (a.photos + a.shares + a.downloads))
+            .slice(0, 10);
+          topCustomers.forEach((customer, idx) => {
+            addText(`${idx + 1}. ${customer.name}: ${customer.photos} photos, ${customer.shares} shares, ${customer.downloads} downloads`, 10);
+          });
+          break;
+        }
+        case 'photo': {
+          addText('PHOTO ANALYTICS SUMMARY', 14, true);
+          yPosition += 5;
+          addText(`Total Photos: ${report.records.toLocaleString()}`, 12);
+          yPosition += 10;
+          
+          // Group by template
+          const templateMap = {};
+          dataToExport.forEach(item => {
+            const templateName = item.template_name || item.templatename || item.type || 'Others';
+            if (!templateMap[templateName]) {
+              templateMap[templateName] = { count: 0, shares: 0, downloads: 0 };
+            }
+            templateMap[templateName].count += 1;
+            templateMap[templateName].shares += (item.whatsappsharecount || 0) +
+              (item.facebooksharecount || 0) +
+              (item.twittersharecount || 0) +
+              (item.instagramsharecount || 0);
+            templateMap[templateName].downloads += (item.downloadcount || 0);
+          });
+          
+          addText('Template Performance:', 12, true);
+          yPosition += 5;
+          Object.entries(templateMap)
+            .sort((a, b) => b[1].count - a[1].count)
+            .forEach(([name, stats]) => {
+              addText(`${name}: ${stats.count} photos, ${stats.shares} shares, ${stats.downloads} downloads`, 10);
+            });
+          break;
+        }
+        case 'campaign': {
+          addText('CAMPAIGN PERFORMANCE SUMMARY', 14, true);
+          yPosition += 5;
+          addText(`Total Campaigns: ${report.records.toLocaleString()}`, 12);
+          yPosition += 10;
+          
+          let totalSent = 0, totalDelivered = 0, totalClicks = 0;
+          dataToExport.forEach(campaign => {
+            totalSent += campaign.sent || 0;
+            totalDelivered += campaign.delivered || 0;
+            totalClicks += campaign.clicks || 0;
+          });
+          
+          addText('Overall Campaign Metrics:', 12, true);
+          yPosition += 5;
+          addText(`Total Sent: ${totalSent.toLocaleString()}`, 10);
+          addText(`Total Delivered: ${totalDelivered.toLocaleString()}`, 10);
+          addText(`Total Clicks: ${totalClicks.toLocaleString()}`, 10);
+          const avgDeliveryRate = totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(2) : 0;
+          const avgCTR = totalDelivered > 0 ? ((totalClicks / totalDelivered) * 100).toFixed(2) : 0;
+          addText(`Average Delivery Rate: ${avgDeliveryRate}%`, 10);
+          addText(`Average CTR: ${avgCTR}%`, 10);
+          break;
+        }
+        case 'share': {
+          addText('SHARE TRACKING SUMMARY', 14, true);
+          yPosition += 5;
+          addText(`Total Shares: ${report.records.toLocaleString()}`, 12);
+          yPosition += 10;
+          
+          let whatsapp = 0, facebook = 0, twitter = 0, instagram = 0, downloads = 0;
+          dataToExport.forEach(item => {
+            whatsapp += item.whatsappsharecount || 0;
+            facebook += item.facebooksharecount || 0;
+            twitter += item.twittersharecount || 0;
+            instagram += item.instagramsharecount || 0;
+            downloads += item.downloadcount || 0;
+          });
+          
+          addText('Platform Breakdown:', 12, true);
+          yPosition += 5;
+          addText(`WhatsApp: ${whatsapp.toLocaleString()}`, 10);
+          addText(`Facebook: ${facebook.toLocaleString()}`, 10);
+          addText(`Twitter: ${twitter.toLocaleString()}`, 10);
+          addText(`Instagram: ${instagram.toLocaleString()}`, 10);
+          addText(`Total Downloads: ${downloads.toLocaleString()}`, 10);
+          break;
+        }
+      }
+
+      // Footer on last page
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 20, pageHeight - 10);
+      }
+
+      // Save PDF
+      const fileName = `${report.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      // Increment download count via API
+      await incrementDownloadCount(report.id, 'pdf');
+      
+      showAlert(`${report.name} PDF exported successfully!`, 'success');
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      const errorMessage = error.message || 'Failed to export PDF report. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setDownloading(null);
+    }
   };
 
   return (
@@ -449,17 +1265,34 @@ const Reports = () => {
           <h1>Reports & Analytics</h1>
           <p>Generate, manage and download high-level performance data for your store</p>
         </HeaderText>
-        <RangeSelector>
-          {['1 Day', '7 Days', '30 Days', '90 Days'].map(range => (
-            <RangeButton
-              key={range}
-              $active={activeRange === range}
-              onClick={() => setActiveRange(range)}
-            >
-              {range}
-            </RangeButton>
-          ))}
-        </RangeSelector>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <RangeSelector>
+            {['Today', '7 Days', '30 Days', '90 Days'].map(range => (
+              <RangeButton
+                key={range}
+                $active={activeRange === range}
+                onClick={() => setActiveRange(range)}
+              >
+                {range}
+              </RangeButton>
+            ))}
+          </RangeSelector>
+          <PrimaryButton
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            style={{ padding: '8px 16px', fontSize: '13px' }}
+          >
+            {refreshing ? (
+              <>
+                <Loader size={14} className="spin" /> Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={14} /> Refresh
+              </>
+            )}
+          </PrimaryButton>
+        </div>
       </HeaderSection>
 
       <ReportsGrid>
@@ -467,6 +1300,12 @@ const Reports = () => {
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px', flexDirection: 'column', gap: '16px' }}>
             <Loader className="spin" size={40} color="#1A1A1A" />
             <div style={{ fontWeight: 600, color: '#555' }}>Loading reports data...</div>
+          </div>
+        ) : reports.length === 0 ? (
+          <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px', flexDirection: 'column', gap: '16px' }}>
+            <File size={40} color="#999" />
+            <div style={{ fontWeight: 600, color: '#555' }}>No reports available</div>
+            <div style={{ color: '#999', fontSize: '14px' }}>Data will appear here once you have activity</div>
           </div>
         ) : reports.map((report) => (
           <ReportCard key={report.id}>
@@ -480,20 +1319,14 @@ const Reports = () => {
                   <h3>{report.name}</h3>
                 </ReportTitle>
               </ReportHeader>
-              <RefreshCw
-                size={18}
-                className={generating === report.id ? 'spin' : ''}
-                style={{ color: '#999', cursor: 'pointer', transition: 'all 0.5s', transform: generating === report.id ? 'rotate(360deg)' : 'none' }}
-                onClick={() => handleGenerate(report.id)}
-              />
             </div>
 
             <ReportDescription>{report.description}</ReportDescription>
 
             <MetadataGrid>
               <MetaItem>
-                <span className="label">Last Generated</span>
-                <span className="value">{report.lastGenerated}</span>
+                <span className="label">Downloads</span>
+                <span className="value">{report.downloadCount || 0}</span>
               </MetaItem>
               <MetaItem>
                 <span className="label">Records</span>
@@ -506,36 +1339,44 @@ const Reports = () => {
             </MetadataGrid>
 
             <ActionRow>
-              <GenerateButton
-                onClick={() => handleGenerate(report.id)}
-                disabled={generating === report.id}
+              <DownloadButton 
+                $variant="csv"
+                onClick={() => handleDownloadCSV(report)}
+                disabled={downloading === `csv-${report.id}` || !report.data || report.data.length === 0}
               >
-                {generating === report.id ? (
-                  <>Wait...</>
+                {downloading === `csv-${report.id}` ? (
+                  <>
+                    <Loader size={18} className="spin" />
+                    <span>Exporting...</span>
+                  </>
                 ) : (
-                  <><RefreshCw size={16} /> Generate Report</>
+                  <>
+                    <Download size={18} />
+                    <span>Download CSV</span>
+                  </>
                 )}
-              </GenerateButton>
-              <DownloadButton onClick={() => handleDownload(report)}>
-                <Download size={16} /> CSV
               </DownloadButton>
-              <DownloadButton onClick={() => handleDownload(report)}>
-                <FileText size={16} /> PDF
+              <DownloadButton 
+                $variant="pdf"
+                onClick={() => handleDownloadPDF(report)}
+                disabled={downloading === `pdf-${report.id}` || !report.data || report.data.length === 0}
+              >
+                {downloading === `pdf-${report.id}` ? (
+                  <>
+                    <Loader size={18} className="spin" />
+                    <span>Exporting...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText size={18} />
+                    <span>Download PDF</span>
+                  </>
+                )}
               </DownloadButton>
             </ActionRow>
           </ReportCard>
         ))}
       </ReportsGrid>
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-      `}</style>
 
       <div style={{ marginTop: '16px' }}>
         <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px' }}>System Summary</h3>
@@ -597,6 +1438,31 @@ const Reports = () => {
           })()}
         </SummaryGrid>
       </div>
+
+      {/* Alert Modal */}
+      {alertModal.show && (
+        <ModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+          <AlertModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type={alertModal.type}>
+              {alertModal.type === 'success' ? (
+                <CheckCircle size={32} />
+              ) : alertModal.type === 'error' ? (
+                <XCircle size={32} />
+              ) : (
+                <AlertCircle size={32} />
+              )}
+            </AlertIconWrapper>
+            <AlertMessage>{alertModal.message}</AlertMessage>
+            <ModalActionFooter>
+              <PrimaryButton
+                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+              >
+                OK
+              </PrimaryButton>
+            </ModalActionFooter>
+          </AlertModalContent>
+        </ModalOverlay>
+      )}
 
       <style>{`
         @keyframes spin {

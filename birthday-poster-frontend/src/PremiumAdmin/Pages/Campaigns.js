@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import {
   Plus,
@@ -25,7 +25,11 @@ import {
   Users,
   MessageCircle,
   Loader,
-  X
+  X,
+  RefreshCw,
+  Eye,
+  Copy,
+  XCircle
 } from 'react-feather';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
@@ -373,13 +377,15 @@ const ModalContent = styled.div`
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 0;
+  margin: 20px;
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
+  padding: 28px 32px;
   border-bottom: 1px solid #F0F0F0;
   
   h2 {
@@ -390,7 +396,7 @@ const ModalHeader = styled.div`
 `;
 
 const ModalBody = styled.div`
-  padding: 24px;
+  padding: 32px;
 `;
 
 const FormGroup = styled.div`
@@ -428,8 +434,97 @@ const ModalFooter = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 24px;
+  padding: 28px 32px;
   border-top: 1px solid #F0F0F0;
+`;
+
+const AlertModalOverlay = styled(ModalOverlay)`
+  z-index: 3000;
+`;
+
+const AlertModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+  padding: 32px;
+`;
+
+const AlertIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$type === 'success') return '#10B98120';
+    if (props.$type === 'error') return '#EF444420';
+    return '#F59E0B20';
+  }};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: ${props => {
+    if (props.$type === 'success') return '#10B981';
+    if (props.$type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+`;
+
+const AlertMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+  white-space: pre-line;
+`;
+
+const ConfirmModalContent = styled(ModalContent)`
+  max-width: 450px;
+  text-align: center;
+  padding: 32px;
+`;
+
+const ConfirmMessage = styled.div`
+  font-size: 16px;
+  color: #0F0F0F;
+  margin-bottom: 32px;
+  line-height: 1.6;
+`;
+
+const ModalActionFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
+const ErrorText = styled.div`
+  color: #EF4444;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+`;
+
+const DetailRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0F0F0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  .label {
+    font-weight: 600;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .value {
+    font-weight: 700;
+    color: #1A1A1A;
+    font-size: 14px;
+    text-align: right;
+  }
 `;
 
 const Campaigns = () => {
@@ -461,149 +556,69 @@ const Campaigns = () => {
     return { points: path, endX: 85, endY: Math.round(endY) };
   };
 
-  // Fetch campaign data from API (derived from share activities)
-  useEffect(() => {
-    const fetchCampaignData = async () => {
-      try {
-        setLoading(true);
-        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
-        const rawItems = response.data.filter(item => item.source === 'Photo Merge App');
+  // Calculate growth metrics from campaigns data
+  const calculateGrowthMetrics = (campaignsData) => {
+    const now = new Date();
+    const last30Days = new Date(now);
+    last30Days.setDate(now.getDate() - 30);
+    const last60Days = new Date(now);
+    last60Days.setDate(now.getDate() - 60);
 
-        // Group by template/campaign type
-        const campaignMap = {};
-        
-        rawItems.forEach(item => {
-          const templateName = item.template_name || item.templatename || item.type || 'General Campaign';
-          
-          if (!campaignMap[templateName]) {
-            campaignMap[templateName] = {
-              id: `CMP-${Object.keys(campaignMap).length + 1}`.padStart(7, '0'),
-              name: templateName,
-              description: `Campaign for ${templateName} template`,
-              type: 'WhatsApp',
-              status: 'Active',
-              startDate: item.date || item.createdAt,
-              endDate: new Date().toISOString(),
-              sent: 0,
-              delivered: 0,
-              clicks: 0,
-              whatsapp: 0,
-              facebook: 0,
-              instagram: 0,
-              download: 0
-            };
-          }
+    const recentCampaigns = campaignsData.filter(c => {
+      const date = new Date(c.startDate || c.createdAt);
+      return date >= last30Days;
+    });
+    const previousCampaigns = campaignsData.filter(c => {
+      const date = new Date(c.startDate || c.createdAt);
+      return date >= last60Days && date < last30Days;
+    });
 
-          const campaign = campaignMap[templateName];
-          const whatsapp = item.whatsappsharecount || 0;
-          const facebook = item.facebooksharecount || 0;
-          const twitter = item.twittersharecount || 0;
-          const instagram = item.instagramsharecount || 0;
-          const download = item.downloadcount || 0;
-          const totalShares = whatsapp + facebook + twitter + instagram; // Shares only
-          const totalEngagement = totalShares + download; // Shares + Downloads
-
-          campaign.sent += 1;
-          campaign.delivered += totalShares > 0 ? 1 : 0;
-          campaign.clicks += totalShares;
-          campaign.whatsapp += whatsapp;
-          campaign.facebook += facebook;
-          campaign.instagram += instagram;
-          campaign.download += download;
-
-          // Determine primary channel
-          if (campaign.whatsapp > campaign.facebook && campaign.whatsapp > campaign.instagram) {
-            campaign.type = 'WhatsApp';
-          } else if (campaign.facebook > campaign.instagram) {
-            campaign.type = 'Email'; // Using Email icon for Facebook
-          } else if (campaign.instagram > 0) {
-            campaign.type = 'Push Notification'; // Using for Instagram
-          }
-
-          // Update dates
-          const itemDate = new Date(item.date || item.createdAt);
-          const startDate = new Date(campaign.startDate);
-          if (itemDate < startDate) {
-            campaign.startDate = item.date || item.createdAt;
-          }
-        });
-
-        // Convert to array and determine status
-        const now = new Date();
-        const campaignsArray = Object.values(campaignMap).map(c => {
-          const endDate = new Date(c.endDate);
-          const startDate = new Date(c.startDate);
-          
-          if (c.clicks === 0 && c.sent > 0) {
-            c.status = 'Scheduled';
-          } else if (endDate < now && c.clicks > 0) {
-            c.status = 'Completed';
-          } else if (c.delivered < c.sent * 0.5) {
-            c.status = 'Failed';
-          } else {
-            c.status = 'Active';
-          }
-          
-          return c;
-        });
-
-        // Sort by most recent
-        campaignsArray.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
-        
-        setCampaigns(campaignsArray);
-
-        // Calculate growth metrics (compare current vs last 30 days)
-        const last30Days = new Date(now);
-        last30Days.setDate(now.getDate() - 30);
-        const last60Days = new Date(now);
-        last60Days.setDate(now.getDate() - 60);
-
-        const recentCampaigns = campaignsArray.filter(c => new Date(c.startDate) >= last30Days);
-        const previousCampaigns = campaignsArray.filter(c => {
-          const date = new Date(c.startDate);
-          return date >= last60Days && date < last30Days;
-        });
-
-        const calculateGrowth = (current, previous) => {
-          // Calculate the count change
-          const countChange = current - previous;
-          // Return the count change directly as percentage (count change = percentage value)
-          // If change is +2, show 2%; if change is -5, show -5%
-          return parseFloat(countChange.toFixed(1));
-        };
-
-        const recentActive = recentCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
-        const previousActive = previousCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
-        const recentCompleted = recentCampaigns.filter(c => c.status === 'Completed').length;
-        const previousCompleted = previousCampaigns.filter(c => c.status === 'Completed').length;
-        const recentSent = recentCampaigns.reduce((acc, c) => acc + c.sent, 0);
-        const previousSent = previousCampaigns.reduce((acc, c) => acc + c.sent, 0);
-        const recentDelivered = recentCampaigns.reduce((acc, c) => acc + c.delivered, 0);
-        const previousDelivered = previousCampaigns.reduce((acc, c) => acc + c.delivered, 0);
-
-        setGrowthMetrics({
-          activeGrowth: calculateGrowth(recentActive, previousActive),
-          completedGrowth: calculateGrowth(recentCompleted, previousCompleted),
-          sentGrowth: calculateGrowth(recentSent, previousSent),
-          deliveryGrowth: calculateGrowth(
-            recentSent > 0 ? (recentDelivered / recentSent) * 100 : 0,
-            previousSent > 0 ? (previousDelivered / previousSent) * 100 : 0
-          )
-        });
-      } catch (error) {
-        console.error("Error fetching campaign data:", error);
-      } finally {
-        setLoading(false);
-      }
+    const calculateGrowth = (current, previous) => {
+      const countChange = current - previous;
+      return parseFloat(countChange.toFixed(1));
     };
 
-    fetchCampaignData();
-  }, []);
+    const recentActive = recentCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
+    const previousActive = previousCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
+    const recentCompleted = recentCampaigns.filter(c => c.status === 'Completed').length;
+    const previousCompleted = previousCampaigns.filter(c => c.status === 'Completed').length;
+    const recentSent = recentCampaigns.reduce((acc, c) => acc + (c.sent || 0), 0);
+    const previousSent = previousCampaigns.reduce((acc, c) => acc + (c.sent || 0), 0);
+    const recentDelivered = recentCampaigns.reduce((acc, c) => acc + (c.delivered || 0), 0);
+    const previousDelivered = previousCampaigns.reduce((acc, c) => acc + (c.delivered || 0), 0);
+
+    setGrowthMetrics({
+      activeGrowth: calculateGrowth(recentActive, previousActive),
+      completedGrowth: calculateGrowth(recentCompleted, previousCompleted),
+      sentGrowth: calculateGrowth(recentSent, previousSent),
+      deliveryGrowth: calculateGrowth(
+        recentSent > 0 ? (recentDelivered / recentSent) * 100 : 0,
+        previousSent > 0 ? (previousDelivered / previousSent) * 100 : 0
+      )
+    });
+  };
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingCampaign, setViewingCampaign] = useState(null);
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [operationLoading, setOperationLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const [formErrors, setFormErrors] = useState({});
+  // Dynamically extract channel types and statuses from campaigns data
+  const channelTypes = useMemo(() => {
+    const types = new Set(campaigns.map(c => c.type).filter(Boolean));
+    return Array.from(types).sort();
+  }, [campaigns]);
+
+  const statusTypes = useMemo(() => {
+    const statuses = new Set(campaigns.map(c => c.status).filter(Boolean));
+    return Array.from(statuses).sort();
+  }, [campaigns]);
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -617,12 +632,6 @@ const Campaigns = () => {
 
   const typeDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
-
-  // Fetch campaigns from API
-  useEffect(() => {
-    fetchCampaigns();
-    fetchCustomers();
-  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -639,34 +648,88 @@ const Campaigns = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axiosData.get(`campaigns?adminid=${user._id || user.id}`);
-      setCampaigns(response.data || []);
+      const campaignsData = response.data || [];
+      setCampaigns(campaignsData);
+      calculateGrowthMetrics(campaignsData);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [axiosData, user._id, user.id]);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       const response = await axiosData.get(`campaigns/target/customers?adminid=${user._id || user.id}`);
       setPhotoMergeCustomers(response.data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
+  }, [axiosData, user._id, user.id]);
+
+  // Fetch campaigns from API
+  useEffect(() => {
+    fetchCampaigns();
+    fetchCustomers();
+  }, [fetchCampaigns, fetchCustomers]);
+
+  // Helper functions for alerts and confirmations
+  const showAlert = (message, type = 'info') => {
+    setAlertModal({ show: true, message, type });
+  };
+
+  const showConfirm = (message, onConfirm) => {
+    setConfirmModal({ show: true, message, onConfirm });
+  };
+
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name || formData.name.trim() === '') {
+      errors.name = 'Campaign name is required';
+    }
+    
+    if (!formData.type) {
+      errors.type = 'Channel type is required';
+    }
+    
+    if (!formData.startDate) {
+      errors.startDate = 'Start date is required';
+    }
+    
+    if (!formData.endDate) {
+      errors.endDate = 'End date is required';
+    }
+    
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      if (end < start) {
+        errors.endDate = 'End date must be after start date';
+      }
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleCreateCampaign = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
+      setOperationLoading(true);
       const campaignData = {
         ...formData,
         adminid: user._id || user.id,
-        startDate: formData.startDate || new Date().toISOString(),
-        endDate: formData.endDate || new Date().toISOString(),
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : new Date().toISOString(),
         targetAudience: {
           source: 'Photo Merge App'
         }
@@ -675,52 +738,153 @@ const Campaigns = () => {
       await axiosData.post('campaigns', campaignData);
       setShowCreateModal(false);
       resetForm();
-      fetchCampaigns();
+      setFormErrors({});
+      await fetchCampaigns();
+      showAlert('Campaign created successfully!', 'success');
     } catch (error) {
       console.error('Error creating campaign:', error);
-      alert('Failed to create campaign. Please try again.');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to create campaign. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
   const handleEditCampaign = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
-      await axiosData.put(`campaigns/${editingCampaign._id}`, formData);
+      setOperationLoading(true);
+      const updateData = {
+        ...formData,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : editingCampaign.startDate,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : editingCampaign.endDate
+      };
+      
+      await axiosData.put(`campaigns/${editingCampaign._id}`, updateData);
       setShowEditModal(false);
       setEditingCampaign(null);
       resetForm();
-      fetchCampaigns();
+      setFormErrors({});
+      await fetchCampaigns();
+      showAlert('Campaign updated successfully!', 'success');
     } catch (error) {
       console.error('Error updating campaign:', error);
-      alert('Failed to update campaign. Please try again.');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to update campaign. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setOperationLoading(false);
     }
   };
 
   const handleDeleteCampaign = async (campaignId) => {
-    if (!window.confirm('Are you sure you want to delete this campaign?')) {
-      return;
-    }
-
-    try {
-      await axiosData.delete(`campaigns/${campaignId}`);
-      fetchCampaigns();
-    } catch (error) {
-      console.error('Error deleting campaign:', error);
-      alert('Failed to delete campaign. Please try again.');
-    }
+    showConfirm('Are you sure you want to delete this campaign? This action cannot be undone.', async () => {
+      try {
+        setOperationLoading(true);
+        await axiosData.delete(`campaigns/${campaignId}`);
+        await fetchCampaigns();
+        showAlert('Campaign deleted successfully!', 'success');
+      } catch (error) {
+        console.error('Error deleting campaign:', error);
+        const errorMessage = error.response?.data?.error || error.message || 'Failed to delete campaign. Please try again.';
+        showAlert(errorMessage, 'error');
+      } finally {
+        setOperationLoading(false);
+      }
+    });
   };
 
   const handleSendCampaign = async (campaignId) => {
-    if (!window.confirm('Are you sure you want to send this campaign?')) {
-      return;
-    }
+    const campaign = campaigns.find(c => (c._id || c.id) === campaignId);
+    const customerCount = photoMergeCustomers.length;
+    const campaignType = campaign?.type || 'WhatsApp';
+    
+    showConfirm(
+      `Are you sure you want to send this ${campaignType} campaign? It will be sent to ${customerCount} Photo Merge App customers.`,
+      async () => {
+        try {
+          setOperationLoading(true);
+          const response = await axiosData.post(`campaigns/${campaignId}/send`);
+          await fetchCampaigns();
+          
+          // Build detailed success message
+          let message = response.data?.message || 'Campaign sent successfully!';
+          if (response.data?.stats) {
+            const { sent, delivered, failed, total } = response.data.stats;
+            if (campaignType === 'WhatsApp') {
+              message = `Campaign sent successfully!\n\n` +
+                       `📊 Statistics:\n` +
+                       `• Total customers: ${total}\n` +
+                       `• Sent: ${sent}\n` +
+                       `• Delivered: ${delivered}\n` +
+                       (failed > 0 ? `• Failed: ${failed}\n` : '');
+              
+              if (response.data.errors && response.data.errors.length > 0) {
+                message += `\n⚠️ Some messages failed to send. Check campaign details for more info.`;
+              }
+            }
+          }
+          
+          showAlert(message, 'success');
+        } catch (error) {
+          console.error('Error sending campaign:', error);
+          const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message || 'Failed to send campaign. Please try again.';
+          showAlert(errorMessage, 'error');
+        } finally {
+          setOperationLoading(false);
+        }
+      }
+    );
+  };
 
+  const handleDuplicateCampaign = async (campaign) => {
     try {
-      await axiosData.post(`campaigns/${campaignId}/send`);
-      fetchCampaigns();
-      alert('Campaign sent successfully!');
+      setOperationLoading(true);
+      const duplicateData = {
+        name: `${campaign.name} (Copy)`,
+        description: campaign.description || '',
+        type: campaign.type,
+        status: 'Draft',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+        adminid: user._id || user.id,
+        targetAudience: campaign.targetAudience || { source: 'Photo Merge App' },
+        message: campaign.message || '',
+        sent: 0,
+        delivered: 0,
+        clicks: 0
+      };
+
+      await axiosData.post('campaigns', duplicateData);
+      await fetchCampaigns();
+      showAlert('Campaign duplicated successfully!', 'success');
     } catch (error) {
-      console.error('Error sending campaign:', error);
-      alert('Failed to send campaign. Please try again.');
+      console.error('Error duplicating campaign:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to duplicate campaign. Please try again.';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleViewCampaign = (campaign) => {
+    setViewingCampaign(campaign);
+    setShowViewModal(true);
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setLoading(true);
+      await fetchCampaigns();
+      await fetchCustomers();
+      showAlert('Data refreshed successfully!', 'success');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      showAlert('Failed to refresh data. Please try again.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -728,12 +892,13 @@ const Campaigns = () => {
     setFormData({
       name: '',
       description: '',
-      type: 'WhatsApp',
-      status: 'Draft',
+      type: channelTypes.length > 0 ? channelTypes[0] : (campaigns.length > 0 && campaigns[0].type ? campaigns[0].type : 'WhatsApp'),
+      status: statusTypes.length > 0 ? statusTypes[0] : (campaigns.length > 0 && campaigns[0].status ? campaigns[0].status : 'Draft'),
       startDate: '',
       endDate: '',
       message: ''
     });
+    setFormErrors({});
   };
 
   const openEditModal = (campaign) => {
@@ -774,7 +939,7 @@ const Campaigns = () => {
       case 'WhatsApp': return { icon: <MessageSquare size={16} />, color: '#25D366' };
       case 'Email': return { icon: <Mail size={16} />, color: '#EA4335' };
       case 'SMS': return { icon: <Smartphone size={16} />, color: '#1A1A1A' };
-      case 'Push Notification': return { icon: <Bell size={16} />, color: '#F59E0B' };
+      // case 'Push Notification': return { icon: <Bell size={16} />, color: '#F59E0B' };
       default: return { icon: <AlertCircle size={16} />, color: '#666' };
     }
   };
@@ -790,17 +955,65 @@ const Campaigns = () => {
   };
 
   const exportData = () => {
-    const csvContent = "data:text/csv;charset=utf-8,"
-      + ["ID,Name,Type,Status,Sent,Delivered,CTR"].join(",") + "\n"
-      + filteredCampaigns.map(c => [
-        c._id || c.id, c.name, c.type, c.status, c.sent || 0, c.delivered || 0,
-        (c.delivered || 0) > 0 ? (((c.clicks || 0) / c.delivered) * 100).toFixed(1) + '%' : '0%'
-      ].join(",")).join("\n");
+    // Helper function to escape CSV values
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const stringValue = String(value);
+      // If value contains comma, quote, or newline, wrap in quotes and escape quotes
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
 
+    // Export all campaigns, not just filtered ones
+    const dataToExport = campaigns;
+    
+    // CSV headers
+    const headers = [
+      'Name',
+      'Description',
+      'Type',
+      'Status',
+      'Start Date',
+      'End Date',
+      'Sent',
+      'Delivered',
+      'Clicks',
+      'Delivery Rate (%)',
+      'CTR (%)',
+      'Message'
+    ];
+
+    // Build CSV content
+    const csvRows = [
+      headers.join(','),
+      ...dataToExport.map(c => {
+        const deliveryRate = (c.sent || 0) > 0 ? (((c.delivered || 0) / c.sent) * 100).toFixed(2) : '0.00';
+        const ctr = (c.delivered || 0) > 0 ? (((c.clicks || 0) / c.delivered) * 100).toFixed(2) : '0.00';
+        
+        return [
+          escapeCSV(c.name || ''),
+          escapeCSV(c.description || ''),
+          escapeCSV(c.type || ''),
+          escapeCSV(c.status || ''),
+          escapeCSV(c.startDate ? new Date(c.startDate).toLocaleDateString('en-GB') : ''),
+          escapeCSV(c.endDate ? new Date(c.endDate).toLocaleDateString('en-GB') : ''),
+          escapeCSV(c.sent || 0),
+          escapeCSV(c.delivered || 0),
+          escapeCSV(c.clicks || 0),
+          escapeCSV(deliveryRate),
+          escapeCSV(ctr),
+          escapeCSV(c.message || '')
+        ].join(',');
+      })
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "campaign_report.csv");
+    link.setAttribute("download", `campaign_report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -829,14 +1042,14 @@ const Campaigns = () => {
           )}
         </HeaderInfo>
         <ActionGroup>
-          <SecondaryButton onClick={exportData}>
+          <SecondaryButton onClick={handleRefresh} disabled={loading || operationLoading}>
+            <RefreshCw size={18} style={{ animation: (loading || operationLoading) ? 'spin 1s linear infinite' : 'none' }} /> Refresh
+          </SecondaryButton>
+          <SecondaryButton onClick={exportData} disabled={campaigns.length === 0}>
             <Download size={18} /> Export Results
           </SecondaryButton>
-          <PrimaryButton onClick={() => setShowCreateModal(true)}>
+          <PrimaryButton onClick={() => setShowCreateModal(true)} disabled={operationLoading}>
             <Plus size={18} /> Create New Campaign
-          </PrimaryButton>
-           <PrimaryButton $variant="success">
-            <MessageCircle size={18} /> Bulk Whatsapp
           </PrimaryButton>
         </ActionGroup>
       </PageHeader>
@@ -922,30 +1135,15 @@ const Campaigns = () => {
               >
                 All Channels
               </DropdownItem>
-              <DropdownItem 
-                $active={filterType === 'WhatsApp'}
-                onClick={() => { setFilterType('WhatsApp'); setShowTypeDropdown(false); }}
-              >
-                WhatsApp
-              </DropdownItem>
-              <DropdownItem 
-                $active={filterType === 'Email'}
-                onClick={() => { setFilterType('Email'); setShowTypeDropdown(false); }}
-              >
-                Email
-              </DropdownItem>
-              <DropdownItem 
-                $active={filterType === 'SMS'}
-                onClick={() => { setFilterType('SMS'); setShowTypeDropdown(false); }}
-              >
-                SMS
-              </DropdownItem>
-              <DropdownItem 
-                $active={filterType === 'Push Notification'}
-                onClick={() => { setFilterType('Push Notification'); setShowTypeDropdown(false); }}
-              >
-                Push Notification
-              </DropdownItem>
+              {channelTypes.map(type => (
+                <DropdownItem 
+                  key={type}
+                  $active={filterType === type}
+                  onClick={() => { setFilterType(type); setShowTypeDropdown(false); }}
+                >
+                  {type}
+                </DropdownItem>
+              ))}
             </DropdownMenu>
           </div>
           <div ref={statusDropdownRef} style={{ position: 'relative' }}>
@@ -959,30 +1157,15 @@ const Campaigns = () => {
               >
                 All Status
               </DropdownItem>
-              <DropdownItem 
-                $active={filterStatus === 'Active'}
-                onClick={() => { setFilterStatus('Active'); setShowStatusDropdown(false); }}
-              >
-                Active
-              </DropdownItem>
-              <DropdownItem 
-                $active={filterStatus === 'Scheduled'}
-                onClick={() => { setFilterStatus('Scheduled'); setShowStatusDropdown(false); }}
-              >
-                Scheduled
-              </DropdownItem>
-              <DropdownItem 
-                $active={filterStatus === 'Completed'}
-                onClick={() => { setFilterStatus('Completed'); setShowStatusDropdown(false); }}
-              >
-                Completed
-              </DropdownItem>
-              <DropdownItem 
-                $active={filterStatus === 'Draft'}
-                onClick={() => { setFilterStatus('Draft'); setShowStatusDropdown(false); }}
-              >
-                Draft
-              </DropdownItem>
+              {statusTypes.map(status => (
+                <DropdownItem 
+                  key={status}
+                  $active={filterStatus === status}
+                  onClick={() => { setFilterStatus(status); setShowStatusDropdown(false); }}
+                >
+                  {status}
+                </DropdownItem>
+              ))}
             </DropdownMenu>
           </div>
         </FilterSection>
@@ -1102,23 +1285,39 @@ const Campaigns = () => {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      {c.status === 'Draft' && (
+                      <IconButton 
+                        title="View Details" 
+                        onClick={() => handleViewCampaign(c)}
+                      >
+                        <Eye size={18} />
+                      </IconButton>
+                      {c.status !== 'Completed' && (
                         <IconButton 
                           title="Send Campaign" 
                           onClick={() => handleSendCampaign(c._id || c.id)}
+                          disabled={operationLoading}
                         >
                           <Send size={18} />
                         </IconButton>
                       )}
                       <IconButton 
+                        title="Duplicate Campaign" 
+                        onClick={() => handleDuplicateCampaign(c)}
+                        disabled={operationLoading}
+                      >
+                        <Copy size={18} />
+                      </IconButton>
+                      <IconButton 
                         title="Edit Campaign" 
                         onClick={() => openEditModal(c)}
+                        disabled={operationLoading}
                       >
                         <Edit3 size={18} />
                       </IconButton>
                       <IconButton 
                         title="Delete Campaign" 
                         onClick={() => handleDeleteCampaign(c._id || c.id)}
+                        disabled={operationLoading}
                       >
                         <Trash2 size={18} />
                       </IconButton>
@@ -1147,9 +1346,14 @@ const Campaigns = () => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: '' });
+                  }}
                   placeholder="Enter campaign name"
+                  style={{ borderColor: formErrors.name ? '#EF4444' : '#EEE' }}
                 />
+                {formErrors.name && <ErrorText>{formErrors.name}</ErrorText>}
               </FormGroup>
               <FormGroup>
                 <label>Description</label>
@@ -1168,7 +1372,7 @@ const Campaigns = () => {
                   <option value="WhatsApp">WhatsApp</option>
                   <option value="Email">Email</option>
                   <option value="SMS">SMS</option>
-                  <option value="Push Notification">Push Notification</option>
+                  {/* <option value="Push Notification">Push Notification</option> */}
                 </select>
               </FormGroup>
               <FormGroup>
@@ -1180,6 +1384,8 @@ const Campaigns = () => {
                   <option value="Draft">Draft</option>
                   <option value="Scheduled">Scheduled</option>
                   <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Failed">Failed</option>
                 </select>
               </FormGroup>
               <FormGroup>
@@ -1223,9 +1429,15 @@ const Campaigns = () => {
               </SecondaryButton>
               <PrimaryButton 
                 onClick={handleCreateCampaign}
-                disabled={!formData.name || !formData.startDate || !formData.endDate}
+                disabled={operationLoading || !formData.name || !formData.startDate || !formData.endDate}
               >
-                Create Campaign
+                {operationLoading ? (
+                  <>
+                    <Loader size={18} className="rotate" /> Creating...
+                  </>
+                ) : (
+                  'Create Campaign'
+                )}
               </PrimaryButton>
             </ModalFooter>
           </ModalContent>
@@ -1248,8 +1460,13 @@ const Campaigns = () => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: '' });
+                  }}
+                  style={{ borderColor: formErrors.name ? '#EF4444' : '#EEE' }}
                 />
+                {formErrors.name && <ErrorText>{formErrors.name}</ErrorText>}
               </FormGroup>
               <FormGroup>
                 <label>Description</label>
@@ -1267,7 +1484,7 @@ const Campaigns = () => {
                   <option value="WhatsApp">WhatsApp</option>
                   <option value="Email">Email</option>
                   <option value="SMS">SMS</option>
-                  <option value="Push Notification">Push Notification</option>
+                  {/* <option value="Push Notification">Push Notification</option> */}
                 </select>
               </FormGroup>
               <FormGroup>
@@ -1288,16 +1505,27 @@ const Campaigns = () => {
                 <input
                   type="date"
                   value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, startDate: e.target.value });
+                    if (formErrors.startDate) setFormErrors({ ...formErrors, startDate: '' });
+                  }}
+                  style={{ borderColor: formErrors.startDate ? '#EF4444' : '#EEE' }}
                 />
+                {formErrors.startDate && <ErrorText>{formErrors.startDate}</ErrorText>}
               </FormGroup>
               <FormGroup>
                 <label>End Date *</label>
                 <input
                   type="date"
                   value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  min={formData.startDate || ''}
+                  onChange={(e) => {
+                    setFormData({ ...formData, endDate: e.target.value });
+                    if (formErrors.endDate) setFormErrors({ ...formErrors, endDate: '' });
+                  }}
+                  style={{ borderColor: formErrors.endDate ? '#EF4444' : '#EEE' }}
                 />
+                {formErrors.endDate && <ErrorText>{formErrors.endDate}</ErrorText>}
               </FormGroup>
               <FormGroup>
                 <label>Message</label>
@@ -1313,13 +1541,202 @@ const Campaigns = () => {
               </SecondaryButton>
               <PrimaryButton 
                 onClick={handleEditCampaign}
-                disabled={!formData.name || !formData.startDate || !formData.endDate}
+                disabled={operationLoading || !formData.name || !formData.startDate || !formData.endDate}
               >
-                Save Changes
+                {operationLoading ? (
+                  <>
+                    <Loader size={18} className="rotate" /> Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </PrimaryButton>
             </ModalFooter>
           </ModalContent>
         </ModalOverlay>
+      )}
+
+      {/* View Campaign Details Modal */}
+      {showViewModal && viewingCampaign && (
+        <ModalOverlay onClick={() => { setShowViewModal(false); setViewingCampaign(null); }}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h2>Campaign Details</h2>
+              <IconButton onClick={() => { setShowViewModal(false); setViewingCampaign(null); }}>
+                <X size={24} />
+              </IconButton>
+            </ModalHeader>
+            <ModalBody>
+              <DetailRow>
+                <span className="label">Campaign Name</span>
+                <span className="value">{viewingCampaign.name}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Description</span>
+                <span className="value">{viewingCampaign.description || 'N/A'}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Channel Type</span>
+                <span className="value">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                    {(() => {
+                      const channel = getChannelConfig(viewingCampaign.type);
+                      return (
+                        <>
+                          <ChannelIcon $color={channel.color}>{channel.icon}</ChannelIcon>
+                          {viewingCampaign.type}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Status</span>
+                <span className="value">
+                  <StatusBadge $status={viewingCampaign.status}>
+                    {getStatusIcon(viewingCampaign.status)} {viewingCampaign.status}
+                  </StatusBadge>
+                </span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Start Date</span>
+                <span className="value">{new Date(viewingCampaign.startDate).toLocaleDateString('en-GB', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">End Date</span>
+                <span className="value">{new Date(viewingCampaign.endDate).toLocaleDateString('en-GB', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Sent</span>
+                <span className="value">{(viewingCampaign.sent || 0).toLocaleString()}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Delivered</span>
+                <span className="value">{(viewingCampaign.delivered || 0).toLocaleString()}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Clicks</span>
+                <span className="value">{(viewingCampaign.clicks || 0).toLocaleString()}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Delivery Rate</span>
+                <span className="value">
+                  {viewingCampaign.sent > 0 
+                    ? ((viewingCampaign.delivered / viewingCampaign.sent) * 100).toFixed(1) + '%'
+                    : '0%'}
+                </span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">CTR (Click-Through Rate)</span>
+                <span className="value">
+                  {viewingCampaign.delivered > 0 
+                    ? ((viewingCampaign.clicks / viewingCampaign.delivered) * 100).toFixed(1) + '%'
+                    : '0%'}
+                </span>
+              </DetailRow>
+              {viewingCampaign.message && (
+                <DetailRow>
+                  <span className="label">Message</span>
+                  <span className="value" style={{ textAlign: 'left', maxWidth: '60%' }}>{viewingCampaign.message}</span>
+                </DetailRow>
+              )}
+              <DetailRow>
+                <span className="label">Created At</span>
+                <span className="value">{new Date(viewingCampaign.createdAt).toLocaleDateString('en-GB', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</span>
+              </DetailRow>
+              <DetailRow>
+                <span className="label">Last Updated</span>
+                <span className="value">{new Date(viewingCampaign.updatedAt || viewingCampaign.createdAt).toLocaleDateString('en-GB', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</span>
+              </DetailRow>
+            </ModalBody>
+            <ModalFooter>
+              <SecondaryButton onClick={() => { setShowViewModal(false); setViewingCampaign(null); }}>
+                Close
+              </SecondaryButton>
+              <PrimaryButton onClick={() => {
+                setShowViewModal(false);
+                openEditModal(viewingCampaign);
+              }}>
+                <Edit3 size={18} /> Edit Campaign
+              </PrimaryButton>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* Alert Modal */}
+      {alertModal.show && (
+        <AlertModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+          <AlertModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type={alertModal.type}>
+              {alertModal.type === 'success' ? (
+                <CheckCircle size={32} />
+              ) : alertModal.type === 'error' ? (
+                <XCircle size={32} />
+              ) : (
+                <AlertCircle size={32} />
+              )}
+            </AlertIconWrapper>
+            <AlertMessage>{alertModal.message}</AlertMessage>
+            <ModalActionFooter>
+              <PrimaryButton
+                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
+              >
+                OK
+              </PrimaryButton>
+            </ModalActionFooter>
+          </AlertModalContent>
+        </AlertModalOverlay>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <AlertModalOverlay onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>
+          <ConfirmModalContent onClick={e => e.stopPropagation()}>
+            <AlertIconWrapper $type="info">
+              <AlertCircle size={32} />
+            </AlertIconWrapper>
+            <ConfirmMessage>{confirmModal.message}</ConfirmMessage>
+            <ModalActionFooter>
+              <SecondaryButton
+                onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}
+              >
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={() => {
+                  if (confirmModal.onConfirm) {
+                    confirmModal.onConfirm();
+                  }
+                  setConfirmModal({ show: false, message: '', onConfirm: null });
+                }}
+              >
+                Confirm
+              </PrimaryButton>
+            </ModalActionFooter>
+          </ConfirmModalContent>
+        </AlertModalOverlay>
       )}
     </PageContainer>
   );
@@ -1334,6 +1751,10 @@ style.textContent = `
     animation: rotate 2s linear infinite;
   }
   @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }

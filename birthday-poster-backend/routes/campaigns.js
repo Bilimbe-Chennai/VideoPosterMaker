@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const axios = require('axios');
 const Campaign = require('../models/Campaign');
 const Media = require('../models/Media');
 
@@ -20,11 +21,13 @@ router.get('/', async (req, res) => {
       query.type = type;
     }
 
-    const campaigns = await Campaign.find(query).sort({ createdAt: -1 });
-    res.json(campaigns);
+    console.log('Fetching campaigns with query:', query);
+    const campaigns = await Campaign.find(query).sort({ createdAt: -1 }).lean();
+    console.log(`Found ${campaigns.length} campaigns`);
+    res.json(campaigns || []);
   } catch (error) {
     console.error('Error fetching campaigns:', error);
-    res.status(500).json({ error: 'Failed to fetch campaigns' });
+    res.status(500).json({ error: 'Failed to fetch campaigns', message: error.message });
   }
 });
 
@@ -54,7 +57,10 @@ router.post('/', async (req, res) => {
       endDate,
       adminid,
       targetAudience,
-      message
+      message,
+      sent,
+      delivered,
+      clicks
     } = req.body;
 
     if (!name || !type || !adminid) {
@@ -70,7 +76,10 @@ router.post('/', async (req, res) => {
       endDate: endDate ? new Date(endDate) : new Date(),
       adminid,
       targetAudience: targetAudience || { source: 'Photo Merge App' },
-      message: message || ''
+      message: message || '',
+      sent: sent !== undefined ? sent : 0,
+      delivered: delivered !== undefined ? delivered : 0,
+      clicks: clicks !== undefined ? clicks : 0
     });
 
     await campaign.save();
@@ -184,6 +193,63 @@ router.get('/target/customers', async (req, res) => {
   }
 });
 
+// Helper function to send WhatsApp message
+const sendWhatsAppMessage = async (toNumber, message, templateId) => {
+  try {
+    const token = process.env.CHATMYBOT_TOKEN;
+    if (!token) {
+      throw new Error('ChatMyBot token not configured');
+    }
+
+    const payload = [
+      {
+        to: toNumber,
+        type: "template",
+        template: {
+          id: templateId || process.env.WHATSAPP_TEMPLATE_ID,
+          language: {
+            code: "en",
+          },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  text: message,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+
+    const response = await axios.post(
+      `https://wa.chatmybot.in/gateway/wabuissness/v1/message/batchapi`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          accessToken: token,
+        },
+      }
+    );
+
+    if (response.status !== 200 || (response.data && response.data.status === "error")) {
+      throw new Error(response.data?.message || 'Failed to send message via ChatMyBot');
+    }
+
+    return { success: true, response: response.data };
+  } catch (error) {
+    console.error('WhatsApp sending error:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      error: error.response?.data?.message || error.message || 'Failed to send WhatsApp message' 
+    };
+  }
+};
+
 // POST send campaign
 router.post('/:id/send', async (req, res) => {
   try {
@@ -203,13 +269,13 @@ router.post('/:id/send', async (req, res) => {
 
     const media = await Media.find(query);
     
-    // Group unique customers
+    // Group unique customers with valid WhatsApp numbers
     const customersMap = {};
     media.forEach(item => {
       const phone = item.whatsapp || item.mobile || '';
       const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
       
-      if (!customersMap[key]) {
+      if (!customersMap[key] && phone && phone !== 'N/A') {
         customersMap[key] = {
           name: item.name || 'Unknown',
           email: item.email || '',
@@ -220,27 +286,98 @@ router.post('/:id/send', async (req, res) => {
     });
 
     const customers = Object.values(customersMap);
-    const totalSent = customers.length;
+    const totalCustomers = customers.length;
+
+    if (totalCustomers === 0) {
+      return res.status(400).json({ 
+        error: 'No valid customers found with WhatsApp numbers for this campaign' 
+      });
+    }
+
+    let sentCount = 0;
+    let deliveredCount = 0;
+    let failedCount = 0;
+    const errors = [];
+
+    // Send messages based on campaign type
+    if (campaign.type === 'WhatsApp') {
+      const campaignMessage = campaign.message || `Hello! Check out our latest campaign: ${campaign.name}`;
+      const templateId = process.env.WHATSAPP_TEMPLATE_ID_APP || process.env.WHATSAPP_TEMPLATE_ID;
+
+      // Send messages in batches (process 10 at a time to avoid rate limits)
+      const batchSize = 10;
+      for (let i = 0; i < customers.length; i += batchSize) {
+        const batch = customers.slice(i, i + batchSize);
+        
+        const sendPromises = batch.map(async (customer) => {
+          try {
+            const result = await sendWhatsAppMessage(
+              customer.whatsapp, 
+              campaignMessage,
+              templateId
+            );
+            
+            if (result.success) {
+              sentCount++;
+              deliveredCount++;
+              return { success: true, customer: customer.name || customer.whatsapp };
+            } else {
+              failedCount++;
+              errors.push(`${customer.name || customer.whatsapp}: ${result.error}`);
+              return { success: false, customer: customer.name || customer.whatsapp, error: result.error };
+            }
+          } catch (error) {
+            failedCount++;
+            const errorMsg = error.message || 'Unknown error';
+            errors.push(`${customer.name || customer.whatsapp}: ${errorMsg}`);
+            return { success: false, customer: customer.name || customer.whatsapp, error: errorMsg };
+          }
+        });
+
+        await Promise.all(sendPromises);
+        
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < customers.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    } else {
+      // For other campaign types (Email, SMS, Push Notification), just mark as sent
+      // You can add actual sending logic for these types later
+      sentCount = totalCustomers;
+      deliveredCount = totalCustomers;
+    }
     
     // Update campaign stats
-    campaign.sent = totalSent;
-    campaign.delivered = totalSent; // Assume all delivered for now
-    campaign.status = 'Active';
+    campaign.sent = sentCount;
+    campaign.delivered = deliveredCount;
+    campaign.clicks = 0; // Will be updated when users interact
+    campaign.status = sentCount > 0 ? 'Active' : 'Failed';
     campaign.updatedAt = new Date();
     await campaign.save();
 
-    // Here you would integrate with WhatsApp/Email/SMS API to actually send
-    // For now, we just update the campaign status
+    const responseMessage = campaign.type === 'WhatsApp' 
+      ? `Campaign sent: ${deliveredCount} delivered, ${failedCount} failed out of ${totalCustomers} customers`
+      : `Campaign sent to ${sentCount} customers`;
 
     res.json({
       success: true,
-      message: `Campaign sent to ${totalSent} customers`,
+      message: responseMessage,
       campaign,
-      customers: customers.length
+      stats: {
+        total: totalCustomers,
+        sent: sentCount,
+        delivered: deliveredCount,
+        failed: failedCount
+      },
+      errors: errors.length > 0 ? errors.slice(0, 10) : [] // Return first 10 errors if any
     });
   } catch (error) {
     console.error('Error sending campaign:', error);
-    res.status(500).json({ error: 'Failed to send campaign' });
+    res.status(500).json({ 
+      error: 'Failed to send campaign',
+      details: error.message 
+    });
   }
 });
 

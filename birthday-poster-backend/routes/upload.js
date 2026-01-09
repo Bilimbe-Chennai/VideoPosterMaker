@@ -579,11 +579,16 @@ router.get("/all", async (req, res) => {
     if (adminid) {
       query.adminid = adminid;
     }
-    const mediaItems = await Media.find(query).sort({ createdAt: -1 }); // Get all items, newest first
-    res.json(mediaItems.reverse());
+    
+    console.log('Fetching media items with query:', query);
+    const mediaItems = await Media.find(query).sort({ createdAt: -1 }).lean(); // Get all items, newest first, use lean() for better performance
+    console.log(`Found ${mediaItems.length} media items`);
+    
+    // Return as array directly (no need to reverse since we're sorting by createdAt: -1)
+    res.json(mediaItems || []);
   } catch (err) {
     console.error("Error fetching media items:", err);
-    res.status(500).json({ error: "Server error while fetching media items" });
+    res.status(500).json({ error: "Server error while fetching media items", message: err.message });
   }
 });
 // GET unique branches

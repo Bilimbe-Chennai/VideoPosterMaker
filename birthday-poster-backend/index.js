@@ -50,6 +50,7 @@ app.use('/api/photomerge', photomergeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/activity-history', activityHistoryRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/report-downloads', require('./routes/reportDownloads'));
 app.use('/api/subscription', require('./routes/subscription'));
 app.use('/api/billing', require('./routes/billing'));
 // app.get("/photomergeapp/share/:id", (req, res) => {
