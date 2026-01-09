@@ -150,6 +150,60 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Premium Admin Settings (Settings page)
+router.get('/premium-settings', async (req, res) => {
+    try {
+        const { adminid } = req.query;
+        if (!adminid) {
+            return res.status(400).json({ success: false, error: 'adminid is required' });
+        }
+
+        const doc = await PremiumAdminSettings.findOne({ adminid }).lean();
+        const settings = doc?.settings || DEFAULT_PREMIUM_SETTINGS;
+
+        // Return audit derived from db timestamps if not present
+        const audit = {
+            lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : (settings.audit?.lastUpdated || ''),
+            updatedBy: doc?.updatedBy || settings.audit?.updatedBy || ''
+        };
+
+        return res.status(200).json({ success: true, settings: { ...settings, audit } });
+    } catch (err) {
+        console.error('premium-settings GET error:', err);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+router.put('/premium-settings', async (req, res) => {
+    try {
+        const { adminid } = req.query;
+        const { settings, updatedBy } = req.body || {};
+
+        if (!adminid) {
+            return res.status(400).json({ success: false, error: 'adminid is required' });
+        }
+        if (!settings || typeof settings !== 'object') {
+            return res.status(400).json({ success: false, error: 'settings object is required' });
+        }
+
+        const doc = await PremiumAdminSettings.findOneAndUpdate(
+            { adminid },
+            { settings, updatedBy: updatedBy || '' },
+            { upsert: true, new: true }
+        ).lean();
+
+        const audit = {
+            lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : new Date().toLocaleString(),
+            updatedBy: doc?.updatedBy || updatedBy || ''
+        };
+
+        return res.status(200).json({ success: true, settings: { ...doc.settings, audit } });
+    } catch (err) {
+        console.error('premium-settings PUT error:', err);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Get single user
 router.get('/:id', async (req, res) => {
     try {
@@ -212,60 +266,6 @@ router.delete('/:id', async (req, res) => {
         res.status(200).json({ success: true, data: {} });
     } catch (err) {
         res.status(400).json({ success: false, error: err.message });
-    }
-});
-
-// Premium Admin Settings (Settings page)
-router.get('/premium-settings', async (req, res) => {
-    try {
-        const { adminid } = req.query;
-        if (!adminid) {
-            return res.status(400).json({ success: false, error: 'adminid is required' });
-        }
-
-        const doc = await PremiumAdminSettings.findOne({ adminid }).lean();
-        const settings = doc?.settings || DEFAULT_PREMIUM_SETTINGS;
-
-        // Return audit derived from db timestamps if not present
-        const audit = {
-            lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : (settings.audit?.lastUpdated || ''),
-            updatedBy: doc?.updatedBy || settings.audit?.updatedBy || ''
-        };
-
-        return res.status(200).json({ success: true, settings: { ...settings, audit } });
-    } catch (err) {
-        console.error('premium-settings GET error:', err);
-        return res.status(500).json({ success: false, error: 'Internal server error' });
-    }
-});
-
-router.put('/premium-settings', async (req, res) => {
-    try {
-        const { adminid } = req.query;
-        const { settings, updatedBy } = req.body || {};
-
-        if (!adminid) {
-            return res.status(400).json({ success: false, error: 'adminid is required' });
-        }
-        if (!settings || typeof settings !== 'object') {
-            return res.status(400).json({ success: false, error: 'settings object is required' });
-        }
-
-        const doc = await PremiumAdminSettings.findOneAndUpdate(
-            { adminid },
-            { settings, updatedBy: updatedBy || '' },
-            { upsert: true, new: true }
-        ).lean();
-
-        const audit = {
-            lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : new Date().toLocaleString(),
-            updatedBy: doc?.updatedBy || updatedBy || ''
-        };
-
-        return res.status(200).json({ success: true, settings: { ...doc.settings, audit } });
-    } catch (err) {
-        console.error('premium-settings PUT error:', err);
-        return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 

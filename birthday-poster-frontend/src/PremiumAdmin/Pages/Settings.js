@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import {
     Settings,
@@ -356,19 +356,19 @@ const AlertIconWrapper = styled.div`
   height: 64px;
   border-radius: 50%;
   background: ${props => {
-    if (props.$type === 'success') return '#10B98120';
-    if (props.$type === 'error') return '#EF444420';
-    return '#F59E0B20';
-  }};
+        if (props.$type === 'success') return '#10B98120';
+        if (props.$type === 'error') return '#EF444420';
+        return '#F59E0B20';
+    }};
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 24px;
   color: ${props => {
-    if (props.$type === 'success') return '#10B981';
-    if (props.$type === 'error') return '#EF4444';
-    return '#F59E0B';
-  }};
+        if (props.$type === 'success') return '#10B981';
+        if (props.$type === 'error') return '#EF4444';
+        return '#F59E0B';
+    }};
 `;
 
 const AlertMessage = styled.div`
@@ -386,17 +386,20 @@ const ModalActionFooter = styled.div`
 `;
 
 const SettingsPage = () => {
+    const axios = useAxios();
     const [activeTab, setActiveTab] = useState('General');
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const axiosData = useAxios();
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    
+
+    // Get current user and admin identity
+    const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+    const adminid = user._id || user.id;
+
     // Alert Modal State
     const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
-    
+
     // Helper Functions for Alerts
     const showAlert = (message, type = 'info') => {
         setAlertModal({ show: true, message, type });
@@ -411,7 +414,7 @@ const SettingsPage = () => {
                     setSettings(DEFAULT_SETTINGS);
                     return;
                 }
-                const res = await axiosData.get(`users/premium-settings?adminid=${adminid}`);
+                const res = await axios.get(`users/premium-settings?adminid=${adminid}`);
                 if (res.data?.success && res.data?.settings) {
                     setSettings(res.data.settings);
                 } else {
@@ -425,18 +428,17 @@ const SettingsPage = () => {
             }
         };
         fetchSettings();
-    }, [axiosData, user._id, user.id]);
+    }, [axios, adminid]);
 
     const handleSave = async () => {
         try {
             setSaving(true);
-            const adminid = user._id || user.id;
             if (!adminid) {
                 showAlert('Admin not found. Please login again.', 'error');
                 return;
             }
             const updatedBy = user.name || user.email || 'Admin User';
-            const res = await axiosData.put(`users/premium-settings?adminid=${adminid}`, {
+            const res = await axios.put(`users/premium-settings?adminid=${adminid}`, {
                 settings,
                 updatedBy
             });
@@ -499,269 +501,271 @@ const SettingsPage = () => {
                             Loading settings...
                         </div>
                     ) : (
-                    <>
-                    {activeTab === 'General' && (
-                        <div>
-                            <SectionTitle><Globe size={20} /> General Settings</SectionTitle>
-                            <FormGrid>
-                                <FormGroup>
-                                    <Label>Application Name</Label>
-                                    <Input
-                                        value={settings.general.appName}
-                                        onChange={e => updateSetting('general', 'appName', e.target.value)}
-                                    />
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Company Name</Label>
-                                    <Input
-                                        value={settings.general.companyName}
-                                        onChange={e => updateSetting('general', 'companyName', e.target.value)}
-                                    />
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Contact Email</Label>
-                                    <Input
-                                        value={settings.general.email}
-                                        onChange={e => updateSetting('general', 'email', e.target.value)}
-                                    />
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Contact Phone</Label>
-                                    <Input
-                                        value={settings.general.phone}
-                                        onChange={e => updateSetting('general', 'phone', e.target.value)}
-                                    />
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Timezone</Label>
-                                    <Select
-                                        value={settings.general.timezone}
-                                        onChange={e => updateSetting('general', 'timezone', e.target.value)}
-                                    >
-                                        <option>India (IST)</option>
-                                        <option>US (EST)</option>
-                                        <option>UK (GMT)</option>
-                                    </Select>
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Date Format</Label>
-                                    <Select
-                                        value={settings.general.dateFormat}
-                                        onChange={e => updateSetting('general', 'dateFormat', e.target.value)}
-                                    >
-                                        <option>DD/MM/YYYY</option>
-                                        <option>MM/DD/YYYY</option>
-                                        <option>YYYY-MM-DD</option>
-                                    </Select>
-                                </FormGroup>
-                            </FormGrid>
-                        </div>
-                    )}
-
-                    {activeTab === 'Notifications' && (
-                        <div>
-                            <SectionTitle><Bell size={20} /> Notification Channels</SectionTitle>
-                            <div style={{ marginBottom: '32px' }}>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>Email Notifications</h4>
-                                        <p>Receive system alerts via your admin email address</p>
-                                    </ToggleInfo>
-                                    <Switch
-                                        $checked={settings.notifications.email}
-                                        onClick={() => updateSetting('notifications', 'email', !settings.notifications.email)}
-                                    />
-                                </ToggleRow>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>WhatsApp Notifications</h4>
-                                        <p>Send instant alerts to configured admin phone numbers</p>
-                                    </ToggleInfo>
-                                    <Switch
-                                        $checked={settings.notifications.whatsapp}
-                                        onClick={() => updateSetting('notifications', 'whatsapp', !settings.notifications.whatsapp)}
-                                    />
-                                </ToggleRow>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>Push Notifications</h4>
-                                        <p>Browser-level notifications for real-time engagement</p>
-                                    </ToggleInfo>
-                                    <Switch
-                                        $checked={settings.notifications.push}
-                                        onClick={() => updateSetting('notifications', 'push', !settings.notifications.push)}
-                                    />
-                                </ToggleRow>
-                            </div>
-
-                            <SectionTitle>Event Triggers</SectionTitle>
-                            <FormGrid>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>New Photo Capture</h4>
-                                        <p>Alert when a customer takes a new photo</p>
-                                    </ToggleInfo>
-                                    <Switch
-                                        $checked={settings.notifications.onPhoto}
-                                        onClick={() => updateSetting('notifications', 'onPhoto', !settings.notifications.onPhoto)}
-                                    />
-                                </ToggleRow>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>Campaign Completed</h4>
-                                        <p>Alert when a marketing campaign finishes</p>
-                                    </ToggleInfo>
-                                    <Switch
-                                        $checked={settings.notifications.onCampaign}
-                                        onClick={() => updateSetting('notifications', 'onCampaign', !settings.notifications.onCampaign)}
-                                    />
-                                </ToggleRow>
-                            </FormGrid>
-                        </div>
-                    )}
-
-                    {activeTab === 'Integrations' && (
-                        <div>
-                            <SectionTitle><Link2 size={20} /> API Integrations</SectionTitle>
-                            <IntegrationCard>
-                                <IntegrationHeader>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <MessageSquare size={24} color="#25D366" />
-                                        <div style={{ fontWeight: 700 }}>WhatsApp API (Twilio)</div>
-                                    </div>
-                                    <StatusIndicator $active={true}>
-                                        <Check size={14} /> ACTIVE
-                                    </StatusIndicator>
-                                </IntegrationHeader>
-                                <FormGrid>
-                                    <FormGroup>
-                                        <Label>API Key</Label>
-                                        <Input type="password" value={settings.integrations.whatsapp.apiKey} readOnly />
-                                    </FormGroup>
-                                    <FormGroup>
-                                        <Label>Sender ID</Label>
-                                        <Input value={settings.integrations.whatsapp.senderID} readOnly />
-                                    </FormGroup>
-                                </FormGrid>
-                            </IntegrationCard>
-
-                            <IntegrationCard>
-                                <IntegrationHeader>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <Mail size={24} color="#EA4335" />
-                                        <div style={{ fontWeight: 700 }}>Email Service (SendGrid)</div>
-                                    </div>
-                                    <StatusIndicator $active={true}>
-                                        <Check size={14} /> ACTIVE
-                                    </StatusIndicator>
-                                </IntegrationHeader>
-                                <FormGrid>
-                                    <FormGroup>
-                                        <Label>API Token</Label>
-                                        <Input type="password" value={settings.integrations.email.apiKey} readOnly />
-                                    </FormGroup>
-                                    <FormGroup>
-                                        <Label>Verified Sender</Label>
-                                        <Input value={settings.integrations.email.senderID} readOnly />
-                                    </FormGroup>
-                                </FormGrid>
-                            </IntegrationCard>
-                        </div>
-                    )}
-
-                    {activeTab === 'Export Settings' && (
-                        <div>
-                            <SectionTitle><Download size={20} /> Export Configuration</SectionTitle>
-                            <FormGrid>
-                                <FormGroup>
-                                    <Label>Default File Format</Label>
-                                    <Select>
-                                        <option>Excel (.xlsx)</option>
-                                        <option>CSV</option>
-                                        <option>PDF</option>
-                                    </Select>
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Automation Frequency</Label>
-                                    <Select>
-                                        <option>Daily</option>
-                                        <option>Weekly</option>
-                                        <option>Monthly</option>
-                                    </Select>
-                                </FormGroup>
-                            </FormGrid>
-                            <div style={{ marginTop: '24px' }}>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>Enable Automatic Daily Export</h4>
-                                        <p>System will automatically generate and store reports every midnight</p>
-                                    </ToggleInfo>
-                                    <Switch
-                                        $checked={settings.export.autoDaily}
-                                        onClick={() => updateSetting('export', 'autoDaily', !settings.export.autoDaily)}
-                                    />
-                                </ToggleRow>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'Backup' && (
-                        <div>
-                            <SectionTitle><Shield size={20} /> System Backup</SectionTitle>
-                            <FormGrid>
-                                <FormGroup>
-                                    <Label>Backup Frequency</Label>
-                                    <Select>
-                                        <option>Every 12 Hours</option>
-                                        <option>Daily</option>
-                                        <option>Weekly</option>
-                                    </Select>
-                                </FormGroup>
-                                <FormGroup>
-                                    <Label>Storage Location</Label>
-                                    <Select>
-                                        <option>Local Server</option>
-                                        <option>Cloud Storage (S3)</option>
-                                        <option>Google Drive</option>
-                                    </Select>
-                                </FormGroup>
-                            </FormGrid>
-                            <div style={{ marginTop: '24px' }}>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>Database Backup</h4>
-                                        <p>Include full customer and transaction records</p>
-                                    </ToggleInfo>
-                                    <Switch $checked={true} readOnly />
-                                </ToggleRow>
-                                <ToggleRow>
-                                    <ToggleInfo>
-                                        <h4>Configurations Backup</h4>
-                                        <p>Include all settings and environment variables</p>
-                                    </ToggleInfo>
-                                    <Switch $checked={true} readOnly />
-                                </ToggleRow>
-                            </div>
-                        </div>
-                    )}
-
-                    <FooterBar>
-                        <AuditInfo>
-                            <Clock size={14} />
-                            Last updated: {settings.audit.lastUpdated} by {settings.audit.updatedBy}
-                        </AuditInfo>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                            {showSuccess && (
-                                <span style={{ color: '#059669', fontSize: '13px', fontWeight: 700 }}>
-                                    <Check size={14} /> Changes saved successfully!
-                                </span>
+                        <>
+                            {activeTab === 'General' && (
+                                <div>
+                                    <SectionTitle><Globe size={20} /> General Settings</SectionTitle>
+                                    <FormGrid>
+                                        <FormGroup>
+                                            <Label>Application Name</Label>
+                                            <Input
+                                                value={settings.general.appName}
+                                                onChange={e => updateSetting('general', 'appName', e.target.value)}
+                                            />
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Company Name</Label>
+                                            <Input
+                                                value={settings.general.companyName}
+                                                onChange={e => updateSetting('general', 'companyName', e.target.value)}
+                                            />
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Contact Email</Label>
+                                            <Input
+                                                value={settings.general.email}
+                                                onChange={e => updateSetting('general', 'email', e.target.value)}
+                                            />
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Contact Phone</Label>
+                                            <Input
+                                                value={settings.general.phone}
+                                                onChange={e => updateSetting('general', 'phone', e.target.value)}
+                                            />
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Timezone</Label>
+                                            <Select
+                                                value={settings.general.timezone}
+                                                onChange={e => updateSetting('general', 'timezone', e.target.value)}
+                                            >
+                                                <option>India (IST)</option>
+                                                <option>US (EST)</option>
+                                                <option>UK (GMT)</option>
+                                            </Select>
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Date Format</Label>
+                                            <Select
+                                                value={settings.general.dateFormat}
+                                                onChange={e => updateSetting('general', 'dateFormat', e.target.value)}
+                                            >
+                                                <option>DD/MM/YYYY</option>
+                                                <option>MM/DD/YYYY</option>
+                                                <option>YYYY-MM-DD</option>
+                                            </Select>
+                                        </FormGroup>
+                                    </FormGrid>
+                                </div>
                             )}
-                            <SaveButton onClick={handleSave} disabled={saving}>
-                                {saving ? 'Saving...' : <><Save size={18} /> Save Settings</>}
-                            </SaveButton>
-                        </div>
-                    </FooterBar>
-                    </>
+
+                            {activeTab === 'Notifications' && (
+                                <div>
+                                    <SectionTitle><Bell size={20} /> Notification Channels</SectionTitle>
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>Email Notifications</h4>
+                                                <p>Receive system alerts via your admin email address</p>
+                                            </ToggleInfo>
+                                            <Switch
+                                                $checked={settings.notifications.email}
+                                                onClick={() => updateSetting('notifications', 'email', !settings.notifications.email)}
+                                            />
+                                        </ToggleRow>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>WhatsApp Notifications</h4>
+                                                <p>Send instant alerts to configured admin phone numbers</p>
+                                            </ToggleInfo>
+                                            <Switch
+                                                $checked={settings.notifications.whatsapp}
+                                                onClick={() => updateSetting('notifications', 'whatsapp', !settings.notifications.whatsapp)}
+                                            />
+                                        </ToggleRow>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>Push Notifications</h4>
+                                                <p>Browser-level notifications for real-time engagement</p>
+                                            </ToggleInfo>
+                                            <Switch
+                                                $checked={settings.notifications.push}
+                                                onClick={() => updateSetting('notifications', 'push', !settings.notifications.push)}
+                                            />
+                                        </ToggleRow>
+                                    </div>
+
+                                    <SectionTitle>Event Triggers</SectionTitle>
+                                    <FormGrid>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>New Photo Capture</h4>
+                                                <p>Alert when a customer takes a new photo</p>
+                                            </ToggleInfo>
+                                            <Switch
+                                                $checked={settings.notifications.onPhoto}
+                                                onClick={() => updateSetting('notifications', 'onPhoto', !settings.notifications.onPhoto)}
+                                            />
+                                        </ToggleRow>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>Campaign Completed</h4>
+                                                <p>Alert when a marketing campaign finishes</p>
+                                            </ToggleInfo>
+                                            <Switch
+                                                $checked={settings.notifications.onCampaign}
+                                                onClick={() => updateSetting('notifications', 'onCampaign', !settings.notifications.onCampaign)}
+                                            />
+                                        </ToggleRow>
+                                    </FormGrid>
+                                </div>
+                            )}
+
+                            {activeTab === 'Integrations' && (
+                                <div>
+                                    <SectionTitle><Link2 size={20} /> API Integrations</SectionTitle>
+                                    <IntegrationCard>
+                                        <IntegrationHeader>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <MessageSquare size={24} color="#25D366" />
+                                                <div style={{ fontWeight: 700 }}>WhatsApp API (Twilio)</div>
+                                            </div>
+                                            <StatusIndicator $active={true}>
+                                                <Check size={14} /> ACTIVE
+                                            </StatusIndicator>
+                                        </IntegrationHeader>
+                                        <FormGrid>
+                                            <FormGroup>
+                                                <Label>API Key</Label>
+                                                <Input type="password" value={settings.integrations.whatsapp.apiKey} readOnly />
+                                            </FormGroup>
+                                            <FormGroup>
+                                                <Label>Sender ID</Label>
+                                                <Input value={settings.integrations.whatsapp.senderID} readOnly />
+                                            </FormGroup>
+                                        </FormGrid>
+                                    </IntegrationCard>
+
+                                    <IntegrationCard>
+                                        <IntegrationHeader>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <Mail size={24} color="#EA4335" />
+                                                <div style={{ fontWeight: 700 }}>Email Service (SendGrid)</div>
+                                            </div>
+                                            <StatusIndicator $active={true}>
+                                                <Check size={14} /> ACTIVE
+                                            </StatusIndicator>
+                                        </IntegrationHeader>
+                                        <FormGrid>
+                                            <FormGroup>
+                                                <Label>API Token</Label>
+                                                <Input type="password" value={settings.integrations.email.apiKey} readOnly />
+                                            </FormGroup>
+                                            <FormGroup>
+                                                <Label>Verified Sender</Label>
+                                                <Input value={settings.integrations.email.senderID} readOnly />
+                                            </FormGroup>
+                                        </FormGrid>
+                                    </IntegrationCard>
+                                </div>
+                            )}
+
+                            {activeTab === 'Export Settings' && (
+                                <div>
+                                    <SectionTitle><Download size={20} /> Export Configuration</SectionTitle>
+                                    <FormGrid>
+                                        <FormGroup>
+                                            <Label>Default File Format</Label>
+                                            <Select>
+                                                <option>Excel (.xlsx)</option>
+                                                <option>CSV</option>
+                                                <option>PDF</option>
+                                            </Select>
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Automation Frequency</Label>
+                                            <Select>
+                                                <option>Daily</option>
+                                                <option>Weekly</option>
+                                                <option>Monthly</option>
+                                            </Select>
+                                        </FormGroup>
+                                    </FormGrid>
+                                    <div style={{ marginTop: '24px' }}>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>Enable Automatic Daily Export</h4>
+                                                <p>System will automatically generate and store reports every midnight</p>
+                                            </ToggleInfo>
+                                            <Switch
+                                                $checked={settings.export.autoDaily}
+                                                onClick={() => updateSetting('export', 'autoDaily', !settings.export.autoDaily)}
+                                            />
+                                        </ToggleRow>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'Backup' && (
+                                <div>
+                                    <SectionTitle><Shield size={20} /> System Backup</SectionTitle>
+                                    <FormGrid>
+                                        <FormGroup>
+                                            <Label>Backup Frequency</Label>
+                                            <Select>
+                                                <option>Every 12 Hours</option>
+                                                <option>Daily</option>
+                                                <option>Weekly</option>
+                                            </Select>
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Storage Location</Label>
+                                            <Select>
+                                                <option>Local Server</option>
+                                                <option>Cloud Storage (S3)</option>
+                                                <option>Google Drive</option>
+                                            </Select>
+                                        </FormGroup>
+                                    </FormGrid>
+                                    <div style={{ marginTop: '24px' }}>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>Database Backup</h4>
+                                                <p>Include full customer and transaction records</p>
+                                            </ToggleInfo>
+                                            <Switch $checked={true} readOnly />
+                                        </ToggleRow>
+                                        <ToggleRow>
+                                            <ToggleInfo>
+                                                <h4>Configurations Backup</h4>
+                                                <p>Include all settings and environment variables</p>
+                                            </ToggleInfo>
+                                            <Switch $checked={true} readOnly />
+                                        </ToggleRow>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {!loading && (
+                        <FooterBar>
+                            <AuditInfo>
+                                <Clock size={14} />
+                                Last updated: {settings?.audit?.lastUpdated || 'Never'} {settings?.audit?.updatedBy ? `by ${settings.audit.updatedBy}` : ''}
+                            </AuditInfo>
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                {showSuccess && (
+                                    <span style={{ color: '#059669', fontSize: '13px', fontWeight: 700 }}>
+                                        <Check size={14} /> Changes saved successfully!
+                                    </span>
+                                )}
+                                <SaveButton onClick={handleSave} disabled={saving}>
+                                    {saving ? 'Saving...' : <><Save size={18} /> Save Settings</>}
+                                </SaveButton>
+                            </div>
+                        </FooterBar>
                     )}
                 </SettingsContent>
             </ContentLayout>
