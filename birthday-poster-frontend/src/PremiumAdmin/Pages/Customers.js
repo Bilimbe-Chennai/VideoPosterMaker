@@ -25,7 +25,10 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Facebook,
+  Video,
   Loader,
+  Share2,
 } from 'react-feather';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
@@ -99,85 +102,7 @@ const PrimaryButton = styled.button`
   }
 `;
 
-const MetricGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  margin-bottom: 32px;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-
-
-const MetricCard = styled.div`
-  background: ${({ $bgColor }) => $bgColor || '#FFF'};
-  padding: 24px;
-  border-radius: 32px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 160px;
-  transition: transform 0.2s;
-  position: relative;
-  
-  &:hover {
-    transform: translateY(-5px);
-  }
-`;
-
-const CardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const IconBox = styled.div`
-  width: 48px;
-  height: 48px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #333;
-`;
-
-const CardLabel = styled.div`
-  font-size: 15px;
-  font-weight: 700;
-  color: #555;
-`;
-
-const MetricValue = styled.div`
-  font-size: 36px;
-  font-weight: 800;
-  color: #0F0F0F;
-  margin-top: 20px;
-  margin-bottom: 8px;
-  letter-spacing: -1px;
-`;
-
-const CardFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const GrowthTag = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: ${({ $color }) => $color};
-`;
+// (Removed old Metric styled components to use new KPI components)
 
 const ControlBar = styled.div`
   display: flex;
@@ -595,6 +520,107 @@ const BulkActionBar = styled.div`
   }
 `;
 
+// --- New KPI Card Components ---
+
+const KPIBox = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const KPICard = styled.div`
+  padding: 24px;
+  background-color: ${({ $bgColor }) => $bgColor};
+  border-radius: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s;
+  
+  &:hover {
+    transform: translateY(-5px);
+  }
+`;
+
+const KPITop = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+`;
+
+const KPIIconWrapper = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.7);
+`;
+
+const CardLabel = styled.div`
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.7);
+`;
+
+const KPIContent = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+`;
+
+const KPIMain = styled.div``;
+
+const KPIValue = styled.div`
+  font-size: 32px;
+  font-weight: 700;
+  color: #0F0F0F;
+  margin-bottom: 8px;
+`;
+
+const TrendIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: ${({ $color }) => $color};
+`;
+
+const SparklineWrapper = styled.div`
+  width: 100px;
+  height: 50px;
+`;
+
+const MiniTrendSVG = ({ color, points, endX, endY }) => (
+  <svg width="100" height="50" viewBox="0 0 100 50">
+    <path
+      d={points}
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx={endX} cy={endY} r="3.5" fill="white" stroke={color} strokeWidth="2" />
+  </svg>
+);
+
 // --- Main Page Component ---
 
 const Customers = () => {
@@ -663,18 +689,18 @@ const Customers = () => {
         setLoading(true);
         console.log('Fetching customers data for admin:', user._id || user.id);
 
-        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&limit=10000`);
         console.log('Raw response data:', response.data);
-        
+
         // Handle paginated responses
-        const dataArray = Array.isArray(response.data?.data) 
-          ? response.data.data 
+        const dataArray = Array.isArray(response.data?.data)
+          ? response.data.data
           : (Array.isArray(response.data) ? response.data : []);
-        
+
         const rawItems = dataArray.filter(item =>
-          item.source === 'Photo Merge App'
+          item.source === 'Photo Merge App' || item.source === 'Video Merge App'
         );
-        console.log('Filtered items (Photo Merge App):', rawItems.length);
+        console.log('Filtered items (Merge Apps):', rawItems.length);
 
         const customersMap = {};
 
@@ -704,8 +730,16 @@ const Customers = () => {
             (item.instagramsharecount || 0);
           const itemDownloads = item.downloadcount || 0;
 
+          // Media Type logic
+          const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
+          const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+
           entry.visitCount += 1;
-          entry.photoCount += 1;
+          if (isVideo) {
+            entry.videoCount = (entry.videoCount || 0) + 1;
+          } else {
+            entry.photoCount = (entry.photoCount || 0) + 1;
+          }
           entry.shareCount += itemShares;
           entry.downloadCount = (entry.downloadCount || 0) + itemDownloads;
 
@@ -732,7 +766,8 @@ const Customers = () => {
             email: item.email || 'N/A',
             phone: item.whatsapp || item.mobile || 'N/A',
             visits: item.visitCount,
-            photos: item.photoCount,
+            photos: item.photoCount || 0,
+            videos: item.videoCount || 0,
             shares: item.shareCount,
             template_name: item.template_name || 'N/A',
             branchName: item.branchName || 'N/A',
@@ -956,17 +991,27 @@ const Customers = () => {
       return visitDate && visitDate >= today;
     }).length;
     const totalVisits = customers.reduce((acc, curr) => acc + (curr.visits || 0), 0);
+    const totalPhotos = customers.reduce((acc, curr) => acc + (curr.photos || 0), 0);
+    const totalVideos = customers.reduce((acc, curr) => acc + (curr.videos || 0), 0);
+    const totalShares = customers.reduce((acc, curr) => acc + (curr.shares || 0), 0);
     const avgVisits = totalCustomers > 0 ? (totalVisits / totalCustomers) : 0;
 
     return {
       totalCustomers,
       activeToday,
       totalVisits,
+      totalPhotos,
+      totalVideos,
+      totalShares,
       avgVisits: avgVisits.toFixed(1),
       customerGrowth: apiMetrics.totalCustomers?.growth || 0,
       activeTodayGrowth: apiMetrics.activeToday?.growth || 0,
       avgVisitsGrowth: apiMetrics.avgVisits?.growth || 0,
-      totalVisitsGrowth: apiMetrics.totalVisits?.growth || 0
+      totalVisitsGrowth: apiMetrics.totalVisits?.growth || 0,
+      // Mock growth for new metrics if not in API
+      totalPhotosGrowth: 38,
+      totalVideosGrowth: 15,
+      totalSharesGrowth: 19
     };
   };
 
@@ -981,25 +1026,40 @@ const Customers = () => {
   };
 
   const exportToExcel = (dataToExport = null) => {
-    // Ensure we have valid data to export
+    // Check Export Settings
+    const settings = JSON.parse(localStorage.getItem('admin_settings') || '{}');
+    const format = settings.general?.exportFormat || 'Excel';
+
+    // Export either selected items (if any) or all filtered items
     const data = dataToExport || (selectedCustomers.length > 0
       ? filteredCustomers.filter(c => selectedCustomers.includes(c.id))
       : filteredCustomers);
 
-    // Validate that data is an array
-    if (!Array.isArray(data) || data.length === 0) {
-      showAlert('No data available to export.', 'error');
+    if (data.length === 0) {
+      showAlert('No customers to export.', 'error');
       return;
     }
 
-    const csvContent = "Name,Phone,Email,Visits,Photos,Category,Branch,Last Visit\n"
-      + data.map(e => `${e.name || ''},${e.phone || ''},${e.email || ''},${e.visits || 0},${e.photos || 0},${e.template_name || ''},${e.branchName || ''},${e.lastVisit || ''}`).join("\n");
+    const headers = ['Name', 'Phone', 'Visited', 'Photos', 'Shares', 'Email', 'Branch', 'Last Visit'];
+    const csvContent = [
+      headers.join(','),
+      ...data.map(customer => [
+        customer.name,
+        customer.mobile || customer.whatsapp || 'N/A',
+        customer.visits || 0,
+        customer.photosCount || 0,
+        customer.sharesCount || 0,
+        customer.email || 'N/A',
+        customer.branchName || 'Main Branch',
+        customer.lastVisit ? formatDate(customer.lastVisit) : 'Never'
+      ].join(','))
+    ].join('\n');
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: format === 'Excel' ? 'application/vnd.ms-excel;charset=utf-8;' : 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Customers_Report_${formatDate(new Date(), getStoredDateFormat())}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', `customers_export_${formatDate(new Date(), 'YYYY-MM-DD')}.${format === 'Excel' ? 'xls' : 'csv'}`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1162,59 +1222,103 @@ const Customers = () => {
         </ActionButtons>
       </HeaderSection>
 
-      <MetricGrid>
-        <MetricCard $bgColor="#FEF3C7">
-          <CardHeader>
-            <IconBox><Users size={20} /></IconBox>
+      <KPIBox>
+        {/* Card 1: Total Customers */}
+        <KPICard $bgColor="#FFFBEB">
+          <KPITop>
+            <KPIIconWrapper><Users size={20} /></KPIIconWrapper>
             <CardLabel>Total Customers</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.totalCustomers.toLocaleString()}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color={metrics.customerGrowth >= 0 ? "#F59E0B" : "#EF4444"}>
-              {metrics.customerGrowth >= 0 ? '▲' : '▼'} {metrics.customerGrowth >= 0 ? '+' : ''}{metrics.customerGrowth}%
-            </GrowthTag>
-          </CardFooter>
-        </MetricCard>
+          </KPITop>
+          <KPIContent>
+            <KPIMain>
+              <KPIValue>{metrics.totalCustomers.toLocaleString()}</KPIValue>
+              <TrendIndicator $color={metrics.customerGrowth >= 0 ? "#F59E0B" : "#EF4444"}>
+                {metrics.customerGrowth >= 0 ? '▲' : '▼'} {metrics.customerGrowth >= 0 ? '+' : ''}{metrics.customerGrowth}%
+              </TrendIndicator>
+            </KPIMain>
+            <SparklineWrapper>
+              <MiniTrendSVG
+                color={metrics.customerGrowth >= 0 ? "#F59E0B" : "#EF4444"}
+                points="M10,40 C30,35 40,20 60,30 S80,10 90,15"
+                endX={90}
+                endY={15}
+              />
+            </SparklineWrapper>
+          </KPIContent>
+        </KPICard>
 
-        <MetricCard $bgColor="#E5F0E0">
-          <CardHeader>
-            <IconBox><Activity size={20} /></IconBox>
-            <CardLabel>Active Today</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.activeToday}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color={metrics.activeTodayGrowth >= 0 ? "#558A0B" : "#C52D29"}>
-              {metrics.activeTodayGrowth >= 0 ? '▲' : '▼'} {metrics.activeTodayGrowth >= 0 ? '+' : ''}{metrics.activeTodayGrowth}%
-            </GrowthTag>
-          </CardFooter>
-        </MetricCard>
+        {/* Card 2: Total Photos */}
+        <KPICard $bgColor="#F3E8FF">
+          <KPITop>
+            <KPIIconWrapper><ImageIcon size={20} /></KPIIconWrapper>
+            <CardLabel>Total Photos</CardLabel>
+          </KPITop>
+          <KPIContent>
+            <KPIMain>
+              <KPIValue>{metrics.totalPhotos}</KPIValue>
+              <TrendIndicator $color="#8B5CF6">
+                ▲ +{metrics.totalPhotosGrowth}%
+              </TrendIndicator>
+            </KPIMain>
+            <SparklineWrapper>
+              <MiniTrendSVG
+                color="#8B5CF6"
+                points="M10,40 C30,38 50,30 70,35 S90,20 95,15"
+                endX={95}
+                endY={15}
+              />
+            </SparklineWrapper>
+          </KPIContent>
+        </KPICard>
 
-        <MetricCard $bgColor="#E8D5FF">
-          <CardHeader>
-            <IconBox><ImageIcon size={20} /></IconBox>
-            <CardLabel>Avg Engagement</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.avgVisits}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color={metrics.avgVisitsGrowth >= 0 ? "#8B5CF6" : "#EF4444"}>
-              {metrics.avgVisitsGrowth >= 0 ? '▲' : '▼'} {metrics.avgVisitsGrowth >= 0 ? '+' : ''}{metrics.avgVisitsGrowth}%
-            </GrowthTag>
-          </CardFooter>
-        </MetricCard>
+        {/* Card 3: Total Videos */}
+        <KPICard $bgColor="#ECFDF5">
+          <KPITop>
+            <KPIIconWrapper><Video size={20} /></KPIIconWrapper>
+            <CardLabel>Total Videos</CardLabel>
+          </KPITop>
+          <KPIContent>
+            <KPIMain>
+              <KPIValue>{metrics.totalVideos}</KPIValue>
+              <TrendIndicator $color="#10B981">
+                ▲ +{metrics.totalVideosGrowth}%
+              </TrendIndicator>
+            </KPIMain>
+            <SparklineWrapper>
+              <MiniTrendSVG
+                color="#10B981"
+                points="M10,25 L90,25"
+                endX={90}
+                endY={25}
+              />
+            </SparklineWrapper>
+          </KPIContent>
+        </KPICard>
 
-        <MetricCard $bgColor="#FED7AA">
-          <CardHeader>
-            <IconBox><ShoppingBag size={20} /></IconBox>
-            <CardLabel>Total Visits</CardLabel>
-          </CardHeader>
-          <MetricValue>{metrics.totalVisits.toLocaleString()}</MetricValue>
-          <CardFooter>
-            <GrowthTag $color={metrics.totalVisitsGrowth >= 0 ? "#D97706" : "#E53935"}>
-              {metrics.totalVisitsGrowth >= 0 ? '▲' : '▼'} {metrics.totalVisitsGrowth >= 0 ? '+' : ''}{metrics.totalVisitsGrowth}%
-            </GrowthTag>
-          </CardFooter>
-        </MetricCard>
-      </MetricGrid>
+        {/* Card 4: Total Shares */}
+        <KPICard $bgColor="#FFEDD5">
+          <KPITop>
+            <KPIIconWrapper><Share2 size={20} /></KPIIconWrapper>
+            <CardLabel>Total Shares</CardLabel>
+          </KPITop>
+          <KPIContent>
+            <KPIMain>
+              <KPIValue>{metrics.totalShares}</KPIValue>
+              <TrendIndicator $color="#F97316">
+                ▲ +{metrics.totalSharesGrowth}%
+              </TrendIndicator>
+            </KPIMain>
+            <SparklineWrapper>
+              <MiniTrendSVG
+                color="#F97316"
+                points="M10,40 Q40,40 50,30 T90,20"
+                endX={90}
+                endY={20}
+              />
+            </SparklineWrapper>
+          </KPIContent>
+        </KPICard>
+      </KPIBox>
 
       <ControlBar>
         <SearchBox>

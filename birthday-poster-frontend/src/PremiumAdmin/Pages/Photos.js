@@ -4,7 +4,7 @@ import {
   Image, Share2, Star, Download, Filter, Grid, List as ListIcon,
   MoreVertical, Calendar, Search, Trash2, ExternalLink, MessageCircle, Eye,
   BarChart2, ShoppingBag, X, ChevronLeft, ChevronRight, ChevronDown, CheckCircle,
-  AlertCircle, XCircle
+  AlertCircle, XCircle, Video
 } from 'react-feather';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -981,7 +981,7 @@ const Photos = () => {
     totalPages: 0
   });
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
+
   // Alert & Confirmation Modal States
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
@@ -1041,28 +1041,31 @@ const Photos = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('All Templates');
   const [selectedDateFilter, setSelectedDateFilter] = useState('All Time');
   const [selectedVisitFilter, setSelectedVisitFilter] = useState('All Visits');
+  const [selectedMediaType, setSelectedMediaType] = useState('All Media');
 
   // Dropdown visibility states
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showVisitDropdown, setShowVisitDropdown] = useState(false);
+  const [showMediaTypeDropdown, setShowMediaTypeDropdown] = useState(false);
 
   // Refs for outside click detection
   const branchRef = useRef(null);
   const templateRef = useRef(null);
   const dateRef = useRef(null);
   const visitRef = useRef(null);
+  const mediaTypeRef = useRef(null);
 
   const [stats, setStats] = useState({
-    total: 0,
-    today: 0,
-    shares: 0,
-    rating: '4.8',
+    totalPhotos: 0,
+    photosToday: 0,
+    totalVideos: 0,
+    videosToday: 0,
     totalPhotosGrowth: '0',
     photosTodayGrowth: '0',
-    sharesGrowth: '0',
-    ratingGrowth: '0'
+    totalVideosGrowth: '0',
+    videosTodayGrowth: '0'
   });
 
   const itemsPerPage = 12;
@@ -1074,6 +1077,7 @@ const Photos = () => {
       if (templateRef.current && !templateRef.current.contains(event.target)) setShowTemplateDropdown(false);
       if (dateRef.current && !dateRef.current.contains(event.target)) setShowDateDropdown(false);
       if (visitRef.current && !visitRef.current.contains(event.target)) setShowVisitDropdown(false);
+      if (mediaTypeRef.current && !mediaTypeRef.current.contains(event.target)) setShowMediaTypeDropdown(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -1090,19 +1094,19 @@ const Photos = () => {
       } else {
         setIsLoadingMore(true);
       }
-      
+
       // Use pagination to load photos in chunks for better performance
       const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
-      
+
       // Handle both paginated and non-paginated responses
-      const dataArray = Array.isArray(response.data?.data) 
-        ? response.data.data 
+      const dataArray = Array.isArray(response.data?.data)
+        ? response.data.data
         : (Array.isArray(response.data) ? response.data : []);
-      
+
       const data = dataArray.filter(item =>
-        item.source === 'Photo Merge App'
+        item.source === 'Photo Merge App' || item.source === 'Video Merge App'
       );
-      
+
       // Update pagination info if available
       if (response.data?.pagination) {
         setPagination(prev => ({
@@ -1123,8 +1127,8 @@ const Photos = () => {
               ...prev,
               totalPhotosGrowth: metrics.totalPhotosGrowth || '0',
               photosTodayGrowth: metrics.photosTodayGrowth || '0',
-              sharesGrowth: metrics.sharesGrowth || '0',
-              ratingGrowth: metrics.ratingGrowth || '0'
+              totalVideosGrowth: '0', // API might not have this split yet
+              videosTodayGrowth: '0'
             }));
           })
           .catch(metricsError => {
@@ -1158,6 +1162,8 @@ const Photos = () => {
       const processed = data.map((item, index) => {
         const phone = item.whatsapp || item.mobile || '';
         const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+        const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
+        const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
 
         return {
           id: item._id || index,
@@ -1177,7 +1183,9 @@ const Photos = () => {
             (item.twittersharecount || 0) +
             (item.instagramsharecount || 0),
           downloads: item.downloadcount || 0,
-          rating: calculatePhotoRating(item)
+          rating: calculatePhotoRating(item),
+          mediaType: isVideo ? 'Video' : 'Photo',
+          source: item.source
         };
       }).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -1191,30 +1199,48 @@ const Photos = () => {
 
       // Calculate Global Stats asynchronously (non-blocking) - only on initial load
       if (!append) {
-        // Use setTimeout to make stats calculation non-blocking
-        setTimeout(() => {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const todayCount = processed.filter(p => p.timestamp >= today.getTime()).length;
-          const totalShares = processed.reduce((acc, curr) => acc + curr.shares + curr.downloads, 0);
-          
-          // Calculate average rating from all photos
-          const avgRating = processed.length > 0
-            ? (processed.reduce((acc, curr) => acc + parseFloat(curr.rating), 0) / processed.length).toFixed(1)
-            : '4.5';
+        // Fetch a larger chunk specifically for stats calculation to ensure store-wide totals
+        axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`)
+          .then(async response => {
+            const dataArray = Array.isArray(response.data?.data)
+              ? response.data.data
+              : (Array.isArray(response.data) ? response.data : []);
 
-          // Set stats immediately without waiting for metrics
-          setStats({
-            total: response.data?.pagination?.total || processed.length,
-            today: todayCount,
-            shares: totalShares,
-            rating: avgRating,
-            totalPhotosGrowth: '0', // Will update when metrics load
-            photosTodayGrowth: '0', // Will update when metrics load
-            sharesGrowth: '0', // Will update when metrics load
-            ratingGrowth: '0' // Will update when metrics load
-          });
-        }, 0);
+            const filteredData = dataArray.filter(item =>
+              item.source === 'Photo Merge App' || item.source === 'Video Merge App'
+            );
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let totalPhotos = 0;
+            let totalVideos = 0;
+            let photosToday = 0;
+            let videosToday = 0;
+
+            filteredData.forEach(item => {
+              const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
+              const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+              const itemDate = new Date(item.date || item.createdAt);
+
+              if (isVideo) {
+                totalVideos++;
+                if (itemDate.getTime() >= today.getTime()) videosToday++;
+              } else {
+                totalPhotos++;
+                if (itemDate.getTime() >= today.getTime()) photosToday++;
+              }
+            });
+
+            setStats(prev => ({
+              ...prev,
+              totalPhotos,
+              totalVideos,
+              photosToday,
+              videosToday
+            }));
+          })
+          .catch(err => console.error("Error calculating gallery stats:", err));
       }
 
     } catch (error) {
@@ -1275,45 +1301,49 @@ const Photos = () => {
   // Memoize filtered photos for better performance
   const filteredPhotos = useMemo(() => {
     return photos.filter(photo => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         photo.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
         photo.template_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         photo.category?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesBranch = selectedBranch === 'All Branches' || photo.branch === selectedBranch;
       const matchesTemplate = selectedTemplate === 'All Templates' || photo.template_name === selectedTemplate || photo.category === selectedTemplate;
 
-    let matchesDate = true;
-    if (selectedDateFilter !== 'All Time') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const photoDate = new Date(photo.timestamp);
-      photoDate.setHours(0, 0, 0, 0);
+      let matchesDate = true;
+      if (selectedDateFilter !== 'All Time') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const photoDate = new Date(photo.timestamp);
+        photoDate.setHours(0, 0, 0, 0);
 
-      if (selectedDateFilter === 'Today') matchesDate = photoDate.getTime() === today.getTime();
-      else if (selectedDateFilter === 'Yesterday') {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        matchesDate = photoDate.getTime() === yesterday.getTime();
+        if (selectedDateFilter === 'Today') matchesDate = photoDate.getTime() === today.getTime();
+        else if (selectedDateFilter === 'Yesterday') {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          matchesDate = photoDate.getTime() === yesterday.getTime();
+        }
+        else if (selectedDateFilter === 'Last 7 Days') {
+          const last7 = new Date(today);
+          last7.setDate(last7.getDate() - 7);
+          matchesDate = photoDate >= last7;
+        }
+        else if (selectedDateFilter === 'Last 30 Days') {
+          const last30 = new Date(today);
+          last30.setDate(last30.getDate() - 30);
+          matchesDate = photoDate >= last30;
+        }
       }
-      else if (selectedDateFilter === 'Last 7 Days') {
-        const last7 = new Date(today);
-        last7.setDate(last7.getDate() - 7);
-        matchesDate = photoDate >= last7;
-      }
-      else if (selectedDateFilter === 'Last 30 Days') {
-        const last30 = new Date(today);
-        last30.setDate(last30.getDate() - 30);
-        matchesDate = photoDate >= last30;
-      }
-    }
 
-    let matchesVisits = true;
-    if (selectedVisitFilter === 'Most Visited (>10)') matchesVisits = photo.views > 10;
-    else if (selectedVisitFilter === 'Low Engagement (<5)') matchesVisits = photo.views < 5;
+      let matchesVisits = true;
+      if (selectedVisitFilter === 'Most Visited (>10)') matchesVisits = photo.views > 10;
+      else if (selectedVisitFilter === 'Low Engagement (<5)') matchesVisits = photo.views < 5;
 
-    return matchesSearch && matchesBranch && matchesTemplate && matchesDate && matchesVisits;
+      const matchesMediaType = selectedMediaType === 'All Media' ||
+        (selectedMediaType === 'Photos Only' && photo.mediaType === 'Photo') ||
+        (selectedMediaType === 'Videos Only' && photo.mediaType === 'Video');
+
+      return matchesSearch && matchesBranch && matchesTemplate && matchesDate && matchesVisits && matchesMediaType;
     });
-  }, [photos, searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter]);
+  }, [photos, searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter, selectedMediaType]);
 
   const exportToExcel = (dataToExport = null) => {
     const finalData = dataToExport || (selectedPhotos.length > 0
@@ -1415,7 +1445,7 @@ const Photos = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter]);
+  }, [searchQuery, selectedBranch, selectedTemplate, selectedDateFilter, selectedVisitFilter, selectedMediaType]);
 
   // Pagination Logic - Use server-side pagination for better performance
   // For display, we still use client-side pagination on the filtered results
@@ -1423,7 +1453,7 @@ const Photos = () => {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentPhotos = filteredPhotos.slice(indexOfFirstItem, indexOfLastItem);
-  
+
   // Load more photos earlier (when 2 pages from end) for smoother experience
   useEffect(() => {
     if (currentPage >= displayTotalPages - 2 && pagination.page < pagination.totalPages && !loading && !isLoadingMore && filteredPhotos.length > 0) {
@@ -1491,7 +1521,7 @@ const Photos = () => {
     <PageContainer>
       <HeaderSection>
         <HeaderTitle>
-          <h1>Photo Gallery</h1>
+          <h1>Gallery</h1>
           <p>Manage customer photos, interactions, and engagement</p>
         </HeaderTitle>
         <HeaderActions>
@@ -1510,13 +1540,13 @@ const Photos = () => {
         {(() => {
           const totalPhotosTrend = generateTrendPath(stats.totalPhotosGrowth);
           const photosTodayTrend = generateTrendPath(stats.photosTodayGrowth);
-          const sharesTrend = generateTrendPath(stats.sharesGrowth);
-          const ratingTrend = generateTrendPath(stats.ratingGrowth);
+          const totalVideosTrend = generateTrendPath(stats.totalVideosGrowth);
+          const videosTodayTrend = generateTrendPath(stats.videosTodayGrowth);
 
           return [
             {
               label: 'Total Photos',
-              value: stats.total.toLocaleString(),
+              value: stats.totalPhotos.toLocaleString(),
               change: stats.totalPhotosGrowth ? `${parseFloat(stats.totalPhotosGrowth) >= 0 ? '+' : ''}${stats.totalPhotosGrowth}%` : '0%',
               icon: <Image size={20} />,
               bgColor: '#FEF3C7',
@@ -1527,7 +1557,7 @@ const Photos = () => {
             },
             {
               label: 'Photos Today',
-              value: stats.today.toLocaleString(),
+              value: stats.photosToday.toLocaleString(),
               change: stats.photosTodayGrowth ? `${parseFloat(stats.photosTodayGrowth) >= 0 ? '+' : ''}${stats.photosTodayGrowth}%` : '0%',
               icon: <Calendar size={20} />,
               bgColor: '#D1FAE5',
@@ -1537,26 +1567,26 @@ const Photos = () => {
               endY: photosTodayTrend.endY
             },
             {
-              label: 'Total Shares',
-              value: stats.shares.toLocaleString(),
-              change: stats.sharesGrowth ? `${parseFloat(stats.sharesGrowth) >= 0 ? '+' : ''}${stats.sharesGrowth}%` : '0%',
-              icon: <Share2 size={20} />,
+              label: 'Total Videos',
+              value: stats.totalVideos.toLocaleString(),
+              change: stats.totalVideosGrowth ? `${parseFloat(stats.totalVideosGrowth) >= 0 ? '+' : ''}${stats.totalVideosGrowth}%` : '0%',
+              icon: <Video size={20} />,
               bgColor: '#E8DEE8',
               trendColor: '#7A3A95',
-              points: sharesTrend.points,
-              endX: sharesTrend.endX,
-              endY: sharesTrend.endY
+              points: totalVideosTrend.points,
+              endX: totalVideosTrend.endX,
+              endY: totalVideosTrend.endY
             },
             {
-              label: 'Avg Rating',
-              value: stats.rating,
-              change: stats.ratingGrowth ? `${parseFloat(stats.ratingGrowth) >= 0 ? '+' : ''}${stats.ratingGrowth}%` : '0%',
-              icon: <Star size={20} />,
+              label: 'Videos Today',
+              value: stats.videosToday.toLocaleString(),
+              change: stats.videosTodayGrowth ? `${parseFloat(stats.videosTodayGrowth) >= 0 ? '+' : ''}${stats.videosTodayGrowth}%` : '0%',
+              icon: <Video size={20} />,
               bgColor: '#FED7AA',
               trendColor: '#F97316',
-              points: ratingTrend.points,
-              endX: ratingTrend.endX,
-              endY: ratingTrend.endY
+              points: videosTodayTrend.points,
+              endX: videosTodayTrend.endX,
+              endY: videosTodayTrend.endY
             }
           ];
         })().map((kpi, idx) => (
@@ -1603,6 +1633,40 @@ const Photos = () => {
 
       <FilterSection>
         <ControlBar>
+          {/* Media Type Filter */}
+          <DropdownContainer ref={mediaTypeRef}>
+            <DropdownButton
+              $isOpen={showMediaTypeDropdown}
+              onClick={() => setShowMediaTypeDropdown(!showMediaTypeDropdown)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {selectedMediaType === 'Videos Only' ? <Video size={16} /> : <Image size={16} />}
+                {selectedMediaType}
+              </div>
+              <ChevronDown size={16} />
+            </DropdownButton>
+            <DropdownMenu $isOpen={showMediaTypeDropdown}>
+              {['All Media', 'Photos Only', 'Videos Only'].map(m => (
+                <DropdownItem
+                  key={m}
+                  $active={selectedMediaType === m}
+                  onClick={() => {
+                    setSelectedMediaType(m);
+                    setShowMediaTypeDropdown(false);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {m === 'All Media' && <Filter size={14} />}
+                    {m === 'Photos Only' && <Image size={14} />}
+                    {m === 'Videos Only' && <Video size={14} />}
+                    {m}
+                  </div>
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </DropdownContainer>
+
           {/* Template Filter */}
           <DropdownContainer ref={templateRef}>
             <DropdownButton
@@ -1757,6 +1821,7 @@ const Photos = () => {
                 setSelectedBranch('All Branches');
                 setSelectedDateFilter('All Time');
                 setSelectedVisitFilter('All Visits');
+                setSelectedMediaType('All Media');
                 setCurrentPage(1);
               }}
             >
@@ -1818,9 +1883,9 @@ const Photos = () => {
             <>
               {[...Array(8)].map((_, i) => (
                 <PhotoCard key={`skeleton-${i}`} style={{ opacity: 0.6 }}>
-                  <div style={{ 
-                    width: '100%', 
-                    height: '200px', 
+                  <div style={{
+                    width: '100%',
+                    height: '200px',
                     background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
                     backgroundSize: '200% 100%',
                     animation: 'shimmer 1.5s infinite',

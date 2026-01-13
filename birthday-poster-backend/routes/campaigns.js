@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
   try {
     const { adminid, status, type, page = 1, limit = 50 } = req.query;
     const query = {};
-    
+
     if (adminid) {
       query.adminid = adminid;
     }
@@ -26,19 +26,19 @@ router.get('/', async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     console.log('Fetching campaigns with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
-    
+
     // Get total count for pagination
     const total = await Campaign.countDocuments(query);
-    
+
     // Get paginated campaigns
     const campaigns = await Campaign.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
       .lean();
-    
+
     console.log(`Found ${campaigns.length} campaigns (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
-    
+
     res.json({
       data: campaigns || [],
       pagination: {
@@ -178,7 +178,7 @@ router.get('/target/customers', async (req, res) => {
   try {
     const { adminid, template_name } = req.query;
     const query = { source: 'Photo Merge App' };
-    
+
     if (adminid) {
       query.adminid = adminid;
     }
@@ -187,13 +187,13 @@ router.get('/target/customers', async (req, res) => {
     }
 
     const media = await Media.find(query);
-    
+
     // Group by customer (phone/name)
     const customersMap = {};
     media.forEach(item => {
       const phone = item.whatsapp || item.mobile || '';
       const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-      
+
       if (!customersMap[key]) {
         customersMap[key] = {
           name: item.name || 'Unknown',
@@ -201,12 +201,14 @@ router.get('/target/customers', async (req, res) => {
           whatsapp: phone,
           phone: phone,
           photoCount: 0,
-          latestUpload: item.createdAt
+          latestUpload: item.createdAt,
+          latestMediaId: item._id
         };
       }
       customersMap[key].photoCount += 1;
       if (new Date(item.createdAt) > new Date(customersMap[key].latestUpload)) {
         customersMap[key].latestUpload = item.createdAt;
+        customersMap[key].latestMediaId = item._id;
       }
     });
 
@@ -268,9 +270,9 @@ const sendWhatsAppMessage = async (toNumber, message, templateId) => {
     return { success: true, response: response.data };
   } catch (error) {
     console.error('WhatsApp sending error:', error.response?.data || error.message);
-    return { 
-      success: false, 
-      error: error.response?.data?.message || error.message || 'Failed to send WhatsApp message' 
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to send WhatsApp message'
     };
   }
 };
@@ -293,13 +295,13 @@ router.post('/:id/send', async (req, res) => {
     }
 
     const media = await Media.find(query);
-    
+
     // Group unique customers with valid WhatsApp numbers
     const customersMap = {};
     media.forEach(item => {
       const phone = item.whatsapp || item.mobile || '';
       const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-      
+
       if (!customersMap[key] && phone && phone !== 'N/A') {
         customersMap[key] = {
           name: item.name || 'Unknown',
@@ -314,8 +316,8 @@ router.post('/:id/send', async (req, res) => {
     const totalCustomers = customers.length;
 
     if (totalCustomers === 0) {
-      return res.status(400).json({ 
-        error: 'No valid customers found with WhatsApp numbers for this campaign' 
+      return res.status(400).json({
+        error: 'No valid customers found with WhatsApp numbers for this campaign'
       });
     }
 
@@ -333,15 +335,15 @@ router.post('/:id/send', async (req, res) => {
       const batchSize = 10;
       for (let i = 0; i < customers.length; i += batchSize) {
         const batch = customers.slice(i, i + batchSize);
-        
+
         const sendPromises = batch.map(async (customer) => {
           try {
             const result = await sendWhatsAppMessage(
-              customer.whatsapp, 
+              customer.whatsapp,
               campaignMessage,
               templateId
             );
-            
+
             if (result.success) {
               sentCount++;
               deliveredCount++;
@@ -360,7 +362,7 @@ router.post('/:id/send', async (req, res) => {
         });
 
         await Promise.all(sendPromises);
-        
+
         // Small delay between batches to avoid rate limiting
         if (i + batchSize < customers.length) {
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -372,7 +374,7 @@ router.post('/:id/send', async (req, res) => {
       sentCount = totalCustomers;
       deliveredCount = totalCustomers;
     }
-    
+
     // Update campaign stats
     campaign.sent = sentCount;
     campaign.delivered = deliveredCount;
@@ -381,7 +383,7 @@ router.post('/:id/send', async (req, res) => {
     campaign.updatedAt = new Date();
     await campaign.save();
 
-    const responseMessage = campaign.type === 'WhatsApp' 
+    const responseMessage = campaign.type === 'WhatsApp'
       ? `Campaign sent: ${deliveredCount} delivered, ${failedCount} failed out of ${totalCustomers} customers`
       : `Campaign sent to ${sentCount} customers`;
 
@@ -399,9 +401,9 @@ router.post('/:id/send', async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending campaign:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to send campaign',
-      details: error.message 
+      details: error.message
     });
   }
 });

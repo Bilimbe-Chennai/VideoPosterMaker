@@ -1712,7 +1712,7 @@ const Templates = () => {
                                             onChange={e => setFormData({ ...formData, accessType: e.target.value })}
                                         >
                                             {(userAccess.length === 0 || userAccess.includes('photomerge')) && <option value="photomerge">Photo Merge</option>}
-                                            {(userAccess.length === 0 || userAccess.includes('videovideo')) && <option value="videovideo">Video + Video</option>}
+                                            {(userAccess.length === 0 || userAccess.includes('videomerge')) && <option value="videomerge">Video Merge</option>}
                                             {(userAccess.length === 0 || userAccess.includes('videovideovideo')) && <option value="videovideovideo">Video + Video + Video</option>}
                                         </select>
                                     </FormGroup>

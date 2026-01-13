@@ -3,9 +3,8 @@ const Media = require('../models/Media');
 const axios = require('axios');
 
 // Helper function to send WhatsApp message (same as in campaigns.js)
-const sendWhatsAppMessage = async (toNumber, message, templateId) => {
+const sendWhatsAppMessage = async (toNumber, message, templateId, token) => {
   try {
-    const token = process.env.CHATMYBOT_TOKEN;
     if (!token) {
       throw new Error('ChatMyBot token not configured');
     }
@@ -15,7 +14,7 @@ const sendWhatsAppMessage = async (toNumber, message, templateId) => {
         to: toNumber,
         type: "template",
         template: {
-          id: templateId || process.env.WHATSAPP_TEMPLATE_ID,
+          id: templateId,
           language: {
             code: "en",
           },
@@ -52,17 +51,27 @@ const sendWhatsAppMessage = async (toNumber, message, templateId) => {
     return { success: true, response: response.data };
   } catch (error) {
     console.error('WhatsApp sending error:', error.response?.data || error.message);
-    return { 
-      success: false, 
-      error: error.response?.data?.message || error.message || 'Failed to send WhatsApp message' 
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to send WhatsApp message'
     };
   }
 };
+
+const { getAdminSettings } = require('./settingsUtils');
 
 // Function to automatically send a scheduled campaign
 const sendScheduledCampaign = async (campaign) => {
   try {
     console.log(`[Campaign Scheduler] Processing scheduled campaign: ${campaign.name} (ID: ${campaign._id})`);
+
+    // Fetch Admin Settings for Dynamic Integrations
+    const adminSettings = await getAdminSettings(campaign.adminid);
+    const waToken = adminSettings.integrations?.whatsapp?.apiKey || process.env.CHATMYBOT_TOKEN;
+
+    // Determine Template ID: Use campaign-specific template if available, else Settings template (not yet in settings UI but good to have fallback), else Env
+    // For now campaign usually has template_name properly resolved to an ID or we assume standard one
+    const defaultTemplateId = process.env.WHATSAPP_TEMPLATE_ID_APP || process.env.WHATSAPP_TEMPLATE_ID;
 
     // Get target customers
     const query = { source: campaign.targetAudience?.source || 'Photo Merge App' };
@@ -74,13 +83,13 @@ const sendScheduledCampaign = async (campaign) => {
     }
 
     const media = await Media.find(query);
-    
+
     // Group unique customers with valid WhatsApp numbers
     const customersMap = {};
     media.forEach(item => {
       const phone = item.whatsapp || item.mobile || '';
       const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-      
+
       if (!customersMap[key] && phone && phone !== 'N/A') {
         customersMap[key] = {
           name: item.name || 'Unknown',
@@ -110,21 +119,21 @@ const sendScheduledCampaign = async (campaign) => {
     // Send messages based on campaign type
     if (campaign.type === 'WhatsApp') {
       const campaignMessage = campaign.message || `Hello! Check out our latest campaign: ${campaign.name}`;
-      const templateId = process.env.WHATSAPP_TEMPLATE_ID_APP || process.env.WHATSAPP_TEMPLATE_ID;
 
       // Send messages in batches (process 10 at a time to avoid rate limits)
       const batchSize = 10;
       for (let i = 0; i < customers.length; i += batchSize) {
         const batch = customers.slice(i, i + batchSize);
-        
+
         const sendPromises = batch.map(async (customer) => {
           try {
             const result = await sendWhatsAppMessage(
-              customer.whatsapp, 
+              customer.whatsapp,
               campaignMessage,
-              templateId
+              defaultTemplateId,
+              waToken
             );
-            
+
             if (result.success) {
               sentCount++;
               deliveredCount++;
@@ -143,7 +152,7 @@ const sendScheduledCampaign = async (campaign) => {
         });
 
         await Promise.all(sendPromises);
-        
+
         // Small delay between batches to avoid rate limiting
         if (i + batchSize < customers.length) {
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -154,7 +163,7 @@ const sendScheduledCampaign = async (campaign) => {
       sentCount = totalCustomers;
       deliveredCount = totalCustomers;
     }
-    
+
     // Update campaign stats
     campaign.sent = sentCount;
     campaign.delivered = deliveredCount;
@@ -177,12 +186,12 @@ const sendScheduledCampaign = async (campaign) => {
     };
   } catch (error) {
     console.error(`[Campaign Scheduler] Error sending campaign ${campaign._id}:`, error);
-    
+
     // Mark campaign as failed
     campaign.status = 'Failed';
     campaign.updatedAt = new Date();
     await campaign.save().catch(err => console.error('Error updating campaign status:', err));
-    
+
     return { success: false, error: error.message };
   }
 };
@@ -191,7 +200,7 @@ const sendScheduledCampaign = async (campaign) => {
 const checkAndActivateScheduledCampaigns = async () => {
   try {
     const now = new Date();
-    
+
     // Find campaigns that are scheduled and should be activated
     const scheduledCampaigns = await Campaign.find({
       status: 'Scheduled',
@@ -220,17 +229,17 @@ const checkAndActivateScheduledCampaigns = async () => {
 // Start the scheduler
 const startCampaignScheduler = () => {
   console.log('[Campaign Scheduler] Starting campaign scheduler...');
-  
+
   // Check immediately on startup
   checkAndActivateScheduledCampaigns();
-  
+
   // Then check every minute (60000 ms)
   const interval = setInterval(() => {
     checkAndActivateScheduledCampaigns();
   }, 60000); // Check every 1 minute
 
   console.log('[Campaign Scheduler] Campaign scheduler started. Checking every 1 minute for scheduled campaigns.');
-  
+
   return interval;
 };
 

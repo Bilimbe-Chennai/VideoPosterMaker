@@ -6,7 +6,7 @@ const Notification = require('../models/Notification');
 router.get('/', async (req, res) => {
   try {
     const { adminid } = req.query;
-    
+
     if (!adminid) {
       return res.status(400).json({ success: false, message: 'Admin ID is required.' });
     }
@@ -66,10 +66,10 @@ router.post('/mark-all-read', async (req, res) => {
       { isRead: true }
     );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'All notifications marked as read.',
-      count: result.modifiedCount 
+      count: result.modifiedCount
     });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
@@ -104,6 +104,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+const { getAdminSettings } = require('../utils/settingsUtils');
+
 // POST: Create or update notification
 router.post('/', async (req, res) => {
   try {
@@ -111,6 +113,25 @@ router.post('/', async (req, res) => {
 
     if (!adminid || !notificationId || !title || !message) {
       return res.status(400).json({ success: false, message: 'Admin ID, notification ID, title, and message are required.' });
+    }
+
+    // Check Settings Before Saving/Sending
+    const settings = await getAdminSettings(adminid);
+    const notificationsSettings = settings.notifications;
+
+    // Mapping category 'system', 'campaign', 'export' etc to settings keys
+    // onPhoto, onShare, onCampaign, onReport, onBackup
+    let shouldNotify = true;
+
+    // Very simple mapping for now
+    if (category === 'campaign' && !notificationsSettings.onCampaign) shouldNotify = false;
+    if (category === 'photo' && !notificationsSettings.onPhoto) shouldNotify = false;
+    if (category === 'share' && !notificationsSettings.onShare) shouldNotify = false;
+    if (category === 'report' && !notificationsSettings.onReport) shouldNotify = false;
+    if (category === 'backup' && !notificationsSettings.onBackup) shouldNotify = false;
+
+    if (!shouldNotify) {
+      return res.json({ success: true, message: 'Notification skipped by user settings.', skipped: true });
     }
 
     // Check if notification already exists

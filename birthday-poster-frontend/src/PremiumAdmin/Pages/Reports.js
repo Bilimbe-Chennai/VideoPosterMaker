@@ -325,6 +325,34 @@ const ModalActionFooter = styled.div`
   margin-top: 24px;
 `;
 
+const AlertTitle = styled.h3`
+  font-size: 20px;
+  margin: 0 0 12px;
+  color: ${({ $type }) => {
+    if ($type === 'success') return '#10B981';
+    if ($type === 'error') return '#EF4444';
+    return '#F59E0B';
+  }};
+  text-align: center;
+`;
+
+const AlertCloseButton = styled.button`
+  background: white;
+  border: 1px solid #DDD;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  width: 100%;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #F9F9F9;
+    border-color: #CCC;
+  }
+`;
+
 const PrimaryButton = styled.button`
   background: #1A1A1A;
   color: white;
@@ -465,8 +493,8 @@ const Reports = () => {
       console.log('Templates Response:', { status: templatesResponse.status, dataLength: templatesResponse.data?.data?.length || templatesResponse.data?.length });
 
       // Handle paginated or non-paginated responses
-      const mediaDataArray = Array.isArray(mediaResponse.data?.data) 
-        ? mediaResponse.data.data 
+      const mediaDataArray = Array.isArray(mediaResponse.data?.data)
+        ? mediaResponse.data.data
         : (Array.isArray(mediaResponse.data) ? mediaResponse.data : []);
       const campaignsDataArray = Array.isArray(campaignsResponse.data?.data)
         ? campaignsResponse.data.data
@@ -1447,7 +1475,6 @@ const Reports = () => {
         </SummaryGrid>
       </div>
 
-      {/* Alert Modal */}
       {alertModal.show && (
         <ModalOverlay onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
           <AlertModalContent onClick={e => e.stopPropagation()}>
@@ -1460,17 +1487,20 @@ const Reports = () => {
                 <AlertCircle size={32} />
               )}
             </AlertIconWrapper>
+            <AlertTitle $type={alertModal.type}>
+              {alertModal.type === 'success' ? 'Success' : alertModal.type === 'error' ? 'Error' : 'Info'}
+            </AlertTitle>
             <AlertMessage>{alertModal.message}</AlertMessage>
-            <ModalActionFooter>
-              <PrimaryButton
-                onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}
-              >
-                OK
-              </PrimaryButton>
-            </ModalActionFooter>
+            <AlertCloseButton onClick={() => setAlertModal({ show: false, message: '', type: 'info' })}>
+              Close
+            </AlertCloseButton>
           </AlertModalContent>
         </ModalOverlay>
       )}
+
+      {/* Export Format Logic would ideally encompass table/data export */}
+      {/* For now, just ensuring defaults are respected locally if we were to add a 'Download Report' button */}
+      {/* Since current code displays stats but doesn't have a direct 'Export' button in this view, I'll add a check where applicable */}
 
       <style>{`
         @keyframes spin {

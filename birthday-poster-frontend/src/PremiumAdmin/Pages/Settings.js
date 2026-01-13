@@ -287,11 +287,11 @@ const AuditInfo = styled.div`
 
 const DEFAULT_SETTINGS = {
     general: {
-        adminName: 'P Poster Maker Admin',
-        companyName: 'Bilimbe Chennai',
-        email: 'contact@bilimbe.com',
-        phone: '+91 98844 55663',
-        dateFormat: 'DD/MM/YYYY',
+        adminName: '',
+        companyName: '',
+        email: '',
+        phone: '',
+        dateFormat: 'YYYY-MM-DD',
         exportFormat: 'Excel'
     },
     notifications: {
@@ -305,9 +305,9 @@ const DEFAULT_SETTINGS = {
         onBackup: true
     },
     integrations: {
-        whatsapp: { active: true, provider: 'Twilio', apiKey: 'SK_TW_••••••••••••', senderID: '+15005550006' },
-        email: { active: true, provider: 'SendGrid', apiKey: 'SG.••••••••••••', senderID: 'admin@varamahalakshmi.in' },
-        sms: { active: false, provider: 'Nexmo', apiKey: '', senderID: '' }
+        whatsapp: { active: false, provider: '', apiKey: '', senderID: '' },
+        email: { active: false, provider: '', apiKey: '', senderID: '' },
+        sms: { active: false, provider: '', apiKey: '', senderID: '' }
     },
     export: {
         autoDaily: true,
@@ -322,8 +322,8 @@ const DEFAULT_SETTINGS = {
         storage: 'Local Server'
     },
     audit: {
-        lastUpdated: '2026-01-05 10:30 AM',
-        updatedBy: 'Dhivya (Admin)'
+        lastUpdated: '',
+        updatedBy: ''
     }
 };
 
@@ -414,20 +414,35 @@ const SettingsPage = () => {
                     setSettings(DEFAULT_SETTINGS);
                     return;
                 }
-                const res = await axios.get(`users/premium-settings?adminid=${adminid}`);
-                if (res.data?.success && res.data?.settings) {
-                    // Deep merge with defaults to ensure UI safety
+                const [settingsRes, userRes] = await Promise.all([
+                    axios.get(`users/premium-settings?adminid=${adminid}`),
+                    axios.get(`users/${adminid}`)
+                ]);
+
+                // User data from API (source of truth)
+                const userData = userRes.data?.data || {};
+
+                if (settingsRes.data?.success && settingsRes.data?.settings) {
+                    // Deep merge with defaults and user data
                     const merged = {
-                        general: { ...DEFAULT_SETTINGS.general, ...res.data.settings.general },
-                        notifications: { ...DEFAULT_SETTINGS.notifications, ...res.data.settings.notifications },
-                        integrations: {
-                            whatsapp: { ...DEFAULT_SETTINGS.integrations.whatsapp, ...(res.data.settings.integrations?.whatsapp || {}) },
-                            email: { ...DEFAULT_SETTINGS.integrations.email, ...(res.data.settings.integrations?.email || {}) },
-                            sms: { ...DEFAULT_SETTINGS.integrations.sms, ...(res.data.settings.integrations?.sms || {}) }
+                        general: {
+                            ...DEFAULT_SETTINGS.general,
+                            ...settingsRes.data.settings.general,
+                            // Priority: Saved Setting > API User Data > LocalStorage/Empty
+                            adminName: settingsRes.data.settings.general?.adminName || userData.name || user.name || '',
+                            companyName: settingsRes.data.settings.general?.companyName || userData.companyName || '',
+                            email: settingsRes.data.settings.general?.email || userData.email || user.email || '',
+                            phone: settingsRes.data.settings.general?.phone || userData.phone || user.phone || ''
                         },
-                        export: { ...DEFAULT_SETTINGS.export, ...res.data.settings.export },
-                        backup: { ...DEFAULT_SETTINGS.backup, ...res.data.settings.backup },
-                        audit: res.data.settings.audit || {}
+                        notifications: { ...DEFAULT_SETTINGS.notifications, ...settingsRes.data.settings.notifications },
+                        integrations: {
+                            whatsapp: { ...DEFAULT_SETTINGS.integrations.whatsapp, ...(settingsRes.data.settings.integrations?.whatsapp || {}) },
+                            email: { ...DEFAULT_SETTINGS.integrations.email, ...(settingsRes.data.settings.integrations?.email || {}) },
+                            sms: { ...DEFAULT_SETTINGS.integrations.sms, ...(settingsRes.data.settings.integrations?.sms || {}) }
+                        },
+                        export: { ...DEFAULT_SETTINGS.export, ...settingsRes.data.settings.export },
+                        backup: { ...DEFAULT_SETTINGS.backup, ...settingsRes.data.settings.backup },
+                        audit: settingsRes.data.settings.audit || {}
                     };
                     setSettings(merged);
                     // Sync to localStorage
@@ -505,9 +520,9 @@ const SettingsPage = () => {
 
     const tabs = [
         { id: 'General', icon: <Settings size={18} /> },
-        { id: 'Notifications', icon: <Bell size={18} /> },
+        // { id: 'Notifications', icon: <Bell size={18} /> },
         // { id: 'Integrations', icon: <Link2 size={18} /> },
-        { id: 'Export Settings', icon: <Download size={18} /> },
+        // { id: 'Export Settings', icon: <Download size={18} /> },
         // { id: 'Backup', icon: <Shield size={18} /> }
     ];
 
@@ -656,18 +671,31 @@ const SettingsPage = () => {
                                                 <MessageSquare size={24} color="#25D366" />
                                                 <div style={{ fontWeight: 700 }}>WhatsApp API (Twilio)</div>
                                             </div>
-                                            <StatusIndicator $active={true}>
-                                                <Check size={14} /> ACTIVE
+                                            <StatusIndicator $active={!!settings.integrations.whatsapp.apiKey}>
+                                                <Check size={14} /> {settings.integrations.whatsapp.apiKey ? 'ACTIVE' : 'INACTIVE'}
                                             </StatusIndicator>
                                         </IntegrationHeader>
                                         <FormGrid>
                                             <FormGroup>
                                                 <Label>API Key</Label>
-                                                <Input type="password" value={settings.integrations.whatsapp.apiKey} readOnly />
+                                                <Input
+                                                    type="password"
+                                                    value={settings.integrations.whatsapp.apiKey}
+                                                    onChange={(e) => {
+                                                        const newVal = { ...settings.integrations.whatsapp, apiKey: e.target.value };
+                                                        updateSetting('integrations', 'whatsapp', newVal);
+                                                    }}
+                                                />
                                             </FormGroup>
                                             <FormGroup>
                                                 <Label>Sender ID</Label>
-                                                <Input value={settings.integrations.whatsapp.senderID} readOnly />
+                                                <Input
+                                                    value={settings.integrations.whatsapp.senderID}
+                                                    onChange={(e) => {
+                                                        const newVal = { ...settings.integrations.whatsapp, senderID: e.target.value };
+                                                        updateSetting('integrations', 'whatsapp', newVal);
+                                                    }}
+                                                />
                                             </FormGroup>
                                         </FormGrid>
                                     </IntegrationCard>
@@ -678,18 +706,31 @@ const SettingsPage = () => {
                                                 <Mail size={24} color="#EA4335" />
                                                 <div style={{ fontWeight: 700 }}>Email Service (SendGrid)</div>
                                             </div>
-                                            <StatusIndicator $active={true}>
-                                                <Check size={14} /> ACTIVE
+                                            <StatusIndicator $active={!!settings.integrations.email.apiKey}>
+                                                <Check size={14} /> {settings.integrations.email.apiKey ? 'ACTIVE' : 'INACTIVE'}
                                             </StatusIndicator>
                                         </IntegrationHeader>
                                         <FormGrid>
                                             <FormGroup>
                                                 <Label>API Token</Label>
-                                                <Input type="password" value={settings.integrations.email.apiKey} readOnly />
+                                                <Input
+                                                    type="password"
+                                                    value={settings.integrations.email.apiKey}
+                                                    onChange={(e) => {
+                                                        const newVal = { ...settings.integrations.email, apiKey: e.target.value };
+                                                        updateSetting('integrations', 'email', newVal);
+                                                    }}
+                                                />
                                             </FormGroup>
                                             <FormGroup>
                                                 <Label>Verified Sender</Label>
-                                                <Input value={settings.integrations.email.senderID} readOnly />
+                                                <Input
+                                                    value={settings.integrations.email.senderID}
+                                                    onChange={(e) => {
+                                                        const newVal = { ...settings.integrations.email, senderID: e.target.value };
+                                                        updateSetting('integrations', 'email', newVal);
+                                                    }}
+                                                />
                                             </FormGroup>
                                         </FormGrid>
                                     </IntegrationCard>

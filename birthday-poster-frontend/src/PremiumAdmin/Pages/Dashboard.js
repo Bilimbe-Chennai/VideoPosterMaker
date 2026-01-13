@@ -20,7 +20,8 @@ import {
   Eye,
   Info,
   Facebook,
-  MoreHorizontal
+  MoreHorizontal,
+  Video
 } from 'react-feather';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
@@ -580,12 +581,12 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     totalCustomers: 0,
     totalPhotos: 0,
-    photosToday: 0,
+    totalVideos: 0,
     totalShares: 0,
     conversion: '0%',
     customerGrowth: 0,
     photosGrowth: 0,
-    photosTodayGrowth: 0,
+    totalVideosGrowth: 0,
     sharesGrowth: 0
   });
   const [topCustomersData, setTopCustomersData] = useState([]);
@@ -599,7 +600,7 @@ const Dashboard = () => {
         // Data should always display correctly regardless of metrics
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`);
         console.log('DATA API Response - Total items:', response.data?.data?.length || response.data?.length || 0);
-        
+
         // STEP 2: Fetch METRICS separately (only for growth percentages)
         // Metrics do NOT affect data display
         let apiMetrics = {};
@@ -614,17 +615,21 @@ const Dashboard = () => {
 
         // DATA PROCESSING: Handle both paginated and non-paginated responses
         // Don't filter by source - show all available data
-        // Data display is completely independent of metrics
-        const rawItems = Array.isArray(response.data?.data) 
-          ? response.data.data 
+        const dataArray = Array.isArray(response.data?.data)
+          ? response.data.data
           : (Array.isArray(response.data) ? response.data : []);
-        console.log('DATA Processing - Raw items count:', rawItems.length);
-        const totalPhotos = rawItems.length;
 
-        // 2 & 3. Aggregate Duplicate Customers & Trends
+        const rawItems = dataArray.filter(item =>
+          item.source === 'Photo Merge App' || item.source === 'Video Merge App'
+        );
+
+        console.log('DATA Processing - Filtered items count:', rawItems.length);
+        const totalPhotosCount = rawItems.length;
+
         const customersMap = {};
         const dailyTrends = {};
-        let todayCount = 0;
+        let photoCount = 0;
+        let videoCount = 0;
 
         // Get start of today for comparison
         const startOfToday = new Date();
@@ -640,11 +645,17 @@ const Dashboard = () => {
           const dateKey = itemDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
           if (!dailyTrends[dateKey]) {
-            dailyTrends[dateKey] = { photos: 0, shares: 0 };
+            dailyTrends[dateKey] = { photos: 0, shares: 0, downloads: 0 };
           }
 
-          if (itemDate.getTime() >= startOfToday.getTime()) {
-            todayCount++;
+          // Media Type logic
+          const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
+          const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+
+          if (isVideo) {
+            videoCount++;
+          } else {
+            photoCount++;
           }
 
           if (!customersMap[key]) {
@@ -714,8 +725,8 @@ const Dashboard = () => {
         const finalStats = {
           // DATA VALUES - Always calculated from actual data, never from metrics
           totalCustomers: totalCustomers,
-          totalPhotos: totalPhotos,
-          photosToday: todayCount,
+          totalPhotos: photoCount,
+          totalVideos: videoCount,
           totalShares: totalShares,
           totalDownloads: totalDownloads,
           conversion: '18.5%',
@@ -723,20 +734,20 @@ const Dashboard = () => {
           // If metrics API fails, growth will be 0 but data will still display
           customerGrowth: apiMetrics.totalCustomers?.growth ?? 0,
           photosGrowth: apiMetrics.totalPhotos?.growth ?? 0,
-          photosTodayGrowth: apiMetrics.photosToday?.growth ?? 0,
+          totalVideosGrowth: 0, // Split metrics might not be available
           sharesGrowth: apiMetrics.totalShares?.growth ?? 0
         };
         console.log('DATA Stats (from actual data):', {
           totalCustomers,
-          totalPhotos,
-          photosToday: todayCount,
+          totalPhotos: photoCount,
+          totalVideos: videoCount,
           totalShares,
           totalDownloads
         });
         console.log('METRICS Stats (growth only):', {
           customerGrowth: finalStats.customerGrowth,
           photosGrowth: finalStats.photosGrowth,
-          photosTodayGrowth: finalStats.photosTodayGrowth,
+          totalVideosGrowth: finalStats.totalVideosGrowth,
           sharesGrowth: finalStats.sharesGrowth
         });
         console.log('Final Stats (data + metrics):', finalStats);
@@ -840,13 +851,13 @@ const Dashboard = () => {
       endY: photosTrend.endY
     },
     {
-      label: 'Photos Today',
-      value: stats.photosToday.toLocaleString(),
-      change: `${stats.photosTodayGrowth >= 0 ? '+' : ''}${stats.photosTodayGrowth}%`,
-      icon: <Activity size={20} />,
+      label: 'Total Videos',
+      value: stats.totalVideos.toLocaleString(),
+      change: `${stats.totalVideosGrowth >= 0 ? '+' : ''}${stats.totalVideosGrowth}%`,
+      icon: <Video size={20} />,
       bgColor: '#D1FAE5',
       trendColor: '#10B981',
-      positive: stats.photosTodayGrowth >= 0,
+      positive: stats.totalVideosGrowth >= 0,
       points: photosTodayTrend.points,
       endX: photosTodayTrend.endX,
       endY: photosTodayTrend.endY

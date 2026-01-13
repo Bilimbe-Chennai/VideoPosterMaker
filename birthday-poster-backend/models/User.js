@@ -27,6 +27,14 @@ const UserSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    companyName: {
+        type: String,
+        default: ""
+    },
+    phone: {
+        type: String,
+        default: ""
+    },
     password: {
         type: String,
         required: true

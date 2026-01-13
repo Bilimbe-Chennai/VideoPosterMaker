@@ -5,11 +5,11 @@ const PremiumAdminSettings = require('../models/PremiumAdminSettings');
 
 const DEFAULT_PREMIUM_SETTINGS = {
     general: {
-        adminName: 'P Poster Maker Admin',
+        adminName: '',
         companyName: '',
         email: '',
         phone: '',
-        dateFormat: 'DD/MM/YYYY',
+        dateFormat: 'YYYY-MM-DD',
         exportFormat: 'Excel'
     },
     notifications: {
@@ -194,6 +194,19 @@ router.put('/premium-settings', async (req, res) => {
             { upsert: true, new: true }
         ).lean();
 
+        // Sync General Settings to User Collection
+        if (settings.general) {
+            const userUpdate = {};
+            if (settings.general.adminName) userUpdate.name = settings.general.adminName;
+            if (settings.general.companyName) userUpdate.companyName = settings.general.companyName;
+            if (settings.general.email) userUpdate.email = settings.general.email;
+            if (settings.general.phone) userUpdate.phone = settings.general.phone;
+
+            if (Object.keys(userUpdate).length > 0) {
+                await User.findByIdAndUpdate(adminid, userUpdate);
+            }
+        }
+
         const audit = {
             lastUpdated: doc?.updatedAt ? new Date(doc.updatedAt).toLocaleString() : new Date().toLocaleString(),
             updatedBy: doc?.updatedBy || updatedBy || ''
@@ -222,10 +235,10 @@ router.get('/:id', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
     try {
-        const { name, branchName, type, email, password, status, accessType, templateCount } = req.body;
+        const { name, branchName, type, email, password, status, accessType, templateCount, companyName, phone } = req.body;
         const user = await User.findByIdAndUpdate(
             req.params.id,
-            { name, branchName, type, email, password, status, accessType, templateCount },
+            { name, branchName, type, email, password, status, accessType, templateCount, companyName, phone },
             { new: true, runValidators: true }
         );
         if (!user) {

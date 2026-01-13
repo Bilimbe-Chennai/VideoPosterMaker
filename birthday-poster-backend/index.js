@@ -69,11 +69,12 @@ app.get("/api/health", (req, res) => {
 
 // Start campaign scheduler for automatic activation of scheduled campaigns
 const { startCampaignScheduler } = require('./utils/campaignScheduler');
-const mongoose = require('mongoose');
+// const mongoose = require('mongoose'); // Removed duplicate
 let campaignSchedulerInterval = null;
 
 // Initialize database connection
-initDb();
+// Initialize database connection (handled in InitDB.js)
+// initDb();
 
 // Start scheduler when database connection is ready
 const startSchedulerWhenReady = () => {

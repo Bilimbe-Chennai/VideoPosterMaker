@@ -1,260 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
 .share-screen {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  height: 100dvh;
-  /* Use dvh for mobile address bar support */
+  min-height: 100dvh;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+  align-items: center;
+  overflow-y: auto;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  padding: 0;
 }
 
-/* Image container */
-.image-container {
+.share-content-wrapper {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  /* Poster width constraint */
+  background: #ffffff;
+  min-height: 100%;
+  /* Optional: Add border or shadow if needed for desktop "paper" look, else just full width */
+  /* border: 1px solid #eee; */
+}
+
+/* Image Section */
+.image-section {
+  display: flex;
   justify-content: center;
-  position: relative;
-  padding: 10px;
+  align-items: center;
+  padding: 24px 16px 16px;
+  background: #ffffff;
 }
 
 .merged-image {
-  width: auto;
+  width: 90%;
   height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  max-height: 70vh;
+  /* Leave room for actions */
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: fadeIn 0.5s ease-out;
+  /* border-radius: 8px; */
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Loading state */
-.loading-container {
-  width: 100%;
-  height: 100%;
+/* Actions Section */
+.actions-section {
+  padding: 16px 24px 32px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
+  gap: 20px;
 }
 
-.spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  border-top-color: #CD1C1C;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-.loading-text {
-  color: #999;
-  font-size: 16px;
-  margin-top: 10px;
-  text-align: center;
-}
-
-/* Error state */
-.error-state {
-  background-color: #1a1a1a;
-}
-
-.error-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 40px;
-  color: white;
-}
-
-.error-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background-color: #CD1C1C;
+/* Instagram Link */
+.instagram-link-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  font-weight: bold;
-  margin-bottom: 30px;
-}
-
-.error-container h2 {
-  font-size: 24px;
-  margin-bottom: 15px;
-  color: #fff;
-}
-
-.error-container p {
-  color: #999;
-  margin-bottom: 30px;
-  max-width: 400px;
-  line-height: 1.5;
-}
-
-.back-button {
-  padding: 12px 30px;
-  background-color: #CD1C1C;
-  color: white;
-  border: none;
-  border-radius: 25px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.back-button:hover {
-  background-color: #b01818;
-  transform: translateY(-2px);
-}
-
-/* Floating back button */
-.floating-back-button {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  width: 48px;
-  height: 48px;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 100;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-.floating-back-button:hover {
-  background-color: rgba(0, 0, 0, 0.8);
-  transform: scale(1.1);
-}
-
-/* Bottom sheet */
-.bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: #fff;
-  border-top-left-radius: 30px;
-  border-top-right-radius: 30px;
-  padding: 20px 25px 32px;
-  transform: translateY(100%);
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-/* For very short mobile screens, make icons smaller */
-@media (max-width: 767px) and (max-height: 700px) {
-  .share-title {
-    font-size: 24px;
-  }
-
-  .share-subtitle {
-    margin-bottom: 20px;
-  }
-
-  .social-icon {
-    width: 45px;
-    height: 45px;
-  }
-
-  .social-icon svg {
-    width: 22px;
-    height: 22px;
-  }
-
-  .social-button {
-    min-width: 60px;
-    padding: 5px;
-  }
-
-  .download-button {
-    height: 48px;
-  }
-}
-
-.bottom-sheet.visible {
-  transform: translateY(0);
-}
-
-.drag-handle {
-  width: 40px;
-  height: 4px;
-  background-color: #E0E0E0;
-  border-radius: 2px;
-  margin: 0 auto 24px;
-}
-
-.sheet-content {
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-/* Share title */
-.share-title {
-  font-size: 40px;
-  font-weight: 700;
-  color: #000;
-  margin-bottom: 8px;
-  text-align: center;
-}
-
-.share-subtitle {
+  justify-content: flex-start;
+  /* Left aligned as per image */
+  gap: 8px;
+  text-decoration: none;
   font-size: 14px;
-  color: #666;
-  margin-bottom: 32px;
-  text-align: center;
+  color: #333;
 }
 
-/* Social sharing - SINGLE ROW FOR ALL SCREENS */
+.insta-icon-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%);
+  border-radius: 6px;
+  color: white;
+}
+
+.insta-icon-small svg {
+  width: 16px;
+  height: 16px;
+}
+
+.insta-text {
+  font-weight: 500;
+}
+
+.link-highlight {
+  color: #0095f6;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Share Header */
+.share-header-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0F0F0F;
+  margin: 0;
+  text-align: left;
+}
+
+/* Social Share Icons */
 .social-share-section {
-  margin-bottom: 10px;
+  width: 100%;
 }
 
 .social-row {
   display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 10px;
-  flex-wrap: nowrap;
-  width: 100%;
+  justify-content: space-between;
+  /* Space out evenly */
+  align-items: flex-start;
+  gap: 16px;
 }
 
 .social-button {
@@ -264,26 +121,20 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
-  padding: 10px;
-  border-radius: 8px;
-  min-width: 70px;
-}
-
-.social-button:hover {
-  transform: translateY(-2px);
-  background-color: rgba(0, 0, 0, 0.02);
+  padding: 0;
+  flex: 1;
+  /* Equal width */
 }
 
 .social-icon {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease;
 }
 
 .social-button:hover .social-icon {
@@ -291,226 +142,62 @@
 }
 
 .social-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 .social-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
   text-align: center;
-  line-height: 1.2;
-  white-space: nowrap;
 }
 
-/* Action buttons */
+/* Download Button */
 .action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-top: 12px;
 }
 
-.download-button,
-.new-photo-button {
+.download-button {
   width: 100%;
-  height: 56px;
+  height: 50px;
+  background-color: #A3102F;
+  color: white;
   border: none;
-  border-radius: 28px;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 25px;
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  /* Reduced gap */
-  transition: all 0.3s ease;
-}
-
-.download-button {
-  background: linear-gradient(135deg, #CD1C1C, #b01818);
-  color: white;
+  box-shadow: 0 4px 12px rgba(163, 16, 47, 0.2);
+  transition: background-color 0.2s;
 }
 
 .download-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(205, 28, 28, 0.3);
+  background-color: #8a0c26;
 }
 
-.new-photo-button {
-  background-color: #f5f5f5;
+/* Loading/Error */
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
   color: #333;
-  border: 2px solid #e0e0e0;
 }
 
-.new-photo-button:hover {
-  background-color: #e8e8e8;
-  transform: translateY(-2px);
-}
-
-.button-icon {
-  font-size: 20px;
-  font-weight: bold;
-}
-
-/* Responsive design - SINGLE ROW FOR ALL SIZES */
-@media (max-width: 767px) {
-  .image-container {
-    padding: 5px;
-    /* Minimal padding */
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .bottom-sheet {
-    position: relative;
-    padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
-    /* Reduced padding */
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
-    max-height: 50vh;
-    /* Controlled height */
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.05);
-  }
-
-  .drag-handle {
-    margin-bottom: 10px;
-  }
-
-  .share-title {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 5px;
-    /* Minimal space */
-    color: #333;
-    text-align: center;
-  }
-
-  .social-row {
-    gap: 12px;
-    margin-bottom: 5px;
-    /* Compact */
-  }
-
-  .social-button {
-    padding: 5px 2px;
-    min-width: 55px;
-  }
-
-  .social-icon {
-    width: 42px;
-    /* Further reduced from 45px */
-    height: 42px;
-    margin-bottom: 2px;
-  }
-
-  .social-icon svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  .download-button,
-  .new-photo-button {
-    height: 40px;
-    /* Even shorter */
-    font-size: 14px;
-    border-radius: 20px;
-  }
-}
-
-/* Small Mobile (≤375px) */
-@media (max-width: 375px) {
-  .image-container {
-    padding: 12px;
-  }
-
-  .bottom-sheet {
-    padding: 16px 12px 24px;
-    border-top-left-radius: 20px;
-    border-top-right-radius: 20px;
-  }
-
-  .drag-handle {
-    margin-bottom: 10px;
-  }
-
-  .share-title {
-    font-size: 18px;
-  }
-
-  .share-subtitle {
-    font-size: 11px;
-    margin-bottom: 8px;
-  }
-
-  .social-row {
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-
-  .social-icon {
-    width: 40px;
-    height: 40px;
-    margin-bottom: 4px;
-  }
-
-  .download-button,
-  .new-photo-button {
-    height: 42px;
-  }
-}
-
-@media (max-width: 320px) {
-  .share-subtitle {
-    margin-bottom: 8px;
-  }
-
-  .social-row {
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .social-button {
-    min-width: 50px;
-    padding: 4px 1px;
-  }
-
-  .social-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  .social-icon svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .social-name {
-    font-size: 10px;
-  }
-}
-
-/* Custom scrollbar for bottom sheet */
-.bottom-sheet::-webkit-scrollbar {
-  width: 6px;
-}
-
-.bottom-sheet::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-
-.bottom-sheet::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 10px;
-}
-
-.bottom-sheet::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #A3102F;
+  border-radius: 50%;
+  animation: spin 1s infinite linear;
 }
 
 @keyframes spin {
@@ -519,199 +206,79 @@
   }
 }
 
-/* ================= DESKTOP VIEW ================= */
-@media (min-width: 768px) {
-
-  .share-screen {
-    padding: 40px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 60px;
-  }
-
-  .image-container {
-    flex: 1;
-    max-width: 600px;
-    margin-bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    /* ADDED: Small padding top for desktop */
-    padding-top: 30px;
-    padding-bottom: 20px;
-  }
-
-  .merged-image {
-    max-width: 500px;
-    max-height: 60vh;
-    object-fit: contain;
-    border-radius: 25px;
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
-    margin-bottom: 0px;
-  }
-
-  /* Desktop share panel */
-  .share-screen>div:last-child {
-    padding: 20px;
-    border-radius: 30px;
-    background: #fff;
-  }
-
-  .share-title {
-    font-size: 28px;
-    margin-bottom: 10px;
-  }
-
-  .share-subtitle {
-    font-size: 16px;
-    margin-bottom: 0px;
-  }
-
-  .social-row {
-    gap: 60px;
-    margin-bottom: 0px;
-  }
-
-  .social-button {
-    padding: 12px;
-    min-width: 80px;
-  }
-
-  .social-icon {
-    width: 70px;
-    height: 70px;
-    border-radius: 20px;
-  }
-
-  .social-icon svg {
-    width: 32px;
-    height: 32px;
-  }
-
-  .social-name {
-    font-size: 16px;
-  }
-
-  .download-button {
-    height: 60px;
-    font-size: 18px;
-    border-radius: 30px;
-  }
-}
-
-/* Desktop share panel */
-.share-panel {
-  max-width: 750px;
-  padding: 40px;
-  border-radius: 30px;
-  background: #fff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
+/* Mobile specific tweaks if needed */
 @media (max-width: 767px) {
-  .share-panel {
-    display: none;
-  }
-}
-
-/* Large Desktop (≥1200px) */
-@media (min-width: 1200px) {
-  .share-screen {
-    gap: 0px;
-    padding: 0px;
-    align-items: center;
-  }
-
-  .image-container {
-    display: flex;
-    justify-content: center;
-    max-width: 600px;
-    height: auto;
-    align-items: center;
-    /* ADDED: More padding for larger screens */
-    padding-top: 50px;
-    padding-bottom: 20px;
+  .share-content-wrapper {
+    max-width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .merged-image {
-    max-height: 70vh;
+    max-height: 50vh;
+    /* Reduced to make room for actions */
+    width: 85%;
+    /* Slightly smaller width to maintain aspect ratio feel */
   }
 
-  .share-title {
-    font-size: 20px;
+  .actions-section {
+    gap: 12px;
+    /* Tighter spacing */
+    padding-bottom: 100px;
+    /* Extra padding for bottom bars */
   }
 
-  .share-subtitle {
-    font-size: 16px;
-    font-weight: 800;
-  }
-
-  .social-row {
-    gap: 80px;
-    justify-content: center;
-  }
-
-  .social-button {
-    min-width: 90px;
-  }
-
-  .social-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-  }
-
-  .social-icon svg {
-    width: 36px;
-    height: 36px;
-  }
-
-  .social-name {
-    font-size: 18px;
+  .instagram-link-row {
+    margin-bottom: 4px;
   }
 }
 
-/* Tablet (768px - 1023px) */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .social-row {
+/* Desktop Side-by-Side Layout */
+@media (min-width: 768px) {
+  .share-content-wrapper {
+    flex-direction: row;
+    max-width: 1000px;
+    /* Wider container for side-by-side */
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
     gap: 40px;
   }
 
-  .social-button {
-    min-width: 70px;
+  .image-section {
+    flex: 1;
+    /* Takes available space */
+    justify-content: flex-end;
+    /* Align image to right of its section (closer to actions) */
+    padding: 0;
   }
 
-  .social-icon {
-    width: 60px;
-    height: 60px;
+  .merged-image {
+    max-height: 85vh;
+    /* Taller image allowed on desktop */
+    width: auto;
+    max-width: 100%;
   }
 
-  .social-icon svg {
-    width: 28px;
-    height: 28px;
+  .actions-section {
+    flex: 0 0 400px;
+    /* Fixed width actions column */
+    padding: 32px;
+    background-color: #ffffff;
+    border-radius: 24px;
+    box-shadow: rgba(0, 0, 0, 0.16) 0px 10px 36px 0px, rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
+    justify-content: center;
+    align-items: flex-start;
+    /* Align content to start */
   }
 
-  .social-name {
-    font-size: 14px;
+  /* Center the social row content inside the fixed column if desired, or keep left */
+  .social-share-section,
+  .action-buttons {
+    width: 100%;
   }
 
-  .image-container {
-    /* ADDED: Tablet-specific padding top */
-    padding-top: 25px;
-    padding-bottom: 15px;
-  }
-}
-
-/* Medium Desktop (992px - 1199px) */
-@media (min-width: 992px) and (max-width: 1199px) {
-  .image-container {
-    /* ADDED: Medium desktop padding top */
-    padding-top: 35px;
-    padding-bottom: 25px;
+  .instagram-link-row {
+    justify-content: flex-start;
   }
 }

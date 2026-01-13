@@ -226,7 +226,7 @@ const Sidebar = ({ isOpen, onToggle, onClose }) => {
   const navItems = [
     { icon: <Home size={18} />, text: 'Dashboard', path: 'dashboard' },
     { icon: <Users size={18} />, text: 'Customers', path: 'customers' },
-    { icon: <Image size={18} />, text: 'Photos', path: 'photos' },
+    { icon: <Image size={18} />, text: 'Gallery', path: 'photos' },
     { icon: <Layers size={18} />, text: 'Templates', path: 'templates' },
     { icon: <PieChart size={18} />, text: 'Analytics', path: 'analytics' },
     { icon: <Share2 size={18} />, text: 'Share Tracking', path: 'share-tracking' },

@@ -643,22 +643,67 @@ const Campaigns = () => {
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
   const [formErrors, setFormErrors] = useState({});
-  // Dynamically extract channel types and statuses from campaigns data
-  const channelTypes = useMemo(() => {
-    const types = new Set(campaigns.map(c => c.type).filter(Boolean));
-    return Array.from(types).sort();
+
+  // Helper to derive status based on date
+  const deriveCampaignStatus = (campaign) => {
+    if (!campaign) return 'Draft';
+    // If explicitly Failed or Draft (manually set), keep it
+    if (campaign.status === 'Failed' || campaign.status === 'Draft') {
+      return campaign.status;
+    }
+
+    const now = new Date();
+    const startDate = new Date(campaign.startDate);
+    const endDate = new Date(campaign.endDate);
+
+    // If dates are invalid, fallback to original status or Draft
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return campaign.status || 'Draft';
+    }
+
+    if (now < startDate) {
+      return 'Scheduled';
+    } else {
+      // For endDate, we want to include the whole day (until 23:59:59)
+      // especially since input[type=date] gives us 00:00:00
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      if (now > endOfDay) {
+        return 'Completed';
+      } else {
+        return 'Active';
+      }
+    }
+  };
+
+  // Process campaigns to include derived status
+  const processedCampaigns = useMemo(() => {
+    return campaigns.map(c => ({
+      ...c,
+      status: deriveCampaignStatus(c),
+      originalStatus: c.status // Keep original for reference if needed
+    }));
   }, [campaigns]);
 
+  // Dynamically extract channel types and statuses from processed campaigns data
+  const channelTypes = useMemo(() => {
+    const types = new Set(processedCampaigns.map(c => c.type).filter(Boolean));
+    return Array.from(types).sort();
+  }, [processedCampaigns]);
+
   const statusTypes = useMemo(() => {
-    const statuses = new Set(campaigns.map(c => c.status).filter(Boolean));
+    // We want all possible statuses to be valid filters ideally, but dynamic ones depend on time.
+    // Let's just gather what we currently have in the processed list.
+    const statuses = new Set(processedCampaigns.map(c => c.status).filter(Boolean));
     return Array.from(statuses).sort();
-  }, [campaigns]);
+  }, [processedCampaigns]);
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     type: 'WhatsApp',
-    status: 'Draft',
+    status: 'Active',
     startDate: '',
     endDate: '',
     message: ''
@@ -690,14 +735,14 @@ const Campaigns = () => {
       } else {
         setLoading(true);
       }
-      
+
       const response = await axiosData.get(`campaigns?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
-      
+
       // Handle paginated or non-paginated responses
-      const campaignsData = Array.isArray(response.data?.data) 
-        ? response.data.data 
+      const campaignsData = Array.isArray(response.data?.data)
+        ? response.data.data
         : (Array.isArray(response.data) ? response.data : []);
-      
+
       if (scrollMode && append) {
         // Append to existing campaigns for infinite scroll
         setAllCampaigns(prev => [...prev, ...campaignsData]);
@@ -710,7 +755,7 @@ const Campaigns = () => {
         // Regular pagination
         setCampaigns(campaignsData);
       }
-      
+
       // Update pagination if available
       if (response.data?.pagination) {
         setPagination(prev => ({
@@ -720,7 +765,7 @@ const Campaigns = () => {
           page: page
         }));
       }
-      
+
       // For growth metrics, we might need all campaigns, so fetch separately if needed
       // For now, calculate with current page data
       if (!scrollMode || !append) {
@@ -962,7 +1007,10 @@ const Campaigns = () => {
   };
 
   const handleViewCampaign = (campaign) => {
-    setViewingCampaign(campaign);
+    // If campaign is from processedCampaigns, it already has derived status
+    // If not, we might want to derive it just in case
+    const status = deriveCampaignStatus(campaign);
+    setViewingCampaign({ ...campaign, status });
     setShowViewModal(true);
   };
 
@@ -984,8 +1032,8 @@ const Campaigns = () => {
     setFormData({
       name: '',
       description: '',
-      type: channelTypes.length > 0 ? channelTypes[0] : (campaigns.length > 0 && campaigns[0].type ? campaigns[0].type : 'WhatsApp'),
-      status: statusTypes.length > 0 ? statusTypes[0] : (campaigns.length > 0 && campaigns[0].status ? campaigns[0].status : 'Draft'),
+      type: channelTypes.length > 0 ? channelTypes[0] : (processedCampaigns.length > 0 && processedCampaigns[0].type ? processedCampaigns[0].type : 'WhatsApp'),
+      status: 'Active', // Default to Active so it becomes automatic based on dates (Draft is for deactivation)
       startDate: '',
       endDate: '',
       message: ''
@@ -999,7 +1047,7 @@ const Campaigns = () => {
       name: campaign.name || '',
       description: campaign.description || '',
       type: campaign.type || 'WhatsApp',
-      status: campaign.status || 'Draft',
+      status: campaign.originalStatus || campaign.status || 'Draft', // Use original status for editing to not overwrite logical status accidentally
       startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split('T')[0] : '',
       endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split('T')[0] : '',
       message: campaign.message || ''
@@ -1008,16 +1056,16 @@ const Campaigns = () => {
   };
 
   const stats = useMemo(() => {
-    const active = campaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
-    const completed = campaigns.filter(c => c.status === 'Completed').length;
-    const totalSent = campaigns.reduce((acc, curr) => acc + (curr.sent || 0), 0);
-    const totalDelivered = campaigns.reduce((acc, curr) => acc + (curr.delivered || 0), 0);
+    const active = processedCampaigns.filter(c => c.status === 'Active' || c.status === 'Scheduled').length;
+    const completed = processedCampaigns.filter(c => c.status === 'Completed').length;
+    const totalSent = processedCampaigns.reduce((acc, curr) => acc + (curr.sent || 0), 0);
+    const totalDelivered = processedCampaigns.reduce((acc, curr) => acc + (curr.delivered || 0), 0);
     const avgDelivery = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
 
     return { active, completed, totalSent, avgDelivery };
-  }, [campaigns]);
+  }, [processedCampaigns]);
 
-  const filteredCampaigns = campaigns.filter(c => {
+  const filteredCampaigns = processedCampaigns.filter(c => {
     const matchesSearch = (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c._id || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'All Channels' || c.type === filterType;
@@ -1072,7 +1120,7 @@ const Campaigns = () => {
     };
 
     // Export all campaigns, not just filtered ones
-    const dataToExport = campaigns;
+    const dataToExport = processedCampaigns;
 
     // CSV headers
     const headers = [
@@ -1101,7 +1149,7 @@ const Campaigns = () => {
           escapeCSV(c.name || ''),
           escapeCSV(c.description || ''),
           escapeCSV(c.type || ''),
-          escapeCSV(c.status || ''),
+          escapeCSV(c.status || ''), // Uses derived status
           escapeCSV(c.startDate ? formatDate(c.startDate, getStoredDateFormat()) : ''),
           escapeCSV(c.endDate ? formatDate(c.endDate, getStoredDateFormat()) : ''),
           escapeCSV(c.sent || 0),
@@ -1278,160 +1326,160 @@ const Campaigns = () => {
         {viewMode === 'table' ? (
           <CampaignTable>
             <thead>
-            <tr>
-              <th style={{ width: '40px' }}></th>
-              <th>Campaign Details</th>
-              <th>Channel</th>
-              <th>Status</th>
-              <th>Performance</th>
-              <th>Period</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
               <tr>
-                <td colSpan="7">
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: '100px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                    <Loader className="rotate" size={48} color="#1A1A1A" />
-                    <div style={{ fontWeight: 600, color: '#666' }}>Loading campaign data...</div>
-                  </div>
-                </td>
+                <th style={{ width: '40px' }}></th>
+                <th>Campaign Details</th>
+                <th>Channel</th>
+                <th>Status</th>
+                <th>Performance</th>
+                <th>Period</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
-            ) : filteredCampaigns.length === 0 ? (
-              <tr>
-                <td colSpan="7">
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    padding: '80px 20px',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    background: '#FFF'
-                  }}>
-                    <div style={{
-                      width: '80px',
-                      height: '80px',
-                      background: '#F9FAFB',
-                      borderRadius: '24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '20px',
-                      color: '#6B7280'
-                    }}>
-                      <Send size={40} />
-                    </div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
-                      No campaigns found
-                    </div>
-                    <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
-                      {searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status'
-                        ? `We couldn't find any campaigns matching your current search or filter criteria.`
-                        : "No campaigns have been created yet. Launch your first campaign to start reaching your customers!"}
-                    </div>
-                    {(searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status') && (
-                      <SecondaryButton
-                        style={{ marginTop: '24px', borderRadius: '12px' }}
-                        onClick={() => {
-                          setSearchQuery('');
-                          setFilterType('All Channels');
-                          setFilterStatus('All Status');
-                        }}
-                      >
-                        Reset All Filters
-                      </SecondaryButton>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ) : paginatedCampaigns.map((c) => {
-              const channel = getChannelConfig(c.type);
-              const deliveryRate = (c.sent || 0) > 0 ? ((c.delivered || 0) / c.sent) * 100 : 0;
-              const ctr = (c.delivered || 0) > 0 ? ((c.clicks || 0) / c.delivered) * 100 : 0;
-
-              return (
-                <tr key={c._id || c.id}>
-                  <td></td>
-                  <td>
-                    <InfoGroup>
-                      <h4>{c.name}</h4>
-                      <p>ID: {c._id || c.id} • {(c.description || '').substring(0, 30)}...</p>
-                    </InfoGroup>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <ChannelIcon $color={channel.color}>
-                        {channel.icon}
-                      </ChannelIcon>
-                      <span style={{ fontWeight: 600 }}>{c.type}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <StatusBadge $status={c.status}>
-                      {getStatusIcon(c.status)} {c.status}
-                    </StatusBadge>
-                  </td>
-                  <td>
-                    <InfoGroup>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', fontWeight: 700 }}>
-                        <span>CTR: {ctr.toFixed(1)}%</span>
-                        <span>Del: {deliveryRate.toFixed(1)}%</span>
-                      </div>
-                      <ProgressBar $percent={ctr * 2}>
-                        <div className="fill" />
-                      </ProgressBar>
-                    </InfoGroup>
-                  </td>
-                  <td>
-                    <InfoGroup>
-                      <p>{formatDate(c.startDate, getStoredDateFormat())}</p>
-                      <p style={{ color: '#999' }}>to {formatDate(c.endDate, getStoredDateFormat())}</p>
-                    </InfoGroup>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <IconButton
-                        title="View Details"
-                        onClick={() => handleViewCampaign(c)}
-                      >
-                        <Eye size={18} />
-                      </IconButton>
-                      {c.status !== 'Completed' && (
-                        <IconButton
-                          title="Send Campaign"
-                          onClick={() => handleSendCampaign(c._id || c.id)}
-                          disabled={operationLoading}
-                        >
-                          <Send size={18} />
-                        </IconButton>
-                      )}
-                      <IconButton
-                        title="Duplicate Campaign"
-                        onClick={() => handleDuplicateCampaign(c)}
-                        disabled={operationLoading}
-                      >
-                        <Copy size={18} />
-                      </IconButton>
-                      <IconButton
-                        title="Edit Campaign"
-                        onClick={() => openEditModal(c)}
-                        disabled={operationLoading}
-                      >
-                        <Edit3 size={18} />
-                      </IconButton>
-                      <IconButton
-                        title="Delete Campaign"
-                        onClick={() => handleDeleteCampaign(c._id || c.id)}
-                        disabled={operationLoading}
-                      >
-                        <Trash2 size={18} />
-                      </IconButton>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="7">
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '100px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                      <Loader className="rotate" size={48} color="#1A1A1A" />
+                      <div style={{ fontWeight: 600, color: '#666' }}>Loading campaign data...</div>
                     </div>
                   </td>
                 </tr>
-              );
-            })}
+              ) : filteredCampaigns.length === 0 ? (
+                <tr>
+                  <td colSpan="7">
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      padding: '80px 20px',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      background: '#FFF'
+                    }}>
+                      <div style={{
+                        width: '80px',
+                        height: '80px',
+                        background: '#F9FAFB',
+                        borderRadius: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '20px',
+                        color: '#6B7280'
+                      }}>
+                        <Send size={40} />
+                      </div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
+                        No campaigns found
+                      </div>
+                      <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+                        {searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status'
+                          ? `We couldn't find any campaigns matching your current search or filter criteria.`
+                          : "No campaigns have been created yet. Launch your first campaign to start reaching your customers!"}
+                      </div>
+                      {(searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status') && (
+                        <SecondaryButton
+                          style={{ marginTop: '24px', borderRadius: '12px' }}
+                          onClick={() => {
+                            setSearchQuery('');
+                            setFilterType('All Channels');
+                            setFilterStatus('All Status');
+                          }}
+                        >
+                          Reset All Filters
+                        </SecondaryButton>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedCampaigns.map((c) => {
+                const channel = getChannelConfig(c.type);
+                const deliveryRate = (c.sent || 0) > 0 ? ((c.delivered || 0) / c.sent) * 100 : 0;
+                const ctr = (c.delivered || 0) > 0 ? ((c.clicks || 0) / c.delivered) * 100 : 0;
+
+                return (
+                  <tr key={c._id || c.id}>
+                    <td></td>
+                    <td>
+                      <InfoGroup>
+                        <h4>{c.name}</h4>
+                        <p>ID: {c._id || c.id} • {(c.description || '').substring(0, 30)}...</p>
+                      </InfoGroup>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <ChannelIcon $color={channel.color}>
+                          {channel.icon}
+                        </ChannelIcon>
+                        <span style={{ fontWeight: 600 }}>{c.type}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <StatusBadge $status={c.status}>
+                        {getStatusIcon(c.status)} {c.status}
+                      </StatusBadge>
+                    </td>
+                    <td>
+                      <InfoGroup>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', fontWeight: 700 }}>
+                          <span>CTR: {ctr.toFixed(1)}%</span>
+                          <span>Del: {deliveryRate.toFixed(1)}%</span>
+                        </div>
+                        <ProgressBar $percent={ctr * 2}>
+                          <div className="fill" />
+                        </ProgressBar>
+                      </InfoGroup>
+                    </td>
+                    <td>
+                      <InfoGroup>
+                        <p>{formatDate(c.startDate, getStoredDateFormat())}</p>
+                        <p style={{ color: '#999' }}>to {formatDate(c.endDate, getStoredDateFormat())}</p>
+                      </InfoGroup>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <IconButton
+                          title="View Details"
+                          onClick={() => handleViewCampaign(c)}
+                        >
+                          <Eye size={18} />
+                        </IconButton>
+                        {c.status !== 'Completed' && (
+                          <IconButton
+                            title="Send Campaign"
+                            onClick={() => handleSendCampaign(c._id || c.id)}
+                            disabled={operationLoading}
+                          >
+                            <Send size={18} />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          title="Duplicate Campaign"
+                          onClick={() => handleDuplicateCampaign(c)}
+                          disabled={operationLoading}
+                        >
+                          <Copy size={18} />
+                        </IconButton>
+                        <IconButton
+                          title="Edit Campaign"
+                          onClick={() => openEditModal(c)}
+                          disabled={operationLoading}
+                        >
+                          <Edit3 size={18} />
+                        </IconButton>
+                        <IconButton
+                          title="Delete Campaign"
+                          onClick={() => handleDeleteCampaign(c._id || c.id)}
+                          disabled={operationLoading}
+                        >
+                          <Trash2 size={18} />
+                        </IconButton>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </CampaignTable>
         ) : (
@@ -1469,7 +1517,7 @@ const Campaigns = () => {
                       {getStatusIcon(c.status)} {c.status}
                     </StatusBadge>
                   </div>
-                  
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                     <ChannelIcon $color={channel.color}>
                       {channel.icon}
@@ -1493,37 +1541,37 @@ const Campaigns = () => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid #F5F5F5', paddingTop: '16px' }}>
-                    <IconButton 
-                      title="View Details" 
+                    <IconButton
+                      title="View Details"
                       onClick={(e) => { e.stopPropagation(); handleViewCampaign(c); }}
                     >
                       <Eye size={18} />
                     </IconButton>
                     {c.status !== 'Completed' && (
-                      <IconButton 
-                        title="Send Campaign" 
+                      <IconButton
+                        title="Send Campaign"
                         onClick={(e) => { e.stopPropagation(); handleSendCampaign(c._id || c.id); }}
                         disabled={operationLoading}
                       >
                         <Send size={18} />
                       </IconButton>
                     )}
-                    <IconButton 
-                      title="Duplicate Campaign" 
+                    <IconButton
+                      title="Duplicate Campaign"
                       onClick={(e) => { e.stopPropagation(); handleDuplicateCampaign(c); }}
                       disabled={operationLoading}
                     >
                       <Copy size={18} />
                     </IconButton>
-                    <IconButton 
-                      title="Edit Campaign" 
+                    <IconButton
+                      title="Edit Campaign"
                       onClick={(e) => { e.stopPropagation(); openEditModal(c); }}
                       disabled={operationLoading}
                     >
                       <Edit3 size={18} />
                     </IconButton>
-                    <IconButton 
-                      title="Delete Campaign" 
+                    <IconButton
+                      title="Delete Campaign"
                       onClick={(e) => { e.stopPropagation(); handleDeleteCampaign(c._id || c.id); }}
                       disabled={operationLoading}
                     >
@@ -1535,7 +1583,7 @@ const Campaigns = () => {
             })}
           </CampaignGrid>
         )}
-        
+
         {/* Pagination component will handle its own visibility logic */}
         {filteredCampaigns.length > 0 && (
           <div style={{ padding: '24px' }}>
@@ -1607,19 +1655,7 @@ const Campaigns = () => {
                   {/* <option value="Push Notification">Push Notification</option> */}
                 </select>
               </FormGroup>
-              <FormGroup>
-                <label>Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  <option value="Draft">Draft</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="Active">Active</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Failed">Failed</option>
-                </select>
-              </FormGroup>
+
               <FormGroup>
                 <label>Start Date *</label>
                 <input
@@ -1719,19 +1755,21 @@ const Campaigns = () => {
                   {/* <option value="Push Notification">Push Notification</option> */}
                 </select>
               </FormGroup>
+
               <FormGroup>
                 <label>Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 >
-                  <option value="Draft">Draft</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="Active">Active</option>
-                  <option value="Completed">Completed</option>
+                  <option value="Draft">Draft (Deactivated)</option>
+                  <option value="Active">Active (Automatic)</option>
+                  <option value="Scheduled">Scheduled (Automatic)</option>
+                  <option value="Completed">Completed (Automatic)</option>
                   <option value="Failed">Failed</option>
                 </select>
               </FormGroup>
+
               <FormGroup>
                 <label>Start Date *</label>
                 <input

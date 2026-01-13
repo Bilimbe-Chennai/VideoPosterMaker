@@ -581,25 +581,25 @@ router.get("/all", async (req, res) => {
     if (adminid) {
       query.adminid = adminid;
     }
-    
+
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
-    
+
     console.log('Fetching media items with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
-    
+
     // Get total count for pagination
     const total = await Media.countDocuments(query);
-    
+
     // Get paginated items
     const mediaItems = await Media.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
       .lean();
-    
+
     console.log(`Found ${mediaItems.length} media items (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
-    
+
     // Return paginated response
     res.json({
       data: mediaItems || [],

@@ -87,7 +87,7 @@ const SHARE_TRACKING_CONFIG = {
       growthKey: 'clicksGrowth'
     },
     {
-      label: 'Photos Shared',
+      label: 'Total Photos',
       key: 'photosShared',
       icon: 'ImageIcon',
       bgColor: '#FED7AA',
@@ -957,15 +957,15 @@ const ShareTracking = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axiosData.get(`upload/all?source=Photo Merge App&adminid=${user._id || user.id}`);
-      
+      const res = await axiosData.get(`upload/all?adminid=${user._id || user.id}&limit=10000`);
+
       // Handle paginated responses
-      const dataArray = Array.isArray(res.data?.data) 
-        ? res.data.data 
+      const dataArray = Array.isArray(res.data?.data)
+        ? res.data.data
         : (Array.isArray(res.data) ? res.data : []);
-      
+
       const data = dataArray.filter(item =>
-        item.source === 'Photo Merge App'
+        item.source === 'Photo Merge App' || item.source === 'Video Merge App'
       );
 
       setRawData(data);
