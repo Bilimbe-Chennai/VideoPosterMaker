@@ -8,7 +8,8 @@ import BarActivity from '../Components/charts/BarActivity';
 import MetricCircularCard from '../Components/charts/MetricCircularCard';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
-import { PieChart, TrendingUp, Filter, Download, Image, Calendar, Share2, Star, User, Facebook, RefreshCw, BarChart2, AlertCircle, CheckCircle, XCircle } from 'react-feather';
+import { filterByAccessType, getAccessType } from '../../utils/accessTypeUtils';
+import { PieChart, TrendingUp, Filter, Download, Image, Calendar, Share2, Star, User, Facebook, RefreshCw, BarChart2, AlertCircle, CheckCircle, XCircle, Video } from 'react-feather';
 
 const AnalyticsContainer = styled.div``;
 
@@ -237,8 +238,8 @@ const ANALYTICS_CONFIG = {
   ],
   kpiCards: [
     { label: 'Total Photos', icon: 'Image', bgColor: '#FEF3C7', trendColor: '#F59E0B' },
+    { label: 'Total Videos', icon: 'Video', bgColor: '#D1FAE5', trendColor: '#10B981' },
     { label: 'Total Shares', icon: 'Share2', bgColor: '#E8D5FF', trendColor: '#8B5CF6' },
-    { label: 'Conversion Rate', icon: 'TrendingUp', bgColor: '#D1FAE5', trendColor: '#10B981' },
     { label: 'Unique Customers', icon: 'Star', bgColor: '#FED7AA', trendColor: '#F97316' }
   ]
 };
@@ -246,6 +247,7 @@ const ANALYTICS_CONFIG = {
 // Icon mapping
 const iconComponents = {
   Image,
+  Video,
   Share2,
   TrendingUp,
   Star,
@@ -372,8 +374,16 @@ const Analytics = () => {
     const getDownloadCount = (item) => (item.downloadcount || 0);
 
     const getUniqueCustomers = (dataset) => {
-      const unique = new Set(dataset.map(item => item.mobile || item.whatsapp || item.name));
-      return unique.size;
+      const uniqueMobiles = new Set();
+      dataset.forEach(item => {
+        // Use whatsapp as the key, ensure it's a string
+        const whatsapp = item.whatsapp ? String(item.whatsapp) : null;
+        // Only count valid whatsapp numbers (not empty, not 'N/A', not undefined)
+        if (whatsapp && whatsapp !== 'N/A' && whatsapp.trim() !== '') {
+          uniqueMobiles.add(whatsapp.trim());
+        }
+      });
+      return uniqueMobiles.size;
     };
 
     const calculateConversion = (dataset) => {
@@ -408,11 +418,23 @@ const Analytics = () => {
       return { seconds: avgSeconds, display };
     };
 
-    // --- KPI Calculations
+    // Separate photos and videos based on accessType (future-proof)
+    // Note: templateAccessTypeMap is passed via enrichedData._templateAccessTypeMap
+    const templateAccessTypeMap = currentData[0]?._templateAccessTypeMap || {};
+    const currentPhotos = filterByAccessType(currentData, 'photomerge', templateAccessTypeMap);
+    const currentVideos = filterByAccessType(currentData, 'videomerge', templateAccessTypeMap);
+    const previousPhotos = filterByAccessType(previousData, 'photomerge', templateAccessTypeMap);
+    const previousVideos = filterByAccessType(previousData, 'videomerge', templateAccessTypeMap);
+
+    // --- KPI Calculations (using photos only for "Total Photos" KPI)
     const stats = {
       photos: {
-        current: currentData.length,
-        previous: previousData.length
+        current: currentPhotos.length,
+        previous: previousPhotos.length
+      },
+      videos: {
+        current: currentVideos.length,
+        previous: previousVideos.length
       },
       shares: {
         current: currentData.reduce((acc, item) => acc + getShareCount(item), 0),
@@ -459,7 +481,11 @@ const Analytics = () => {
       if (trends[dateKey]) {
         trends[dateKey].photos += 1;
         trends[dateKey].shares += getShareCount(item);
-        trends[dateKey].users.add(item.mobile || item.whatsapp || item.name);
+        // Only add valid whatsapp numbers to unique users count (as string)
+        const whatsapp = item.whatsapp ? String(item.whatsapp) : null;
+        if (whatsapp && whatsapp !== 'N/A' && whatsapp.trim() !== '') {
+          trends[dateKey].users.add(whatsapp.trim());
+        }
       }
     });
 
@@ -629,15 +655,44 @@ const Analytics = () => {
   const fetchAnalyticsData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`);
+      
+      // Fetch templates to get accessType mapping
+      let templateAccessTypeMap = {};
+      try {
+        const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${user._id || user.id}`);
+        const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+        templates.forEach(template => {
+          if (template.templatename) {
+            templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+          }
+        });
+      } catch (templatesError) {
+        console.error("Error fetching templates:", templatesError);
+      }
+
+      // Optimized: Fetch data in chunks for better performance
+      // Start with last 2000 items for initial display, fetch more in background if needed
+      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=2000`);
       // Handle both paginated and non-paginated responses
       const dataArray = Array.isArray(response.data?.data)
         ? response.data.data
         : (Array.isArray(response.data) ? response.data : []);
+      // Filter to include both Photo Merge App and Video Merge App items
       const rawData = dataArray.filter(item =>
         item.source === 'Photo Merge App' || item.source === 'Video Merge App'
       );
-      processAnalytics(rawData, uniqueCustomersGrowth, timeRange);
+      
+      // Add accessType to each item for processing (future-proof)
+      const enrichedData = rawData.map(item => {
+        const accessType = getAccessType(item, templateAccessTypeMap);
+        return { 
+          ...item, 
+          _accessType: accessType,
+          _templateAccessTypeMap: templateAccessTypeMap // Pass map for filtering
+        };
+      });
+      
+      processAnalytics(enrichedData, uniqueCustomersGrowth, timeRange);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching analytics:", error);
@@ -921,20 +976,20 @@ const Analytics = () => {
             {(() => {
               const kpiDataMap = {
                 'Total Photos': {
-                  value: analyticsData?.kpis?.photos?.value,
-                  growth: analyticsData?.kpis?.photos?.growth
+                  value: analyticsData?.kpis?.photos?.value || 0,
+                  growth: analyticsData?.kpis?.photos?.growth || 0
+                },
+                'Total Videos': {
+                  value: analyticsData?.kpis?.videos?.value || 0,
+                  growth: analyticsData?.kpis?.videos?.growth || 0
                 },
                 'Total Shares': {
-                  value: analyticsData?.kpis?.shares?.value,
-                  growth: analyticsData?.kpis?.shares?.growth
-                },
-                'Conversion Rate': {
-                  value: analyticsData?.kpis?.conversion?.value,
-                  growth: analyticsData?.kpis?.conversion?.growth
+                  value: analyticsData?.kpis?.shares?.value || 0,
+                  growth: analyticsData?.kpis?.shares?.growth || 0
                 },
                 'Unique Customers': {
-                  value: analyticsData?.uniqueCustomers,
-                  growth: analyticsData?.uniqueCustomersGrowth
+                  value: analyticsData?.uniqueCustomers || 0,
+                  growth: analyticsData?.uniqueCustomersGrowth || 0
                 }
               };
 
@@ -944,9 +999,7 @@ const Analytics = () => {
                 const IconComponent = iconComponents[kpiConfig.icon];
 
                 let displayValue = kpiData?.value;
-                if (kpiConfig.label === 'Conversion Rate') {
-                  displayValue = `${displayValue || 0}%`;
-                } else if (typeof displayValue === 'number') {
+                if (typeof displayValue === 'number') {
                   displayValue = displayValue.toLocaleString();
                 } else {
                   displayValue = displayValue || '0';

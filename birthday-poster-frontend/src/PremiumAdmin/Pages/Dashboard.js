@@ -25,6 +25,7 @@ import {
 } from 'react-feather';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
+import { isVideoType, getAccessType } from '../../utils/accessTypeUtils';
 
 const DashboardContainer = styled.div`
   max-width: 1400px;
@@ -535,6 +536,8 @@ const Dashboard = () => {
     { name: 'Download', value: 0, color: '#F97316', fill: '#F97316' }
   ]);
   const [trends, setTrends] = useState({});
+  const [trendsPhotos, setTrendsPhotos] = useState({});
+  const [trendsVideos, setTrendsVideos] = useState({});
   const [recentActivities, setRecentActivities] = useState([]);
   const navigate = useNavigate();
 
@@ -596,12 +599,28 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // STEP 1: Fetch DATA first (completely independent of metrics)
-        // Data should always display correctly regardless of metrics
-        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`);
+        // STEP 1: Fetch Templates to get accessType mapping
+        let templateAccessTypeMap = {};
+        try {
+          const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${user._id || user.id}`);
+          const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+          templates.forEach(template => {
+            if (template.templatename) {
+              templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+            }
+          });
+          console.log('Templates fetched:', templates.length, 'AccessType map:', templateAccessTypeMap);
+        } catch (templatesError) {
+          console.error("Error fetching templates (will use fallback logic):", templatesError);
+        }
+
+        // STEP 2: Fetch DATA first (completely independent of metrics)
+        // Optimized: Fetch only last 1000 items for dashboard (faster load)
+        // Metrics will fetch full data in background if needed
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=1000`);
         console.log('DATA API Response - Total items:', response.data?.data?.length || response.data?.length || 0);
 
-        // STEP 2: Fetch METRICS separately (only for growth percentages)
+        // STEP 3: Fetch METRICS separately (only for growth percentages)
         // Metrics do NOT affect data display
         let apiMetrics = {};
         try {
@@ -624,10 +643,11 @@ const Dashboard = () => {
         );
 
         console.log('DATA Processing - Filtered items count:', rawItems.length);
-        const totalPhotosCount = rawItems.length;
 
         const customersMap = {};
         const dailyTrends = {};
+        const dailyTrendsPhotos = {};
+        const dailyTrendsVideos = {};
         let photoCount = 0;
         let videoCount = 0;
 
@@ -647,15 +667,22 @@ const Dashboard = () => {
           if (!dailyTrends[dateKey]) {
             dailyTrends[dateKey] = { photos: 0, shares: 0, downloads: 0 };
           }
+          if (!dailyTrendsPhotos[dateKey]) {
+            dailyTrendsPhotos[dateKey] = { photos: 0, shares: 0, downloads: 0 };
+          }
+          if (!dailyTrendsVideos[dateKey]) {
+            dailyTrendsVideos[dateKey] = { photos: 0, shares: 0, downloads: 0 };
+          }
 
-          // Media Type logic
-          const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
-          const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+          // Media Type logic based on accessType from template (future-proof)
+          const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: true });
 
           if (isVideo) {
             videoCount++;
+            dailyTrendsVideos[dateKey].photos += 1;
           } else {
             photoCount++;
+            dailyTrendsPhotos[dateKey].photos += 1;
           }
 
           if (!customersMap[key]) {
@@ -683,9 +710,21 @@ const Dashboard = () => {
           dailyTrends[dateKey].photos += 1;
           dailyTrends[dateKey].shares += itemShares;
           dailyTrends[dateKey].downloads = (dailyTrends[dateKey].downloads || 0) + itemDownloads;
+
+          // Update separate trends for photos and videos
+          if (isVideo) {
+            dailyTrendsVideos[dateKey].shares += itemShares;
+            dailyTrendsVideos[dateKey].downloads = (dailyTrendsVideos[dateKey].downloads || 0) + itemDownloads;
+          } else {
+            dailyTrendsPhotos[dateKey].shares += itemShares;
+            dailyTrendsPhotos[dateKey].downloads = (dailyTrendsPhotos[dateKey].downloads || 0) + itemDownloads;
+          }
         });
 
         setTrends(dailyTrends);
+        // Store separate trends for photos and videos
+        setTrendsPhotos(dailyTrendsPhotos);
+        setTrendsVideos(dailyTrendsVideos);
 
         // 3. Share Distribution Calculation
         let counts = {
@@ -916,7 +955,7 @@ const Dashboard = () => {
           <ChartHeader>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>Daily Performance</h3>
             <ChartTabs>
-              {['Photos', 'Shares'].map(tab => (
+              {['Photos', 'Videos'].map(tab => (
                 <ChartTab
                   key={tab}
                   $active={activeChartTab === tab}
@@ -948,9 +987,9 @@ const Dashboard = () => {
           </ChartHeader>
           <div style={{ height: '350px' }}>
             <LineAnalytics
-              data={trends}
+              data={activeChartTab === 'Photos' ? trendsPhotos : trendsVideos}
               period={activePeriod}
-              activeTab={activeChartTab.toLowerCase()}
+              activeTab="photos"
             />
           </div>
         </ChartCard>

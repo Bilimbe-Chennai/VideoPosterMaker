@@ -32,6 +32,7 @@ import {
 } from 'react-feather';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
+import { isVideoType } from '../../utils/accessTypeUtils';
 
 // --- Styled Components ---
 
@@ -689,7 +690,22 @@ const Customers = () => {
         setLoading(true);
         console.log('Fetching customers data for admin:', user._id || user.id);
 
-        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&limit=10000`);
+        // Fetch templates to get accessType mapping
+        let templateAccessTypeMap = {};
+        try {
+          const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${user._id || user.id}`);
+          const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+          templates.forEach(template => {
+            if (template.templatename) {
+              templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+            }
+          });
+        } catch (templatesError) {
+          console.error("Error fetching templates:", templatesError);
+        }
+
+        // Optimized: Fetch with reasonable limit for faster load
+        const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=2000`);
         console.log('Raw response data:', response.data);
 
         // Handle paginated responses
@@ -717,6 +733,7 @@ const Customers = () => {
               ...item,
               visitCount: 0,
               photoCount: 0,
+              videoCount: 0,
               shareCount: 0,
               downloadCount: 0,
               latestTimeStamp: validTime
@@ -730,9 +747,8 @@ const Customers = () => {
             (item.instagramsharecount || 0);
           const itemDownloads = item.downloadcount || 0;
 
-          // Media Type logic
-          const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
-          const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+          // Media Type logic based on accessType from template (future-proof)
+          const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: true });
 
           entry.visitCount += 1;
           if (isVideo) {

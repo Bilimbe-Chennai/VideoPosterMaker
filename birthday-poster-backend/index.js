@@ -105,7 +105,17 @@ setTimeout(() => {
   }
 }, 5000);
 
-app.listen(process.env.PORT, () => {
+// Increase server timeout for video processing (15 minutes = 900000ms)
+// Video merge and animation can take several minutes
+app.timeout = 900000; // 15 minutes
+
+const server = app.listen(process.env.PORT, () => {
   console.log('Server running on http://localhost:7000');
   console.log('Campaign scheduler will start after database connection is established.');
+  console.log('Server timeout set to 15 minutes for video processing.');
 });
+
+// Set server timeout
+server.timeout = 900000; // 15 minutes
+server.keepAliveTimeout = 900000; // 15 minutes
+server.headersTimeout = 900000; // 15 minutes

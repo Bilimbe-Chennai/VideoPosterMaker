@@ -564,9 +564,10 @@ const nodemailer = require('nodemailer');
 const AdminSettings = require("../models/AdminSettings.js");
 const Media = require("../models/Media.js");
 const ActivityHistory = require("../models/ActivityHistory.js");
+const PhotoMergeTemplate = require("../models/PhotoMergeTemplate.js");
 const { Readable } = require("stream");
 const runFaceSwap = require("../utils/faceSwap.js");
-const { mergeTwoVideos } = require("../utils/videoMerge.js"); // refactored from your /videovideo route
+const { mergeTwoVideos, mergeThreeVideos } = require("../utils/videoMerge.js"); // refactored from your /videovideo route
 const mongoose = require("mongoose");
 const QRCode = require("qrcode");
 const path = require("path");
@@ -574,6 +575,7 @@ const fs = require("fs");
 const os = require("os");
 const axios = require("axios");
 const { getConnection } = require("../InitDB");
+const ffmpeg = require("fluent-ffmpeg");
 const router = express.Router();
 
 // Helper: Log activity history
@@ -1178,6 +1180,10 @@ function splitBuffer2(buffer, delimiter) {
   return parts;
 }
 router.post("/client/:temp_name", async (req, res) => {
+  // Increase timeout for this route to handle video processing
+  req.setTimeout(900000); // 15 minutes
+  res.setTimeout(900000); // 15 minutes
+  
   try {
     const contentType = req.headers["content-type"];
     if (!contentType || !contentType.includes("multipart/form-data")) {
@@ -1246,8 +1252,259 @@ router.post("/client/:temp_name", async (req, res) => {
 
         if (!whatsapp)
           return res.status(400).json({ error: "Missing Whatsapp Number" });
-        // Background processing
-        // (async () => {
+
+        // Get template by name (temp_name from route parameter)
+        const temp_name = req.params.temp_name || template_name;
+        const template = await PhotoMergeTemplate.findOne({ 
+          templatename: temp_name,
+          status: 'active'
+        });
+
+        if (!template) {
+          return res.status(404).json({ error: "Template not found" });
+        }
+
+        // Check if it's a video merge template
+        if (template.accessType === 'videomerge') {
+          // For video merge, photoBuffer is actually the middle video (video2)
+          if (!photoBuffer) {
+            return res.status(400).json({ error: "Middle Video (Video 2) is required" });
+          }
+
+          try {
+            // Send keep-alive headers to prevent connection timeout
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Keep-Alive', 'timeout=900');
+            
+            console.log("Starting video merge process...");
+            
+            // Upload middle video to GridFS
+            const video2Id = await uploadToGridFS(
+              `video2-${Date.now()}.mp4`,
+              photoBuffer,
+              "video/mp4"
+            );
+            console.log("Video2 uploaded:", video2Id);
+
+            // Get template video IDs
+            const video1Id = template.video1Id;
+            const video3Id = template.video3Id;
+            const audioId = template.audioId;
+            const gifId = template.gifId;
+            const hasAnimation = template.hasAnimation;
+
+            // Validate required template files
+            if (!audioId) {
+              return res.status(400).json({ error: 'Template audio is missing' });
+            }
+
+            if (!video1Id && !video3Id) {
+              return res.status(400).json({ error: 'Template must have at least one video (video1 or video3)' });
+            }
+
+            // Set source based on template accessType
+            const mediaSource = source || (template.accessType === 'videomerge' ? 'Video Merge App' : 'Photo Merge App');
+            
+            // Create media record immediately with processing status
+            // This allows us to return quickly and avoid gateway timeout
+            const mediaId = new mongoose.Types.ObjectId();
+            const media = new Media({
+              _id: mediaId,
+              name: clientName || template.name || template.templatename,
+              email,
+              date: template.date || new Date().toISOString(),
+              type: template.type || 'template',
+              template_name: temp_name,
+              video1Id: video1Id,
+              video2Id: video2Id,
+              video3Id: video3Id,
+              audioId: audioId,
+              mergedVideoId: null, // Will be set after processing
+              posterVideoId: null, // Will be set to final merged video after processing
+              gifId: hasAnimation ? gifId : undefined,
+              templateId: template._id,
+              source: mediaSource,
+              whatsapp,
+              whatsappstatus: "processing", // Processing status
+              adminid: adminid || template.adminid || "",
+              branchName: branchName || template.branchid || "",
+              createdAt: new Date()
+            });
+            await media.save();
+            console.log("Media record created with ID:", mediaId, "- Processing will continue in background");
+
+            // Return response immediately to avoid gateway timeout
+            const mediaResponse = {
+              _id: media._id,
+              name: media.name,
+              email: media.email,
+              date: media.date,
+              type: media.type,
+              template_name: media.template_name,
+              video1Id: media.video1Id,
+              video2Id: media.video2Id,
+              video3Id: media.video3Id,
+              audioId: media.audioId,
+              mergedVideoId: null,
+              posterVideoId: null, // Will be updated when processing completes
+              gifId: media.gifId,
+              templateId: media.templateId,
+              source: media.source,
+              whatsapp: media.whatsapp,
+              whatsappstatus: "processing",
+              adminid: media.adminid,
+              branchName: media.branchName,
+              createdAt: media.createdAt
+            };
+
+            res.status(201).json({
+              success: true,
+              media: mediaResponse,
+              processing: true,
+              message: "Video upload received. Processing in progress. Please check back shortly for the final video."
+            });
+
+            // Process video merge and animation asynchronously in the background
+            (async () => {
+              try {
+                console.log(`[Background] Starting video merge for media ID: ${mediaId}`);
+                
+                // Merge videos using mergeThreeVideos
+                const mergedVideoId = await mergeThreeVideos({
+                  name: clientName || template.name || template.templatename,
+                  date: template.date || new Date().toISOString(),
+                  type: template.type || 'template',
+                  video1Id: video1Id || video2Id,
+                  video2Id: video2Id,
+                  video3Id: video3Id || video2Id,
+                  audioId: audioId,
+                  clientname: clientName || template.clientname || '',
+                  brandname: template.brandname || '',
+                  congratsOption: template.congratsOption === 'true' || template.congratsOption === true || template.congratsOption === '1',
+                  video1TextOption: template.video1TextOption === 'true' || template.video1TextOption === true || template.video1TextOption === '1',
+                  video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
+                  video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
+                  clientPhotoId: null
+                });
+                console.log(`[Background] Videos merged. Merged video ID: ${mergedVideoId}`);
+
+                let finalVideoId = mergedVideoId;
+
+                // If animation is enabled, apply GIF animation to merged video
+                if (hasAnimation && gifId) {
+                  console.log(`[Background] Applying GIF animation to merged video...`);
+                  const { bucket } = getConnection();
+                  const getFileFromGridFS = async (fileId) => {
+                    return new Promise((resolve, reject) => {
+                      const chunks = [];
+                      bucket
+                        .openDownloadStream(fileId)
+                        .on("data", (chunk) => chunks.push(chunk))
+                        .on("end", () => resolve(Buffer.concat(chunks)))
+                        .on("error", reject);
+                    });
+                  };
+
+                  const mergedVideoBuffer = await getFileFromGridFS(mergedVideoId);
+                  const gifBufferFromGridFS = await getFileFromGridFS(gifId);
+
+                  const saveTempFile = async (buffer, extension) => {
+                    const tempFilePath = path.join(
+                      os.tmpdir(),
+                      `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
+                    );
+                    await fs.promises.writeFile(tempFilePath, buffer);
+                    return tempFilePath;
+                  };
+
+                  const tempMergedVideoPath = await saveTempFile(mergedVideoBuffer, "mp4");
+                  const tempGifPath = await saveTempFile(gifBufferFromGridFS, "gif");
+                  const outputPath = path.join(os.tmpdir(), `animated-${Date.now()}.mp4`);
+
+                  // Apply GIF animation overlay
+                  await new Promise((resolve, reject) => {
+                    ffmpeg()
+                      .input(tempMergedVideoPath)
+                      .input(tempGifPath)
+                      .inputOptions(["-stream_loop", "-1"])
+                      .complexFilter([
+                        "[0:v]scale=1080:1920,setsar=1[bg]",
+                        "[1:v]scale=1080:1920:flags=lanczos,format=rgba[gif]",
+                        "[bg][gif]overlay=0:0:shortest=1[v]"
+                      ])
+                      .outputOptions([
+                        "-map [v]",
+                        "-map 0:a",
+                        "-c:v libx264",
+                        "-c:a aac",
+                        "-pix_fmt yuv420p",
+                        "-shortest"
+                      ])
+                      .on("end", resolve)
+                      .on("error", (err) => {
+                        console.error("FFmpeg animation error:", err);
+                        reject(err);
+                      })
+                      .save(outputPath);
+                  });
+
+                  const animatedVideoBuffer = await fs.promises.readFile(outputPath);
+                  finalVideoId = await uploadToGridFS(
+                    `animated-${Date.now()}.mp4`,
+                    animatedVideoBuffer,
+                    "video/mp4"
+                  );
+                  console.log(`[Background] GIF animation applied. Final video ID: ${finalVideoId}`);
+
+                  // Cleanup temp files
+                  try {
+                    await fs.promises.unlink(tempMergedVideoPath);
+                    await fs.promises.unlink(tempGifPath);
+                    await fs.promises.unlink(outputPath);
+                  } catch (cleanupErr) {
+                    console.warn("Failed to cleanup temp files:", cleanupErr);
+                  }
+                }
+
+                console.log(`[Background] Updating media record with final merged video...`);
+                // Update media record with final merged video (with animation if enabled) as posterVideoId
+                await Media.findByIdAndUpdate(mediaId, {
+                  mergedVideoId: finalVideoId,
+                  posterVideoId: finalVideoId, // Set final merged video (with animation if enabled) as posterVideoId
+                  whatsappstatus: "pending"
+                });
+                console.log(`[Background] Media ${mediaId} updated: posterVideoId set to final merged video ${finalVideoId}`);
+
+                // Log activity for video merge creation
+                if (adminid || template.adminid) {
+                  await logActivity({
+                    customerPhone: whatsapp || '',
+                    customerName: clientName || 'Unknown',
+                    customerEmail: email || '',
+                    activityType: 'video_created',
+                    activityDescription: `Created video with template ${temp_name || 'N/A'}`,
+                    mediaId: mediaId,
+                    templateName: temp_name || '',
+                    branchName: branchName || '',
+                    adminid: adminid || template.adminid
+                  });
+                }
+
+                console.log(`[Background] Video processing completed for media ID: ${mediaId}`);
+              } catch (err) {
+                console.error(`[Background] Video merge processing error for media ${mediaId}:`, err);
+                // Update media status to failed
+                await Media.findByIdAndUpdate(mediaId, {
+                  whatsappstatus: "failed"
+                });
+              }
+            })();
+          } catch (err) {
+            console.error("Video merge processing error:", err);
+            res.status(500).json({ error: "Failed to process video merge", message: err.message });
+          }
+        } else {
+          // Original photo merge logic
         try {
           let clientphotoId = null;
           if (photoBuffer) {
@@ -1259,13 +1516,16 @@ router.post("/client/:temp_name", async (req, res) => {
             console.log("Photo uploaded to GridFS:", clientphotoId);
           }
 
+            // Set source based on template accessType, default to what mobile app sends if not provided
+            const mediaSource = source || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
+
           const media = new Media({
             _id: new mongoose.Types.ObjectId(),
             name: clientName,
             email,
-            template_name,
+              template_name: temp_name,
             posterVideoId: clientphotoId,
-            source,
+              source: mediaSource,
             whatsapp,
             whatsappstatus: "pending",
             createdAt: new Date(),
@@ -1281,9 +1541,9 @@ router.post("/client/:temp_name", async (req, res) => {
               customerName: clientName || 'Unknown',
               customerEmail: email || '',
               activityType: 'photo_created',
-              activityDescription: `Created photo with template ${template_name || 'N/A'}`,
+                activityDescription: `Created photo with template ${temp_name || 'N/A'}`,
               mediaId: media._id,
-              templateName: template_name || '',
+                templateName: temp_name || '',
               branchName: branchName || '',
               adminid: adminid
             });
@@ -1291,11 +1551,11 @@ router.post("/client/:temp_name", async (req, res) => {
 
           res.status(202).json({
             media,
-            // message: "Upload received. Processing in background.",
-            // clientName,
           });
         } catch (err) {
           console.error("Background processing error:", err);
+            res.status(500).json({ error: "Failed to process photo", message: err.message });
+          }
         }
         // })();
       } catch (err) {

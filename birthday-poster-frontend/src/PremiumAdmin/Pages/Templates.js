@@ -21,7 +21,10 @@ import {
     ArrowDownRight,
     AlertCircle,
     CheckCircle,
-    XCircle
+    XCircle,
+    Play,
+    Pause,
+    Loader
 } from 'react-feather';
 // import Card from '../Components/Card'; // Unused
 import Pagination from '../Components/Pagination';
@@ -623,6 +626,27 @@ const FullImage = styled.img`
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 `;
 
+const FullVideo = styled.video`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+`;
+
+const spinAnimation = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const SpinningLoader = styled(Loader)`
+  animation: ${spinAnimation} 1s linear infinite;
+`;
+
 const ImageNavButton = styled.button`
   position: absolute;
   top: 50%;
@@ -722,17 +746,43 @@ const ImageDot = styled.div`
 
 // --- Sub-components ---
 
-const TemplateCarousel = ({ photos, name, onImageClick }) => {
+const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, video3Id, mergedVideoId }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const videoRef = useRef(null);
+    const axiosData = useAxios();
+    const baseURL = axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/';
+
+    // Determine if this is a video template
+    const isVideoTemplate = !!(video1Id || video3Id || mergedVideoId);
+    
+    // For video templates, collect all available videos (video1, video3, mergedVideoId)
+    // Priority: mergedVideoId, video3Id, video1Id
+    const videoItemsWithLabels = [];
+    if (mergedVideoId) videoItemsWithLabels.push({ id: mergedVideoId, label: 'Merged Video' });
+    if (video3Id) videoItemsWithLabels.push({ id: video3Id, label: 'End Video (Video 3)' });
+    if (video1Id) videoItemsWithLabels.push({ id: video1Id, label: 'Start Video (Video 1)' });
+    
+    const items = isVideoTemplate ? videoItemsWithLabels.map(v => v.id) : (photos || []);
+    const hasMultipleItems = items.length > 1;
+
+    // Reset video playing state when index changes
+    useEffect(() => {
+        if (isVideoTemplate && videoRef.current) {
+            setIsPlaying(false);
+            videoRef.current.pause();
+            videoRef.current.load();
+        }
+    }, [currentIndex, isVideoTemplate]);
 
     const handleNext = (e) => {
         e.stopPropagation();
-        setCurrentIndex((prev) => (prev + 1) % photos.length);
+        setCurrentIndex((prev) => (prev + 1) % items.length);
     };
 
     const handlePrev = (e) => {
         e.stopPropagation();
-        setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
+        setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
     };
 
     const handleDotClick = (e, index) => {
@@ -742,20 +792,161 @@ const TemplateCarousel = ({ photos, name, onImageClick }) => {
 
     const handleImageClick = (e) => {
         e.stopPropagation();
-        if (onImageClick && photos && photos.length > 0) {
-            onImageClick(photos, currentIndex);
+        if (onImageClick && items && items.length > 0 && !isVideoTemplate) {
+            onImageClick(items, currentIndex);
         }
     };
 
-    if (!photos || photos.length === 0) {
+    const handleVideoClick = (e) => {
+        e.stopPropagation();
+        // Pass video IDs and current index to parent for modal
+        if (isVideoTemplate && items.length > 0 && onVideoClick) {
+            onVideoClick(items, currentIndex);
+        }
+    };
+
+    const togglePlay = (e) => {
+        e.stopPropagation();
+        if (videoRef.current) {
+            if (isPlaying) {
+                videoRef.current.pause();
+            } else {
+                videoRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    if (!items || items.length === 0) {
         return (
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E5E5E5' }}>
-                <span style={{ color: '#777', fontSize: '12px' }}>No Image</span>
+                <span style={{ color: '#777', fontSize: '12px' }}>No {isVideoTemplate ? 'Video' : 'Image'}</span>
             </div>
         );
     }
 
-    const currentPhotoUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photos[currentIndex]}`;
+    // For video templates
+    if (isVideoTemplate) {
+        const currentVideoId = items[currentIndex];
+        
+        // If no valid video ID, show placeholder
+        if (!currentVideoId) {
+            return (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E5E5E5' }}>
+                    <span style={{ color: '#777', fontSize: '12px' }}>No Video</span>
+                </div>
+            );
+        }
+        
+        const videoUrl = `${baseURL}upload/file/${currentVideoId}`;
+        const videoLabel = videoItemsWithLabels.find(v => v.id === currentVideoId)?.label || 'Video';
+        
+        return (
+            <div 
+                style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', cursor: 'pointer' }}
+                onClick={handleVideoClick}
+            >
+                <video
+                    key={currentIndex}
+                    ref={videoRef}
+                    src={videoUrl}
+                    style={{ maxWidth: '90%', maxHeight: '75%', objectFit: 'contain', pointerEvents: 'none' }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onError={(e) => {
+                        console.error('Video load error:', e);
+                        e.target.style.display = 'none';
+                    }}
+                    loop
+                    muted
+                />
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        togglePlay(e);
+                    }}
+                    style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        background: 'rgba(255,255,255,0.9)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '48px',
+                        height: '48px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                        zIndex: 3,
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = '#fff'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
+                >
+                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                </button>
+                
+                {/* Navigation buttons for multiple videos */}
+                {hasMultipleItems && (
+                    <>
+                        <button
+                            onClick={handlePrev}
+                            style={{
+                                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+                                background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
+                                width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 2,
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#fff'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            style={{
+                                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                                background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
+                                width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 2,
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#fff'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.9)'}
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                        <div style={{
+                            position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
+                            display: 'flex', gap: '6px', zIndex: 2,
+                            background: 'rgba(255,255,255,0.5)', padding: '4px 8px', borderRadius: '10px',
+                            backdropFilter: 'blur(4px)'
+                        }}>
+                            {items.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    onClick={(e) => handleDotClick(e, idx)}
+                                    style={{
+                                        width: '8px', height: '8px', borderRadius: '50%',
+                                        background: idx === currentIndex ? '#fff' : 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    // For photo templates (original logic)
+    const currentPhotoUrl = `${baseURL}upload/file/${items[currentIndex]}`;
 
     return (
         <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -767,7 +958,7 @@ const TemplateCarousel = ({ photos, name, onImageClick }) => {
                 onClick={handleImageClick}
             />
 
-            {photos.length > 1 && (
+            {hasMultipleItems && (
                 <>
                     <button
                         onClick={handlePrev}
@@ -803,7 +994,7 @@ const TemplateCarousel = ({ photos, name, onImageClick }) => {
                         background: 'rgba(255,255,255,0.5)', padding: '4px 8px', borderRadius: '10px',
                         backdropFilter: 'blur(4px)'
                     }}>
-                        {photos.map((_, idx) => (
+                        {items.map((_, idx) => (
                             <div
                                 key={idx}
                                 onClick={(e) => handleDotClick(e, idx)}
@@ -830,8 +1021,10 @@ const Templates = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [templates, setTemplates] = useState([]);
     // const [loading, setLoading] = useState(true); // Unused
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All Templates');
+    const [selectedSource, setSelectedSource] = useState('All Sources');
     const [pagination, setPagination] = useState({
         page: 1,
         limit: 25,
@@ -843,9 +1036,11 @@ const Templates = () => {
 
     // Dropdown visibility states
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+    const [showSourceDropdown, setShowSourceDropdown] = useState(false);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
     const categoryRef = useRef(null);
+    const sourceRef = useRef(null);
     const statusRef = useRef(null);
 
     // Modal States
@@ -859,8 +1054,8 @@ const Templates = () => {
     const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
     const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
 
-    // Image Modal State
-    const [imageModal, setImageModal] = useState({ show: false, photos: [], currentIndex: 0 });
+    // Image/Video Modal State
+    const [imageModal, setImageModal] = useState({ show: false, photos: [], videos: [], currentIndex: 0, isVideo: false });
 
     // Helper Functions for Alerts and Confirmations
     const showAlert = (message, type = 'info') => {
@@ -873,26 +1068,32 @@ const Templates = () => {
 
     // Image Modal Handlers
     const handleImageClick = (photos, initialIndex) => {
-        setImageModal({ show: true, photos, currentIndex: initialIndex });
+        setImageModal({ show: true, photos, videos: [], currentIndex: initialIndex, isVideo: false });
+    };
+
+    const handleVideoClick = (videos, initialIndex) => {
+        setImageModal({ show: true, photos: [], videos, currentIndex: initialIndex, isVideo: true });
     };
 
     const handleCloseImageModal = () => {
-        setImageModal({ show: false, photos: [], currentIndex: 0 });
+        setImageModal({ show: false, photos: [], videos: [], currentIndex: 0, isVideo: false });
     };
 
     const handleNextImage = (e) => {
         if (e) e.stopPropagation();
+        const items = imageModal.isVideo ? imageModal.videos : imageModal.photos;
         setImageModal(prev => ({
             ...prev,
-            currentIndex: (prev.currentIndex + 1) % prev.photos.length
+            currentIndex: (prev.currentIndex + 1) % items.length
         }));
     };
 
     const handlePrevImage = (e) => {
         if (e) e.stopPropagation();
+        const items = imageModal.isVideo ? imageModal.videos : imageModal.photos;
         setImageModal(prev => ({
             ...prev,
-            currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
+            currentIndex: (prev.currentIndex - 1 + items.length) % items.length
         }));
     };
 
@@ -900,29 +1101,30 @@ const Templates = () => {
         setImageModal(prev => ({ ...prev, currentIndex: index }));
     };
 
-    // Keyboard navigation for image modal
+    // Keyboard navigation for image/video modal
     useEffect(() => {
         if (!imageModal.show) return;
 
         const handleKeyDown = (e) => {
+            const items = imageModal.isVideo ? imageModal.videos : imageModal.photos;
             if (e.key === 'ArrowRight') {
                 setImageModal(prev => ({
                     ...prev,
-                    currentIndex: (prev.currentIndex + 1) % prev.photos.length
+                    currentIndex: (prev.currentIndex + 1) % items.length
                 }));
             } else if (e.key === 'ArrowLeft') {
                 setImageModal(prev => ({
                     ...prev,
-                    currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
+                    currentIndex: (prev.currentIndex - 1 + items.length) % items.length
                 }));
             } else if (e.key === 'Escape') {
-                setImageModal({ show: false, photos: [], currentIndex: 0 });
+                setImageModal({ show: false, photos: [], videos: [], currentIndex: 0, isVideo: false });
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [imageModal.show, imageModal.photos.length]);
+    }, [imageModal.show, imageModal.photos.length, imageModal.videos.length, imageModal.isVideo]);
     const location = useLocation();
     const [highlightedId, setHighlightedId] = useState(null);
     const cardRefs = useRef({});
@@ -977,7 +1179,23 @@ const Templates = () => {
         name: '',
         status: 'active',
         accessType: 'photomerge',
-        photos: []
+        photos: [],
+        // Video merge fields
+        date: '',
+        clientname: '',
+        brandname: '',
+        congratsOption: false,
+        video1TextOption: false,
+        video2TextOption: false,
+        video3TextOption: false,
+        video1: null, // Start video
+        video2: null,
+        video3: null, // End video
+        audio: null,
+        // Animation fields
+        hasAnimation: false,
+        gif: null,
+        photo: null
     });
 
     const handleFileChange = (index) => (e) => {
@@ -1028,6 +1246,35 @@ const Templates = () => {
         img.src = objectUrl;
     };
 
+    const handleVideoFileChange = (fieldName) => (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (fieldName === 'gif') {
+            if (!file.type.includes('gif')) {
+                showAlert('Please upload a valid GIF file for animation.', 'error');
+                e.target.value = '';
+                return;
+            }
+        } else if (fieldName === 'photo') {
+            if (!file.type.startsWith('image/')) {
+                showAlert('Please upload a valid image file.', 'error');
+                e.target.value = '';
+                return;
+            }
+        } else if (!file.type.startsWith('video/') && fieldName !== 'audio' && !file.type.startsWith('audio/')) {
+            showAlert(`${fieldName}: Please upload a valid video or audio file.`, 'error');
+            e.target.value = '';
+            return;
+        }
+
+        setFormData({
+            ...formData,
+            [fieldName]: file
+        });
+    };
+
     // Dynamic Template Names for filtering
     const templateOptions = Array.from(new Set(templates.map(t => t.name))).sort();
     const statusOptions = ['All Status', 'Active', 'Inactive'];
@@ -1038,7 +1285,7 @@ const Templates = () => {
             // Fetch templates and usage data in parallel with pagination
             const [templatesResponse, photosResponse] = await Promise.all([
                 axiosData.get(`/photomerge/templates?adminid=${user._id || user.id}&page=${pagination.page}&limit=${pagination.limit}`),
-                axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`) // Get all photos for usage calculation
+                axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=2000`) // Optimized: Fetch recent items for usage calculation
             ]);
 
             // Handle paginated or non-paginated responses
@@ -1061,33 +1308,69 @@ const Templates = () => {
                 }));
             }
 
-            // Calculate usage counts from photo creations
+            // Calculate usage counts from photo creations and track sources
             const usageCounts = {};
+            const templateSources = {}; // Track which source uses each template
+            
             rawPhotos
-                .filter(item => item.source === 'Photo Merge App')
+                .filter(item => item.source === 'Photo Merge App' || item.source === 'Video Merge App')
                 .forEach(item => {
                     const templateName = item.template_name || item.templatename || item.type;
                     if (templateName) {
                         usageCounts[templateName] = (usageCounts[templateName] || 0) + 1;
+                        
+                        // Track sources for each template
+                        if (!templateSources[templateName]) {
+                            templateSources[templateName] = new Set();
+                        }
+                        templateSources[templateName].add(item.source);
                     }
                 });
 
-            // Map backend data to frontend structure with real usage
+            // Map backend data to frontend structure with real usage and sources
             let templateList = rawTemplates.map(t => {
                 const name = t.templatename;
+                // Determine sources for this template
+                const sources = templateSources[name] ? Array.from(templateSources[name]) : [];
+                // If no usage, determine source from accessType
+                const defaultSource = t.accessType === 'videomerge' ? 'Video Merge App' : 'Photo Merge App';
+                const templateSource = sources.length > 0 ? sources[0] : defaultSource;
+                
                 return {
                     id: t._id,
                     name: name,
-                    category: 'Photo Merge', // defaulting for now, or derive from type/accessType
+                    category: t.accessType === 'videomerge' ? 'Video Merge' : 'Photo Merge',
                     status: t.status || 'active',
                     usage: usageCounts[name] || 0, // Using real aggregated usage
+                    source: templateSource, // Track which source uses this template
+                    sources: sources.length > 0 ? sources : [defaultSource], // All sources that use this template
                     lastUsed: t.updatedDate ? formatDate(t.updatedDate, getStoredDateFormat()) : 'Never',
                     createdAt: t.createdDate ? formatDate(t.createdDate, getStoredDateFormat()) : formatDate(new Date(), getStoredDateFormat()),
                     overlayUrl: (t.templatePhotos && t.templatePhotos.length > 0)
-                        ? `https://api.bilimbebrandactivations.com/api/upload/file/${t.templatePhotos[0]}`
-                        : 'https://via.placeholder.com/150?text=No+Image',
+                        ? `${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${t.templatePhotos[0]}`
+                        : (t.video1Id ? `${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${t.video1Id}` : 'https://via.placeholder.com/150?text=No+Image'),
                     accessType: t.accessType || 'photomerge',
-                    photos: t.templatePhotos || []
+                    photos: t.templatePhotos || [],
+                    // Video fields for video merge templates
+                    video1Id: t.video1Id || null,
+                    video3Id: t.video3Id || null,
+                    audioId: t.audioId || null,
+                    gifId: t.gifId || null,
+                    mergedVideoId: t.mergedVideoId || null,
+                    // Video merge fields
+                    date: t.date || '',
+                    type: t.type || '',
+                    faceSwap: t.faceSwap || '',
+                    videosMergeOption: t.videosMergeOption || '',
+                    clientname: t.clientname || '',
+                    brandname: t.brandname || '',
+                    congratsOption: t.congratsOption || '',
+                    video1TextOption: t.video1TextOption || '',
+                    video2TextOption: t.video2TextOption || '',
+                    video3TextOption: t.video3TextOption || '',
+                    approved: t.approved || '',
+                    // Animation fields
+                    hasAnimation: t.hasAnimation || false
                 };
             });
 
@@ -1102,12 +1385,12 @@ const Templates = () => {
 
             const recentPhotos = rawPhotos.filter(item => {
                 const date = new Date(item.date || item.createdAt);
-                return date >= last30Days && item.source === 'Photo Merge App';
+                return date >= last30Days && (item.source === 'Photo Merge App' || item.source === 'Video Merge App');
             });
 
             const previousPhotos = rawPhotos.filter(item => {
                 const date = new Date(item.date || item.createdAt);
-                return date >= last60Days && date < last30Days && item.source === 'Photo Merge App';
+                return date >= last60Days && date < last30Days && (item.source === 'Photo Merge App' || item.source === 'Video Merge App');
             });
 
             const recentTemplateCount = new Set(recentPhotos.map(p => p.template_name || p.templatename || p.type)).size;
@@ -1196,6 +1479,7 @@ const Templates = () => {
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (categoryRef.current && !categoryRef.current.contains(event.target)) setShowCategoryDropdown(false);
+            if (sourceRef.current && !sourceRef.current.contains(event.target)) setShowSourceDropdown(false);
             if (statusRef.current && !statusRef.current.contains(event.target)) setShowStatusDropdown(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -1213,7 +1497,22 @@ const Templates = () => {
             name: '',
             status: 'active',
             accessType: 'photomerge',
-            photos: []
+            photos: [],
+            // Video merge fields
+            date: '',
+            clientname: '',
+            brandname: '',
+            congratsOption: false,
+            video1TextOption: false,
+            video2TextOption: false,
+            video3TextOption: false,
+            video1: null, // Start video
+            video2: null, // Middle video (from mobile app)
+            video3: null, // End video
+            audio: null,
+            // Animation fields
+            hasAnimation: false,
+            gif: null
         });
         setShowModal(true);
     };
@@ -1223,8 +1522,24 @@ const Templates = () => {
         setFormData({
             name: tmpl.name,
             status: tmpl.status,
-            accessType: tmpl.accessType,
-            photos: tmpl.photos || []
+            accessType: tmpl.accessType || 'photomerge',
+            photos: tmpl.photos || [],
+            // Video merge fields (if editing a videomerge template)
+            date: tmpl.date || '',
+            clientname: tmpl.clientname || '',
+            brandname: tmpl.brandname || '',
+            congratsOption: tmpl.congratsOption === true || tmpl.congratsOption === 'true' || tmpl.congratsOption === '1',
+            video1TextOption: tmpl.video1TextOption === true || tmpl.video1TextOption === 'true' || tmpl.video1TextOption === '1',
+            video2TextOption: tmpl.video2TextOption === true || tmpl.video2TextOption === 'true' || tmpl.video2TextOption === '1',
+            video3TextOption: tmpl.video3TextOption === true || tmpl.video3TextOption === 'true' || tmpl.video3TextOption === '1',
+            // Store existing IDs as strings (like photos), null if not set
+            video1: tmpl.video1Id || null,
+            video2: null, // Middle video (from mobile app, not stored in template)
+            video3: tmpl.video3Id || null,
+            audio: tmpl.audioId || null,
+            // Animation fields
+            hasAnimation: tmpl.hasAnimation === true || tmpl.hasAnimation === 'true' || tmpl.hasAnimation === '1',
+            gif: tmpl.gifId || null
         });
         setShowModal(true);
     };
@@ -1273,6 +1588,7 @@ const Templates = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
 
         try {
             if (editingTemplate) {
@@ -1281,24 +1597,55 @@ const Templates = () => {
                 uploadData.append('accessType', formData.accessType);
                 uploadData.append('status', formData.status);
 
-                // Hybrid Update Logic: Construct photoOrder
-                const photoOrder = [];
-                formData.photos.forEach((photo, index) => {
-                    if (photo instanceof File) {
-                        // New file uploaded
-                        uploadData.append('photos', photo);
-                        photoOrder.push('NEW_FILE');
-                    } else if (typeof photo === 'string' && photo.trim() !== '') {
-                        // Existing photo ID - keep it
-                        photoOrder.push(photo);
-                    } else {
-                        // Empty or undefined - skip this slot
-                        // This shouldn't happen if handleEdit works correctly
-                        console.warn('Empty photo slot at index', index);
-                    }
-                });
+                if (formData.accessType === 'videomerge') {
+                    // Append video merge fields for edit
+                    if (formData.name) uploadData.append('name', formData.name);
+                    if (formData.date) uploadData.append('date', formData.date);
+                    if (formData.clientname) uploadData.append('clientname', formData.clientname);
+                    if (formData.brandname) uploadData.append('brandname', formData.brandname);
+                    uploadData.append('congratsOption', formData.congratsOption);
+                    uploadData.append('video1TextOption', formData.video1TextOption);
+                    uploadData.append('video2TextOption', formData.video2TextOption);
+                    uploadData.append('video3TextOption', formData.video3TextOption);
+                    uploadData.append('hasAnimation', formData.hasAnimation);
 
-                uploadData.append('photoOrder', JSON.stringify(photoOrder));
+                    // Append video files only if new ones are uploaded (File objects)
+                    // If they are strings, they are existing IDs and will be kept by backend
+                    // Append video files (video2 will come from mobile app)
+                    if (formData.video1 && formData.video1 instanceof File) {
+                        uploadData.append('video1', formData.video1);
+                    }
+                    if (formData.video3 && formData.video3 instanceof File) {
+                        uploadData.append('video3', formData.video3);
+                    }
+                    if (formData.audio && formData.audio instanceof File) {
+                        uploadData.append('audio', formData.audio);
+                    }
+                    
+                    // Append animation file if animation is enabled and it's a new file
+                    if (formData.hasAnimation && formData.gif && formData.gif instanceof File) {
+                        uploadData.append('gif', formData.gif);
+                    }
+                } else {
+                    // Hybrid Update Logic: Construct photoOrder for photomerge
+                    const photoOrder = [];
+                    formData.photos.forEach((photo, index) => {
+                        if (photo instanceof File) {
+                            // New file uploaded
+                            uploadData.append('photos', photo);
+                            photoOrder.push('NEW_FILE');
+                        } else if (typeof photo === 'string' && photo.trim() !== '') {
+                            // Existing photo ID - keep it
+                            photoOrder.push(photo);
+                        } else {
+                            // Empty or undefined - skip this slot
+                            // This shouldn't happen if handleEdit works correctly
+                            console.warn('Empty photo slot at index', index);
+                        }
+                    });
+
+                    uploadData.append('photoOrder', JSON.stringify(photoOrder));
+                }
 
                 await axiosData.put(`/photomerge/templates/${editingTemplate.id}`, uploadData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -1317,12 +1664,36 @@ const Templates = () => {
                 uploadData.append('branchid', adminInfo.branchid);
                 uploadData.append('source', 'photo merge app');
 
-                // Append photos
-                formData.photos.forEach((photo, index) => {
-                    if (photo instanceof File) {
-                        uploadData.append('photos', photo);
+                if (formData.accessType === 'videomerge') {
+                    // Append video merge fields
+                    // Note: 'name' field for video merge uses the template name
+                    if (formData.name) uploadData.append('name', formData.name);
+                    if (formData.date) uploadData.append('date', formData.date);
+                    if (formData.clientname) uploadData.append('clientname', formData.clientname);
+                    if (formData.brandname) uploadData.append('brandname', formData.brandname);
+                    uploadData.append('congratsOption', formData.congratsOption);
+                    uploadData.append('video1TextOption', formData.video1TextOption);
+                    uploadData.append('video2TextOption', formData.video2TextOption);
+                    uploadData.append('video3TextOption', formData.video3TextOption);
+                    uploadData.append('hasAnimation', formData.hasAnimation);
+
+                    // Append video files (video2 will come from mobile app)
+                    if (formData.video1) uploadData.append('video1', formData.video1);
+                    if (formData.video3) uploadData.append('video3', formData.video3);
+                    if (formData.audio) uploadData.append('audio', formData.audio);
+                    
+                    // Append animation file if animation is enabled
+                    if (formData.hasAnimation && formData.gif) {
+                        uploadData.append('gif', formData.gif);
                     }
-                });
+                } else {
+                    // Append photos for photomerge
+                    formData.photos.forEach((photo, index) => {
+                        if (photo instanceof File) {
+                            uploadData.append('photos', photo);
+                        }
+                    });
+                }
 
                 await axiosData.post('/photomerge/template-upload', uploadData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -1335,6 +1706,8 @@ const Templates = () => {
         } catch (error) {
             console.error('Error saving template:', error);
             showAlert('Failed to save template: ' + (error.response?.data?.error || error.message), 'error');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -1358,7 +1731,11 @@ const Templates = () => {
             tmpl.id.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory = selectedCategory === 'All Templates' || tmpl.name === selectedCategory;
         const matchesStatus = selectedStatus === 'All Status' || tmpl.status.toLowerCase() === selectedStatus.toLowerCase();
-        return matchesSearch && matchesCategory && matchesStatus;
+        // Filter by source: check if template's sources include the selected source
+        const matchesSource = selectedSource === 'All Sources' || 
+            (tmpl.sources && tmpl.sources.includes(selectedSource)) ||
+            (tmpl.source === selectedSource);
+        return matchesSearch && matchesCategory && matchesStatus && matchesSource;
     });
 
     const totalTrend = generateTrendPath(growthMetrics.totalGrowth);
@@ -1504,6 +1881,35 @@ const Templates = () => {
                             </div>
                         )}
                     </Dropdown>
+                    <Dropdown ref={sourceRef}>
+                        <DropdownBtn onClick={() => setShowSourceDropdown(!showSourceDropdown)}>
+                            <Filter size={16} />
+                            {selectedSource}
+                            <ChevronDown size={14} />
+                        </DropdownBtn>
+                        {showSourceDropdown && (
+                            <div style={{
+                                position: 'absolute', top: '100%', left: 0, width: '200px',
+                                background: 'white', border: '1px solid #EEE', borderRadius: '12px',
+                                boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 100, padding: '8px',
+                                marginTop: '8px'
+                            }}>
+                                {['All Sources', 'Photo Merge App', 'Video Merge App'].map(s => (
+                                    <div
+                                        key={s}
+                                        onClick={() => { setSelectedSource(s); setShowSourceDropdown(false); }}
+                                        style={{
+                                            padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
+                                            fontSize: '14px', background: selectedSource === s ? '#E5E5E5' : 'transparent',
+                                            fontWeight: selectedSource === s ? 600 : 400
+                                        }}
+                                    >
+                                        {s}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Dropdown>
                     <Dropdown ref={statusRef}>
                         <DropdownBtn onClick={() => setShowStatusDropdown(!showStatusDropdown)}>
                             {selectedStatus}
@@ -1570,13 +1976,15 @@ const Templates = () => {
                                 ? `We couldn't find any templates matching your current search or filter criteria.`
                                 : "No templates have been created yet. Click 'Create New Template' to get started."}
                         </div>
-                        {(searchQuery || selectedCategory !== 'All Templates' || selectedStatus !== 'All Status') && (
+                        {(searchQuery || selectedCategory !== 'All Templates' || selectedSource !== 'All Sources' || selectedStatus !== 'All Status') && (
                             <Button
                                 style={{ marginTop: '24px', background: '#F3F4F6', color: '#374151' }}
                                 onClick={() => {
                                     setSearchQuery('');
                                     setSelectedCategory('All Templates');
+                                    setSelectedSource('All Sources');
                                     setSelectedStatus('All Status');
+                                    setSearchQuery('');
                                 }}
                             >
                                 Reset All Filters
@@ -1591,7 +1999,15 @@ const Templates = () => {
                         $highlighted={tmpl.id === highlightedId}
                     >
                         <TemplatePreview $active={tmpl.status === 'active'} onClick={() => handleEdit(tmpl)}>
-                            <TemplateCarousel photos={tmpl.photos} name={tmpl.name} onImageClick={handleImageClick} />
+                            <TemplateCarousel 
+                                photos={tmpl.photos} 
+                                name={tmpl.name} 
+                                onImageClick={handleImageClick}
+                                onVideoClick={handleVideoClick}
+                                video1Id={tmpl.video1Id}
+                                video3Id={tmpl.video3Id}
+                                mergedVideoId={tmpl.mergedVideoId}
+                            />
                             <div className="status-badge">{tmpl.status.toUpperCase()}</div>
                             <SelectionCircle
                                 $selected={selectedIds.includes(tmpl.id)}
@@ -1717,37 +2133,583 @@ const Templates = () => {
                                         </select>
                                     </FormGroup>
                                 </FormRow>
-                                <FormGroup>
-                                    <label>Template Photos ({templateCount} Required)</label>
-                                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
-                                        <strong>Requirements:</strong> PNG format only, dimensions must be exactly 3000x4000 pixels
-                                    </div>
-                                    <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>
-                                        {[...Array(templateCount)].map((_, index) => (
-                                            <div key={index}>
-                                                <label style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>
-                                                    Photo {index + 1}
-                                                    {typeof formData.photos[index] === 'string' && <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>}
-                                                    {formData.photos[index] && typeof formData.photos[index] !== 'string' && (
-                                                        <span style={{ color: '#25D366', marginLeft: '5px' }}>✓</span>
-                                                    )}
+
+                                {formData.accessType === 'videomerge' ? (
+                                    <>
+                                        {/* Basic Information Section */}
+                                        <div style={{ 
+                                            marginBottom: '28px',
+                                            paddingBottom: '24px',
+                                            borderBottom: '1px solid #E5E5E5'
+                                        }}>
+                                            <h3 style={{ 
+                                                fontSize: '15px', 
+                                                fontWeight: 600, 
+                                                color: '#1A1A1A', 
+                                                marginBottom: '20px',
+                                                letterSpacing: '0.3px'
+                                            }}>
+                                                Basic Information
+                                            </h3>
+                                            <FormRow>
+                                                <FormGroup>
+                                                    <label>Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={formData.date || ''}
+                                                        onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                                    />
+                                                </FormGroup>
+                                                <FormGroup>
+                                                    <label>Client Name</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter client name"
+                                                        value={formData.clientname || ''}
+                                                        onChange={e => setFormData({ ...formData, clientname: e.target.value })}
+                                                    />
+                                                </FormGroup>
+                                            </FormRow>
+                                            <FormRow>
+                                                <FormGroup>
+                                                    <label>Brand Name</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter brand name"
+                                                        value={formData.brandname || ''}
+                                                        onChange={e => setFormData({ ...formData, brandname: e.target.value })}
+                                                    />
+                                                </FormGroup>
+                                                <FormGroup style={{ marginBottom: 0 }}></FormGroup>
+                                            </FormRow>
+                                        </div>
+
+                                        {/* Video Options Section */}
+                                        <div style={{ 
+                                            marginBottom: '28px',
+                                            paddingBottom: '24px',
+                                            borderBottom: '1px solid #E5E5E5'
+                                        }}>
+                                            <h3 style={{ 
+                                                fontSize: '15px', 
+                                                fontWeight: 600, 
+                                                color: '#1A1A1A', 
+                                                marginBottom: '16px',
+                                                letterSpacing: '0.3px'
+                                            }}>
+                                                Video Options
+                                            </h3>
+                                            <div style={{ 
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '14px',
+                                                padding: '20px',
+                                                background: 'linear-gradient(135deg, #FAFAFA 0%, #F5F5F5 100%)',
+                                                borderRadius: '16px',
+                                                border: '1px solid #E8E8E8'
+                                            }}>
+                                                <label
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        fontWeight: 500,
+                                                        color: '#333',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
+                                                        background: 'white',
+                                                        border: '1px solid #E0E0E0',
+                                                        transition: 'all 0.2s ease',
+                                                        userSelect: 'none',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.background = '#F8F8F8';
+                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.background = 'white';
+                                                        e.currentTarget.style.borderColor = '#E0E0E0';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.congratsOption || false}
+                                                        onChange={e => setFormData({ ...formData, congratsOption: e.target.checked })}
+                                                        style={{ 
+                                                            height: '22px', 
+                                                            width: '22px', 
+                                                            cursor: 'pointer',
+                                                            accentColor: '#1A1A1A',
+                                                            flexShrink: 0
+                                                        }}
+                                                    />
+                                                    <span style={{ flex: 1 }}>Enable Congratulations End Text</span>
                                                 </label>
-                                                <input
-                                                    accept="image/png"
-                                                    type="file"
-                                                    onChange={handleFileChange(index)}
-                                                    style={{ padding: '8px', width: '100%' }}
-                                                />
+                                                <label
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        fontWeight: 500,
+                                                        color: '#333',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
+                                                        background: 'white',
+                                                        border: '1px solid #E0E0E0',
+                                                        transition: 'all 0.2s ease',
+                                                        userSelect: 'none',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.background = '#F8F8F8';
+                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.background = 'white';
+                                                        e.currentTarget.style.borderColor = '#E0E0E0';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.video1TextOption || false}
+                                                        onChange={e => setFormData({ ...formData, video1TextOption: e.target.checked })}
+                                                        style={{ 
+                                                            height: '22px', 
+                                                            width: '22px', 
+                                                            cursor: 'pointer',
+                                                            accentColor: '#1A1A1A',
+                                                            flexShrink: 0
+                                                        }}
+                                                    />
+                                                    <span style={{ flex: 1 }}>Enable overlay text for video 1</span>
+                                                </label>
+                                                <label
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        fontWeight: 500,
+                                                        color: '#333',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
+                                                        background: 'white',
+                                                        border: '1px solid #E0E0E0',
+                                                        transition: 'all 0.2s ease',
+                                                        userSelect: 'none',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.background = '#F8F8F8';
+                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.background = 'white';
+                                                        e.currentTarget.style.borderColor = '#E0E0E0';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.video2TextOption || false}
+                                                        onChange={e => setFormData({ ...formData, video2TextOption: e.target.checked })}
+                                                        style={{ 
+                                                            height: '22px', 
+                                                            width: '22px', 
+                                                            cursor: 'pointer',
+                                                            accentColor: '#1A1A1A',
+                                                            flexShrink: 0
+                                                        }}
+                                                    />
+                                                    <span style={{ flex: 1 }}>Enable overlay text for video 2</span>
+                                                </label>
+                                                <label
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        fontWeight: 500,
+                                                        color: '#333',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
+                                                        background: 'white',
+                                                        border: '1px solid #E0E0E0',
+                                                        transition: 'all 0.2s ease',
+                                                        userSelect: 'none',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.background = '#F8F8F8';
+                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.background = 'white';
+                                                        e.currentTarget.style.borderColor = '#E0E0E0';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.video3TextOption || false}
+                                                        onChange={e => setFormData({ ...formData, video3TextOption: e.target.checked })}
+                                                        style={{ 
+                                                            height: '22px', 
+                                                            width: '22px', 
+                                                            cursor: 'pointer',
+                                                            accentColor: '#1A1A1A',
+                                                            flexShrink: 0
+                                                        }}
+                                                    />
+                                                    <span style={{ flex: 1 }}>Enable overlay text for video 3</span>
+                                                </label>
                                             </div>
-                                        ))}
-                                    </div>
-                                </FormGroup>
+                                        </div>
+
+                                        {/* Video Files Section */}
+                                        <div style={{ marginBottom: '28px' }}>
+                                            <h3 style={{ 
+                                                fontSize: '15px', 
+                                                fontWeight: 600, 
+                                                color: '#1A1A1A', 
+                                                marginBottom: '16px',
+                                                letterSpacing: '0.3px'
+                                            }}>
+                                                Video Files
+                                            </h3>
+                                            <div style={{ 
+                                                display: 'grid', 
+                                                gap: '16px', 
+                                                gridTemplateColumns: '1fr 1fr' 
+                                            }}>
+                                                <FormGroup style={{ marginBottom: 0 }}>
+                                                    <label style={{ 
+                                                        fontSize: '13px', 
+                                                        fontWeight: 600, 
+                                                        color: '#444', 
+                                                        marginBottom: '10px', 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '8px'
+                                                    }}>
+                                                        <span>Start Video (Video 1)</span>
+                                                        {typeof formData.video1 === 'string' && formData.video1 && (
+                                                            <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
+                                                        )}
+                                                        {formData.video1 && typeof formData.video1 !== 'string' && (
+                                                            <span style={{ 
+                                                                color: '#10B981', 
+                                                                fontSize: '14px', 
+                                                                fontWeight: 600,
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}>
+                                                                <CheckCircle size={16} />
+                                                                Uploaded
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                    <input
+                                                        accept="video/*"
+                                                        type="file"
+                                                        onChange={handleVideoFileChange('video1')}
+                                                        style={{ 
+                                                            padding: '12px 16px',
+                                                            borderRadius: '12px',
+                                                            border: '1px solid #D0D0D0',
+                                                            fontSize: '14px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s ease',
+                                                            background: (formData.video1 && typeof formData.video1 !== 'string') ? '#F0FDF4' : 'white'
+                                                        }}
+                                                        onFocus={(e) => e.target.style.borderColor = '#1A1A1A'}
+                                                        onBlur={(e) => e.target.style.borderColor = '#D0D0D0'}
+                                                    />
+                                                </FormGroup>
+                                                <FormGroup style={{ marginBottom: 0 }}>
+                                                    <label style={{ 
+                                                        fontSize: '13px', 
+                                                        fontWeight: 600, 
+                                                        color: '#444', 
+                                                        marginBottom: '10px', 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '8px'
+                                                    }}>
+                                                        <span>End Video (Video 3)</span>
+                                                        {typeof formData.video3 === 'string' && formData.video3 && (
+                                                            <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
+                                                        )}
+                                                        {formData.video3 && typeof formData.video3 !== 'string' && (
+                                                            <span style={{ 
+                                                                color: '#10B981', 
+                                                                fontSize: '14px', 
+                                                                fontWeight: 600,
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}>
+                                                                <CheckCircle size={16} />
+                                                                Uploaded
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                    <input
+                                                        accept="video/*"
+                                                        type="file"
+                                                        onChange={handleVideoFileChange('video3')}
+                                                        style={{ 
+                                                            padding: '12px 16px',
+                                                            borderRadius: '12px',
+                                                            border: '1px solid #D0D0D0',
+                                                            fontSize: '14px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s ease',
+                                                            background: (formData.video3 && typeof formData.video3 !== 'string') ? '#F0FDF4' : 'white'
+                                                        }}
+                                                        onFocus={(e) => e.target.style.borderColor = '#1A1A1A'}
+                                                        onBlur={(e) => e.target.style.borderColor = '#D0D0D0'}
+                                                    />
+                                                </FormGroup>
+                                                <FormGroup style={{ marginBottom: 0 }}>
+                                                    <label style={{ 
+                                                        fontSize: '13px', 
+                                                        fontWeight: 600, 
+                                                        color: '#444', 
+                                                        marginBottom: '10px', 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '8px'
+                                                    }}>
+                                                        <span>Audio *</span>
+                                                        {typeof formData.audio === 'string' && formData.audio && (
+                                                            <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
+                                                        )}
+                                                        {formData.audio && typeof formData.audio !== 'string' && (
+                                                            <span style={{ 
+                                                                color: '#10B981', 
+                                                                fontSize: '14px', 
+                                                                fontWeight: 600,
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}>
+                                                                <CheckCircle size={16} />
+                                                                Uploaded
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                    <input
+                                                        accept="audio/*"
+                                                        type="file"
+                                                        onChange={handleVideoFileChange('audio')}
+                                                        required
+                                                        style={{ 
+                                                            padding: '12px 16px',
+                                                            borderRadius: '12px',
+                                                            border: '1px solid #D0D0D0',
+                                                            fontSize: '14px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s ease',
+                                                            background: (formData.audio && typeof formData.audio !== 'string') ? '#F0FDF4' : 'white'
+                                                        }}
+                                                        onFocus={(e) => e.target.style.borderColor = '#1A1A1A'}
+                                                        onBlur={(e) => e.target.style.borderColor = '#D0D0D0'}
+                                                    />
+                                                </FormGroup>
+                                            </div>
+                                        </div>
+
+                                        {/* Animation Option */}
+                                        <div style={{ 
+                                            marginBottom: '28px',
+                                            paddingBottom: '24px',
+                                            borderBottom: '1px solid #E5E5E5'
+                                        }}>
+                                            <FormGroup>
+                                                <label
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px',
+                                                        fontWeight: 500,
+                                                        color: '#333',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '10px',
+                                                        background: 'white',
+                                                        border: '1px solid #E0E0E0',
+                                                        transition: 'all 0.2s ease',
+                                                        userSelect: 'none',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.background = '#F8F8F8';
+                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.background = 'white';
+                                                        e.currentTarget.style.borderColor = '#E0E0E0';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.hasAnimation || false}
+                                                        onChange={e => setFormData({ ...formData, hasAnimation: e.target.checked })}
+                                                        style={{ 
+                                                            height: '22px', 
+                                                            width: '22px', 
+                                                            cursor: 'pointer',
+                                                            accentColor: '#1A1A1A',
+                                                            flexShrink: 0
+                                                        }}
+                                                    />
+                                                    <span style={{ flex: 1 }}>Enable Animation (GIF + Photo)</span>
+                                                </label>
+                                            </FormGroup>
+                                        </div>
+
+                                        {/* Animation Files Section - Only show when animation is enabled */}
+                                        {formData.hasAnimation && (
+                                            <div style={{ marginBottom: '24px' }}>
+                                                <h3 style={{ 
+                                                    fontSize: '15px', 
+                                                    fontWeight: 600, 
+                                                    color: '#1A1A1A', 
+                                                    marginBottom: '16px',
+                                                    letterSpacing: '0.3px'
+                                                }}>
+                                                    Animation Files
+                                                </h3>
+                                                <FormGroup style={{ marginBottom: 0 }}>
+                                                    <label style={{ 
+                                                        fontSize: '13px', 
+                                                        fontWeight: 600, 
+                                                        color: '#444', 
+                                                        marginBottom: '10px', 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '8px'
+                                                    }}>
+                                                        <span>Animation (GIF) *</span>
+                                                        {typeof formData.gif === 'string' && formData.gif && (
+                                                            <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
+                                                        )}
+                                                        {formData.gif && typeof formData.gif !== 'string' && (
+                                                            <span style={{ 
+                                                                color: '#10B981', 
+                                                                fontSize: '14px', 
+                                                                fontWeight: 600,
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}>
+                                                                <CheckCircle size={16} />
+                                                                Uploaded
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                    <input
+                                                        accept="image/gif"
+                                                        type="file"
+                                                        onChange={handleVideoFileChange('gif')}
+                                                        required={formData.hasAnimation}
+                                                        style={{ 
+                                                            padding: '12px 16px',
+                                                            borderRadius: '12px',
+                                                            border: '1px solid #D0D0D0',
+                                                            fontSize: '14px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s ease',
+                                                            background: (formData.gif && typeof formData.gif !== 'string') ? '#F0FDF4' : 'white',
+                                                            width: '100%'
+                                                        }}
+                                                        onFocus={(e) => e.target.style.borderColor = '#1A1A1A'}
+                                                        onBlur={(e) => e.target.style.borderColor = '#D0D0D0'}
+                                                    />
+                                                </FormGroup>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <FormGroup>
+                                        <label>Template Photos ({templateCount} Required)</label>
+                                        <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
+                                            <strong>Requirements:</strong> PNG format only, dimensions must be exactly 3000x4000 pixels
+                                        </div>
+                                        <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: '1fr 1fr' }}>
+                                            {[...Array(templateCount)].map((_, index) => (
+                                                <div key={index}>
+                                                    <label style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>
+                                                        Photo {index + 1}
+                                                        {typeof formData.photos[index] === 'string' && <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>}
+                                                        {formData.photos[index] && typeof formData.photos[index] !== 'string' && (
+                                                            <span style={{ color: '#25D366', marginLeft: '5px' }}>✓</span>
+                                                        )}
+                                                    </label>
+                                                    <input
+                                                        accept="image/png"
+                                                        type="file"
+                                                        onChange={handleFileChange(index)}
+                                                        style={{ padding: '8px', width: '100%' }}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </FormGroup>
+                                )}
 
 
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                                    <Button type="button" onClick={() => setShowModal(false)} style={{ flex: 1 }}>Cancel</Button>
-                                    <Button type="submit" $variant="primary" style={{ flex: 1 }}>
-                                        {editingTemplate ? 'Update Template' : 'Create Template'}
+                                    <Button 
+                                        type="button" 
+                                        onClick={() => setShowModal(false)} 
+                                        style={{ flex: 1 }}
+                                        disabled={isSubmitting}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button 
+                                        type="submit" 
+                                        $variant="primary" 
+                                        style={{ flex: 1, position: 'relative' }}
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? (
+                                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                <SpinningLoader size={18} />
+                                                {editingTemplate ? 'Updating...' : 'Creating...'}
+                                            </span>
+                                        ) : (
+                                            editingTemplate ? 'Update Template' : 'Create Template'
+                                        )}
                                     </Button>
                                 </div>
                             </form>
@@ -1812,55 +2774,74 @@ const Templates = () => {
                 </AlertModalOverlay>
             )}
 
-            {/* Image Modal */}
-            {imageModal.show && imageModal.photos.length > 0 && (
+            {/* Image/Video Modal */}
+            {imageModal.show && (imageModal.photos.length > 0 || imageModal.videos.length > 0) && (
                 <ImageModalOverlay onClick={handleCloseImageModal}>
                     <ImageModalContent onClick={e => e.stopPropagation()}>
                         <ImageCloseButton onClick={handleCloseImageModal}>
                             <X size={20} />
                         </ImageCloseButton>
 
-                        {imageModal.photos.length > 1 && (
-                            <ImageNavButton
-                                $left
-                                onClick={handlePrevImage}
-                                disabled={imageModal.photos.length <= 1}
-                            >
-                                <ChevronLeft size={24} />
-                            </ImageNavButton>
-                        )}
+                        {(() => {
+                            const items = imageModal.isVideo ? imageModal.videos : imageModal.photos;
+                            const hasMultiple = items.length > 1;
+                            
+                            return (
+                                <>
+                                    {hasMultiple && (
+                                        <ImageNavButton
+                                            $left
+                                            onClick={handlePrevImage}
+                                            disabled={!hasMultiple}
+                                        >
+                                            <ChevronLeft size={24} />
+                                        </ImageNavButton>
+                                    )}
 
-                        <FullImage
-                            src={`https://api.bilimbebrandactivations.com/api/upload/file/${imageModal.photos[imageModal.currentIndex]}`}
-                            alt={`Template image ${imageModal.currentIndex + 1}`}
-                        />
-
-                        {imageModal.photos.length > 1 && (
-                            <ImageNavButton
-                                $right
-                                onClick={handleNextImage}
-                                disabled={imageModal.photos.length <= 1}
-                            >
-                                <ChevronRight size={24} />
-                            </ImageNavButton>
-                        )}
-
-                        {imageModal.photos.length > 1 && (
-                            <>
-                                <ImageCounter>
-                                    {imageModal.currentIndex + 1} / {imageModal.photos.length}
-                                </ImageCounter>
-                                <ImageDots>
-                                    {imageModal.photos.map((_, index) => (
-                                        <ImageDot
-                                            key={index}
-                                            $active={index === imageModal.currentIndex}
-                                            onClick={() => handleDotClick(index)}
+                                    {imageModal.isVideo ? (
+                                        <FullVideo
+                                            key={imageModal.currentIndex}
+                                            src={`${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${imageModal.videos[imageModal.currentIndex]}`}
+                                            controls
+                                            autoPlay
+                                            loop
                                         />
-                                    ))}
-                                </ImageDots>
-                            </>
-                        )}
+                                    ) : (
+                                        <FullImage
+                                            src={`${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${imageModal.photos[imageModal.currentIndex]}`}
+                                            alt={`Template image ${imageModal.currentIndex + 1}`}
+                                        />
+                                    )}
+
+                                    {hasMultiple && (
+                                        <ImageNavButton
+                                            $right
+                                            onClick={handleNextImage}
+                                            disabled={!hasMultiple}
+                                        >
+                                            <ChevronRight size={24} />
+                                        </ImageNavButton>
+                                    )}
+
+                                    {hasMultiple && (
+                                        <>
+                                            <ImageCounter>
+                                                {imageModal.currentIndex + 1} / {items.length}
+                                            </ImageCounter>
+                                            <ImageDots>
+                                                {items.map((_, index) => (
+                                                    <ImageDot
+                                                        key={index}
+                                                        $active={index === imageModal.currentIndex}
+                                                        onClick={() => handleDotClick(index)}
+                                                    />
+                                                ))}
+                                            </ImageDots>
+                                        </>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </ImageModalContent>
                 </ImageModalOverlay>
             )}

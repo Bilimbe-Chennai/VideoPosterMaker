@@ -14,6 +14,7 @@ import useAxios from '../../useAxios';
 import Card from '../Components/Card';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
+import { isVideoType, getMediaTypeLabel } from '../../utils/accessTypeUtils';
 
 const PageContainer = styled.div`
 padding: 0;
@@ -1095,6 +1096,20 @@ const Photos = () => {
         setIsLoadingMore(true);
       }
 
+      // Fetch templates to get accessType mapping
+      let templateAccessTypeMap = {};
+      try {
+        const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${user._id || user.id}`);
+        const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+        templates.forEach(template => {
+          if (template.templatename) {
+            templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+          }
+        });
+      } catch (templatesError) {
+        console.error("Error fetching templates:", templatesError);
+      }
+
       // Use pagination to load photos in chunks for better performance
       const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
 
@@ -1162,8 +1177,8 @@ const Photos = () => {
       const processed = data.map((item, index) => {
         const phone = item.whatsapp || item.mobile || '';
         const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-        const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
-        const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+        // Use centralized accessType utility (future-proof)
+        const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: true });
 
         return {
           id: item._id || index,
@@ -1184,7 +1199,7 @@ const Photos = () => {
             (item.instagramsharecount || 0),
           downloads: item.downloadcount || 0,
           rating: calculatePhotoRating(item),
-          mediaType: isVideo ? 'Video' : 'Photo',
+          mediaType: getMediaTypeLabel(item, templateAccessTypeMap),
           source: item.source
         };
       }).sort((a, b) => b.timestamp - a.timestamp);
@@ -1200,7 +1215,8 @@ const Photos = () => {
       // Calculate Global Stats asynchronously (non-blocking) - only on initial load
       if (!append) {
         // Fetch a larger chunk specifically for stats calculation to ensure store-wide totals
-        axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=10000`)
+        // Optimized: Fetch only what's needed for stats (recent 2000 items)
+        axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=2000`)
           .then(async response => {
             const dataArray = Array.isArray(response.data?.data)
               ? response.data.data
@@ -1218,9 +1234,23 @@ const Photos = () => {
             let photosToday = 0;
             let videosToday = 0;
 
+            // Fetch templates for accessType mapping
+            let templateAccessTypeMap = {};
+            try {
+              const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${user._id || user.id}`);
+              const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+              templates.forEach(template => {
+                if (template.templatename) {
+                  templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+                }
+              });
+            } catch (templatesError) {
+              console.error("Error fetching templates:", templatesError);
+            }
+
             filteredData.forEach(item => {
-              const type = (item.template_name || item.templatename || item.type || '').toLowerCase();
-              const isVideo = type.includes('video') || !!item.videoId || !!item.mergedVideoId;
+              // Use centralized utility - checks source === 'Video Merge App' first (future-proof)
+              const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: false });
               const itemDate = new Date(item.date || item.createdAt);
 
               if (isVideo) {

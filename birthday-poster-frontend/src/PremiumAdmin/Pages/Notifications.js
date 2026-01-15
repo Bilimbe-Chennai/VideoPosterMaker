@@ -271,8 +271,8 @@ const Notifications = () => {
                 }
             }
 
-            // Sync Photos Notifications
-            for (const p of photosArray.filter(p => p.source === 'Photo Merge App')) {
+            // Sync Photos and Videos Notifications
+            for (const p of photosArray.filter(p => p.source === 'Photo Merge App' || p.source === 'Video Merge App')) {
                 const createdAt = p.createdAt || p.date;
                 const updatedAt = p.updatedAt || p.date;
                 const createdTime = new Date(createdAt).getTime();
@@ -282,14 +282,15 @@ const Notifications = () => {
                 
                 if (!existingNotificationIds.has(notificationId)) {
                     // Create new notification in API
+                    const isVideo = p.source === 'Video Merge App';
                     try {
                         await axiosData.post('/notifications', {
                             adminid: adminId,
                             notificationId,
                             type: 'info',
-                            title: isUpdate ? 'Photo Updated' : 'Photo Created',
-                            message: `Photo merge for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
-                            category: 'photos',
+                            title: isUpdate ? (isVideo ? 'Video Updated' : 'Photo Updated') : (isVideo ? 'Video Created' : 'Photo Created'),
+                            message: `${isVideo ? 'Video merge' : 'Photo merge'} for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
+                            category: isVideo ? 'videos' : 'photos',
                             isUpdate,
                             timestamp: isUpdate ? updatedTime : createdTime,
                             date: isUpdate ? updatedAt : createdAt
@@ -299,16 +300,16 @@ const Notifications = () => {
                         allNotifs.push({
                             notificationId,
                             type: 'info',
-                            title: isUpdate ? 'Photo Updated' : 'Photo Created',
+                            title: isUpdate ? (isVideo ? 'Video Updated' : 'Photo Updated') : (isVideo ? 'Video Created' : 'Photo Created'),
                             isUpdate,
-                            message: `Photo merge for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
+                            message: `${isVideo ? 'Video merge' : 'Photo merge'} for "${p.name || 'Customer'}" has been ${isUpdate ? 'modified' : 'processed'}.`,
                             timestamp: isUpdate ? updatedTime : createdTime,
                             date: isUpdate ? updatedAt : createdAt,
-                            category: 'photos',
+                            category: isVideo ? 'videos' : 'photos',
                             isRead: false
                         });
                     } catch (err) {
-                        console.error('Error creating photo notification:', err);
+                        console.error('Error creating photo/video notification:', err);
                     }
                 }
             }

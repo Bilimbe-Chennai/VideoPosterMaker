@@ -19,13 +19,15 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  X
+  X,
+  Video
 } from 'react-feather';
 import jsPDF from 'jspdf';
 import Card from '../Components/Card';
 import KPIMetricCard from '../Components/charts/KPIMetricCard';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
+import { filterByAccessType } from '../../utils/accessTypeUtils';
 
 // --- Styled Components ---
 
@@ -479,12 +481,12 @@ const Reports = () => {
         return;
       }
 
-      // Fetch all data in parallel (for Reports, we need all data for accurate statistics)
-      // Use high limit to get all data for statistics calculation
+      // Optimized: Fetch data with reasonable limits for faster initial load
+      // Reports can work with recent data, full data fetched only when generating reports
       const [mediaResponse, campaignsResponse, templatesResponse] = await Promise.all([
-        axiosData.get(`upload/all?adminid=${adminId}&page=1&limit=10000`),
-        axiosData.get(`campaigns?adminid=${adminId}&page=1&limit=10000`),
-        axiosData.get(`/photomerge/templates?page=1&limit=10000`)
+        axiosData.get(`upload/all?adminid=${adminId}&page=1&limit=2000`),
+        axiosData.get(`campaigns?adminid=${adminId}&page=1&limit=500`),
+        axiosData.get(`/photomerge/templates?adminid=${adminId}`)
       ]);
 
       // Log responses for debugging
@@ -503,12 +505,26 @@ const Reports = () => {
         ? templatesResponse.data.data
         : (Array.isArray(templatesResponse.data) ? templatesResponse.data : []);
 
+      // Build accessType map from templates
+      let templateAccessTypeMap = {};
+      templatesDataArray.forEach(template => {
+        if (template.templatename) {
+          templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+        }
+      });
+
       // For Reports, we fetch all data for accurate statistics
       // Pagination info is not needed for Reports page since we show aggregated data
 
-      const rawItems = mediaDataArray.filter(item => item && item.source === 'Photo Merge App');
+      const rawItems = mediaDataArray.filter(item => 
+        item && (item.source === 'Photo Merge App' || item.source === 'Video Merge App')
+      );
       const campaigns = campaignsDataArray;
       const templates = templatesDataArray.filter(t => t && (t.adminid === user.id || t.adminid === user._id));
+      
+      // Separate photos and videos based on accessType (future-proof)
+      const photosItems = filterByAccessType(rawItems, 'photomerge', templateAccessTypeMap);
+      const videosItems = filterByAccessType(rawItems, 'videomerge', templateAccessTypeMap);
 
       console.log('Processed Data:', {
         rawItems: rawItems.length,
@@ -560,14 +576,20 @@ const Reports = () => {
         filteredDownloads += (item.downloadcount || 0);
       });
 
+      // Separate filtered items by accessType
+      const filteredPhotosItems = filterDataByRange(photosItems, activeRange, false);
+      const filteredVideosItems = filterDataByRange(videosItems, activeRange, false);
+
       // Calculate all-time stats for comparison
       const totalCustomers = customersSet.size;
-      const totalPhotos = rawItems.length;
+      const totalPhotos = photosItems.length;
+      const totalVideos = videosItems.length;
       const totalCampaigns = campaigns.length;
 
       // Calculate filtered stats
       const filteredTotalCustomers = filteredCustomersSet.size;
-      const filteredTotalPhotos = filteredItems.length;
+      const filteredTotalPhotos = filteredPhotosItems.length;
+      const filteredTotalVideos = filteredVideosItems.length;
       const filteredTotalCampaigns = filteredCampaigns.length;
       const filteredTotalShares = filteredShares;
       const filteredTotalSharesAndDownloads = filteredShares + filteredDownloads;
@@ -611,6 +633,12 @@ const Reports = () => {
         return date >= previousStart && date <= previousEnd;
       });
 
+      // Separate current and previous items by accessType (future-proof)
+      const currentPhotos = filterByAccessType(currentItems, 'photomerge', templateAccessTypeMap);
+      const currentVideos = filterByAccessType(currentItems, 'videomerge', templateAccessTypeMap);
+      const previousPhotos = filterByAccessType(previousItems, 'photomerge', templateAccessTypeMap);
+      const previousVideos = filterByAccessType(previousItems, 'videomerge', templateAccessTypeMap);
+
       const currentCampaigns = campaigns.filter(c => {
         const date = new Date(c.startDate || c.createdAt);
         return date >= currentStart && date <= currentEnd;
@@ -653,8 +681,23 @@ const Reports = () => {
           size: estimateSize(filteredTotalPhotos),
           lastGenerated: nowFormatted,
           downloadCount: currentDownloadCounts['photo'] || 0,
-          data: filteredItems, // Use filtered data
-          allData: rawItems, // Keep all data for export
+          data: filteredPhotosItems, // Use filtered photos data
+          allData: photosItems, // Keep all photos data for export
+          templates: templates
+        },
+        {
+          id: 'video',
+          name: 'Video Analytics',
+          type: 'Asset Performance',
+          description: 'Insights into video merge templates, total views, and download counts per template.',
+          color: '#10B981',
+          icon: <Video size={24} />,
+          records: filteredTotalVideos,
+          size: estimateSize(filteredTotalVideos),
+          lastGenerated: nowFormatted,
+          downloadCount: currentDownloadCounts['video'] || 0,
+          data: filteredVideosItems, // Use filtered videos data
+          allData: videosItems, // Keep all videos data for export
           templates: templates
         },
         {
@@ -690,7 +733,7 @@ const Reports = () => {
       setReports(reportsData);
 
       // Calculate summary stats dynamically (using filtered data for current period)
-      const totalRecords = filteredTotalCustomers + filteredTotalPhotos + filteredTotalCampaigns + filteredTotalSharesAndDownloads;
+      const totalRecords = filteredTotalCustomers + filteredTotalPhotos + filteredTotalVideos + filteredTotalCampaigns + filteredTotalSharesAndDownloads;
       const totalSizeKB = totalRecords * 0.5;
 
       // Fetch downloads this month from API
@@ -766,7 +809,7 @@ const Reports = () => {
         prevDataDownloads += (item.downloadcount || 0);
       });
 
-      const prevTotalRecords = prevCustomersSet.size + previousItems.length + previousCampaigns.length + prevShares + prevDataDownloads;
+      const prevTotalRecords = prevCustomersSet.size + previousPhotos.length + previousVideos.length + previousCampaigns.length + prevShares + prevDataDownloads;
       const prevTotalSize = prevTotalRecords * 0.5;
 
       setGrowthMetrics({

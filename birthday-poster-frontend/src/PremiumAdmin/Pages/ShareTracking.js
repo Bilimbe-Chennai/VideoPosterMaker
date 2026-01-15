@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import {
-  Share2, Users, MousePointer, Image as ImageIcon,
+  Share2, Users, MousePointer, Image as ImageIcon, Video,
   Download, MessageCircle, Search, ChevronDown,
   Filter, Calendar, TrendingUp, TrendingDown,
   ArrowRight, MoreVertical, Eye, RotateCcw, Send, Loader,
@@ -16,6 +16,7 @@ import Card from '../Components/Card';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 import Pagination from '../Components/Pagination';
+import { isVideoType, getAccessType } from '../../utils/accessTypeUtils';
 
 // Configuration Constants (can be fetched from API or settings in future)
 const SHARE_TRACKING_CONFIG = {
@@ -93,6 +94,14 @@ const SHARE_TRACKING_CONFIG = {
       bgColor: '#FED7AA',
       trendColor: '#F97316',
       growthKey: 'photosGrowth'
+    },
+    {
+      label: 'Total Videos',
+      key: 'videosShared',
+      icon: 'Video',
+      bgColor: '#D1FAE5',
+      trendColor: '#10B981',
+      growthKey: 'videosGrowth'
     }
   ]
 };
@@ -103,6 +112,7 @@ const iconComponents = {
   Users,
   MousePointer,
   ImageIcon,
+  Video,
   MessageCircle,
   Instagram,
   Facebook,
@@ -178,9 +188,13 @@ const PrimaryButton = styled.button`
 
 const MetricGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 24px;
   margin-bottom: 40px;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 
   @media (max-width: 1200px) {
     grid-template-columns: repeat(2, 1fr);
@@ -957,19 +971,46 @@ const ShareTracking = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axiosData.get(`upload/all?adminid=${user._id || user.id}&limit=10000`);
+      
+      // Fetch templates to get accessType mapping
+      let templateAccessTypeMap = {};
+      try {
+        const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${user._id || user.id}`);
+        const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+        templates.forEach(template => {
+          if (template.templatename) {
+            templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+          }
+        });
+      } catch (templatesError) {
+        console.error("Error fetching templates:", templatesError);
+      }
+
+      // Optimized: Fetch with reasonable limit for faster load
+      const res = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=2000`);
 
       // Handle paginated responses
       const dataArray = Array.isArray(res.data?.data)
         ? res.data.data
         : (Array.isArray(res.data) ? res.data : []);
 
+      // Filter to include both Photo Merge App and Video Merge App items
       const data = dataArray.filter(item =>
         item.source === 'Photo Merge App' || item.source === 'Video Merge App'
       );
 
-      setRawData(data);
-      processData(data);
+      // Add accessType to each item for processing (future-proof)
+      const enrichedData = data.map(item => {
+        const accessType = getAccessType(item, templateAccessTypeMap);
+        return { 
+          ...item, 
+          _accessType: accessType,
+          _templateAccessTypeMap: templateAccessTypeMap // Pass map for filtering
+        };
+      });
+
+      setRawData(enrichedData);
+      processData(enrichedData);
       setLoading(false);
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -985,6 +1026,7 @@ const ShareTracking = () => {
     let totalShares = 0;
     const uniqueUsersSet = new Set();
     const photosSharedSet = new Set();
+    const videosSharedSet = new Set();
 
     // Initialize platform stats dynamically
     const platformStats = {};
@@ -995,6 +1037,11 @@ const ShareTracking = () => {
     const sharesByDay = {};
 
     const processed = data.map(item => {
+      // Determine if item is photo or video based on accessType (future-proof)
+      // Reconstruct templateAccessTypeMap from enriched data if available
+      const templateAccessTypeMap = item._templateAccessTypeMap || {};
+      const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: false });
+      
       // Calculate shares dynamically based on platform config
       let totalEngagement = 0;
       const platformShares = {};
@@ -1009,7 +1056,11 @@ const ShareTracking = () => {
 
       if (totalEngagement > 0) {
         uniqueUsersSet.add(item.whatsapp || item.mobile || item.name);
-        photosSharedSet.add(item.photoId || item._id);
+        if (isVideo) {
+          videosSharedSet.add(item.mergedVideoId || item.videoId || item._id);
+        } else {
+          photosSharedSet.add(item.photoId || item.posterVideoId || item._id);
+        }
       }
 
       const dObj = new Date(item.date || item.createdAt);
@@ -1056,7 +1107,8 @@ const ShareTracking = () => {
       totalShares,
       uniqueUsers: uniqueUsersSet.size,
       // totalClicks comes from `/upload/dashboard-metrics` (API-derived)
-      photosShared: photosSharedSet.size
+      photosShared: photosSharedSet.size,
+      videosShared: videosSharedSet.size
     }));
   };
 
