@@ -1251,7 +1251,7 @@ const Photos = () => {
             filteredData.forEach(item => {
               // Use centralized utility - checks source === 'video merge app' first (future-proof)
               const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: false });
-              const itemDate = new Date(item.date || item.createdAt);
+              const itemDate = new Date(item.createdAt);
 
               if (isVideo) {
                 totalVideos++;
