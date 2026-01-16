@@ -994,9 +994,9 @@ const ShareTracking = () => {
         ? res.data.data
         : (Array.isArray(res.data) ? res.data : []);
 
-      // Filter to include both Photo Merge App and Video Merge App items
+      // Filter to include both photo merge app and video merge app items
       const data = dataArray.filter(item =>
-        item.source === 'Photo Merge App' || item.source === 'Video Merge App'
+        item.source === 'photo merge app' || item.source === 'video merge app'
       );
 
       // Add accessType to each item for processing (future-proof)

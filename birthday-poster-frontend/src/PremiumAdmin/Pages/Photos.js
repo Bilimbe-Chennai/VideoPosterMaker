@@ -1119,7 +1119,7 @@ const Photos = () => {
         : (Array.isArray(response.data) ? response.data : []);
 
       const data = dataArray.filter(item =>
-        item.source === 'Photo Merge App' || item.source === 'Video Merge App'
+        item.source === 'photo merge app' || item.source === 'video merge app'
       );
 
       // Update pagination info if available
@@ -1223,7 +1223,7 @@ const Photos = () => {
               : (Array.isArray(response.data) ? response.data : []);
 
             const filteredData = dataArray.filter(item =>
-              item.source === 'Photo Merge App' || item.source === 'Video Merge App'
+              item.source === 'photo merge app' || item.source === 'video merge app'
             );
 
             const today = new Date();
@@ -1249,7 +1249,7 @@ const Photos = () => {
             }
 
             filteredData.forEach(item => {
-              // Use centralized utility - checks source === 'Video Merge App' first (future-proof)
+              // Use centralized utility - checks source === 'video merge app' first (future-proof)
               const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: false });
               const itemDate = new Date(item.date || item.createdAt);
 

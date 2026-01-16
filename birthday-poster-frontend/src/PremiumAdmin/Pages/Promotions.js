@@ -159,7 +159,7 @@ const Promotions = () => {
       try {
         setLoading(true);
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
-        const rawItems = response.data.filter(item => item.source === 'Photo Merge App' || item.source === 'Video Merge App');
+        const rawItems = response.data.filter(item => item.source === 'photo merge app' || item.source === 'video merge app');
 
         // Group by template to create promotion-like data
         const templateMap = {};

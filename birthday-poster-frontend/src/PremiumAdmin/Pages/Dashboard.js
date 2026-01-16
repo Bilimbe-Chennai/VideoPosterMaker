@@ -639,7 +639,7 @@ const Dashboard = () => {
           : (Array.isArray(response.data) ? response.data : []);
 
         const rawItems = dataArray.filter(item =>
-          item.source === 'Photo Merge App' || item.source === 'Video Merge App'
+          item.source === 'photo merge app' || item.source === 'video merge app'
         );
 
         console.log('DATA Processing - Filtered items count:', rawItems.length);

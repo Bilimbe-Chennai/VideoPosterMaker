@@ -1313,7 +1313,7 @@ const Templates = () => {
             const templateSources = {}; // Track which source uses each template
             
             rawPhotos
-                .filter(item => item.source === 'Photo Merge App' || item.source === 'Video Merge App')
+                .filter(item => item.source === 'photo merge app' || item.source === 'video merge app')
                 .forEach(item => {
                     const templateName = item.template_name || item.templatename || item.type;
                     if (templateName) {
@@ -1333,7 +1333,7 @@ const Templates = () => {
                 // Determine sources for this template
                 const sources = templateSources[name] ? Array.from(templateSources[name]) : [];
                 // If no usage, determine source from accessType
-                const defaultSource = t.accessType === 'videomerge' ? 'Video Merge App' : 'Photo Merge App';
+                const defaultSource = t.accessType === 'videomerge' ? 'video merge app' : 'photo merge app';
                 const templateSource = sources.length > 0 ? sources[0] : defaultSource;
                 
                 return {
@@ -1385,12 +1385,12 @@ const Templates = () => {
 
             const recentPhotos = rawPhotos.filter(item => {
                 const date = new Date(item.date || item.createdAt);
-                return date >= last30Days && (item.source === 'Photo Merge App' || item.source === 'Video Merge App');
+                return date >= last30Days && (item.source === 'photo merge app' || item.source === 'video merge app');
             });
 
             const previousPhotos = rawPhotos.filter(item => {
                 const date = new Date(item.date || item.createdAt);
-                return date >= last60Days && date < last30Days && (item.source === 'Photo Merge App' || item.source === 'Video Merge App');
+                return date >= last60Days && date < last30Days && (item.source === 'photo merge app' || item.source === 'video merge app');
             });
 
             const recentTemplateCount = new Set(recentPhotos.map(p => p.template_name || p.templatename || p.type)).size;
@@ -1894,7 +1894,7 @@ const Templates = () => {
                                 boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 100, padding: '8px',
                                 marginTop: '8px'
                             }}>
-                                {['All Sources', 'Photo Merge App', 'Video Merge App'].map(s => (
+                                {['All Sources', 'photo merge app', 'video merge app'].map(s => (
                                     <div
                                         key={s}
                                         onClick={() => { setSelectedSource(s); setShowSourceDropdown(false); }}

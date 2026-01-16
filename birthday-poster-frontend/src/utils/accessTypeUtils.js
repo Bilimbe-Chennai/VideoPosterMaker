@@ -33,10 +33,10 @@ export const getAccessType = (item, templateAccessTypeMap = {}) => {
  */
 export const isVideoType = (item, templateAccessTypeMap = {}, fallbackOptions = {}) => {
   // Primary check: source field (most reliable indicator)
-  if (item.source === 'Video Merge App') {
+  if (item.source === 'video merge app') {
     return true;
   }
-  if (item.source === 'Photo Merge App') {
+  if (item.source === 'photo merge app') {
     return false;
   }
   
@@ -77,17 +77,17 @@ export const isPhotoType = (item, templateAccessTypeMap = {}) => {
  */
 export const filterByAccessType = (items, targetAccessType, templateAccessTypeMap = {}) => {
   if (targetAccessType === 'videomerge') {
-    // For videos: check source === 'Video Merge App' first, then accessType
+    // For videos: check source === 'video merge app' first, then accessType
     return items.filter(item => {
-      if (item.source === 'Video Merge App') return true;
-      if (item.source === 'Photo Merge App') return false;
+      if (item.source === 'video merge app') return true;
+      if (item.source === 'photo merge app') return false;
       return isVideoType(item, templateAccessTypeMap, { enableFallback: false });
     });
   } else if (targetAccessType === 'photomerge') {
     // For photos: check source === 'Photo Merge App' first, then accessType
     return items.filter(item => {
-      if (item.source === 'Photo Merge App') return true;
-      if (item.source === 'Video Merge App') return false;
+      if (item.source === 'photo merge app') return true;
+      if (item.source === 'video merge app') return false;
       return isPhotoType(item, templateAccessTypeMap);
     });
   } else {

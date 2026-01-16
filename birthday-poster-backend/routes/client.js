@@ -1303,7 +1303,7 @@ router.post("/client/:temp_name", async (req, res) => {
             }
 
             // Set source based on template accessType
-            const mediaSource = source || (template.accessType === 'videomerge' ? 'Video Merge App' : 'Photo Merge App');
+            const mediaSource = source || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
             
             // Create media record immediately with processing status
             // This allows us to return quickly and avoid gateway timeout

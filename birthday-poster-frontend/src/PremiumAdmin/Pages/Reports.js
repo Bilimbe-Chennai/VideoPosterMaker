@@ -517,7 +517,7 @@ const Reports = () => {
       // Pagination info is not needed for Reports page since we show aggregated data
 
       const rawItems = mediaDataArray.filter(item => 
-        item && (item.source === 'Photo Merge App' || item.source === 'Video Merge App')
+        item && (item.source === 'photo merge app' || item.source === 'video merge app')
       );
       const campaigns = campaignsDataArray;
       const templates = templatesDataArray.filter(t => t && (t.adminid === user.id || t.adminid === user._id));

@@ -272,7 +272,7 @@ const Notifications = () => {
             }
 
             // Sync Photos and Videos Notifications
-            for (const p of photosArray.filter(p => p.source === 'Photo Merge App' || p.source === 'Video Merge App')) {
+            for (const p of photosArray.filter(p => p.source === 'photo merge app' || p.source === 'video merge app')) {
                 const createdAt = p.createdAt || p.date;
                 const updatedAt = p.updatedAt || p.date;
                 const createdTime = new Date(createdAt).getTime();
@@ -282,7 +282,7 @@ const Notifications = () => {
                 
                 if (!existingNotificationIds.has(notificationId)) {
                     // Create new notification in API
-                    const isVideo = p.source === 'Video Merge App';
+                    const isVideo = p.source === 'video merge app';
                     try {
                         await axiosData.post('/notifications', {
                             adminid: adminId,
