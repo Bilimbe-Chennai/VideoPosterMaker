@@ -230,10 +230,10 @@ const Sidebar = ({ isOpen, onToggle, onClose }) => {
     { icon: <Layers size={18} />, text: 'Templates', path: 'templates' },
     { icon: <PieChart size={18} />, text: 'Analytics', path: 'analytics' },
     { icon: <Share2 size={18} />, text: 'Share Tracking', path: 'share-tracking' },
-    { icon: <Send size={18} />, text: 'Campaigns', path: 'campaigns' },
+    // { icon: <Send size={18} />, text: 'Campaigns', path: 'campaigns' },
     { icon: <FileText size={18} />, text: 'Reports', path: 'reports' },
-    { icon: <Shield size={18} />, text: 'Subscription', path: 'subscription' },
-    { icon: <CreditCard size={18} />, text: 'Billing', path: 'billing' },
+    // { icon: <Shield size={18} />, text: 'Subscription', path: 'subscription' },
+    // { icon: <CreditCard size={18} />, text: 'Billing', path: 'billing' },
     { icon: <Settings size={18} />, text: 'Settings', path: 'settings' },
   ];
 

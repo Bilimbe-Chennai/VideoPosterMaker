@@ -655,7 +655,7 @@ const Analytics = () => {
   const fetchAnalyticsData = React.useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Fetch templates to get accessType mapping
       let templateAccessTypeMap = {};
       try {
@@ -681,17 +681,17 @@ const Analytics = () => {
       const rawData = dataArray.filter(item =>
         item.source === 'photo merge app' || item.source === 'video merge app'
       );
-      
+
       // Add accessType to each item for processing (future-proof)
       const enrichedData = rawData.map(item => {
         const accessType = getAccessType(item, templateAccessTypeMap);
-        return { 
-          ...item, 
+        return {
+          ...item,
           _accessType: accessType,
           _templateAccessTypeMap: templateAccessTypeMap // Pass map for filtering
         };
       });
-      
+
       processAnalytics(enrichedData, uniqueCustomersGrowth, timeRange);
       setLoading(false);
     } catch (error) {
@@ -1087,11 +1087,6 @@ const Analytics = () => {
 
                 // Dynamically build platform list based on config and data availability
                 return ANALYTICS_CONFIG.platforms
-                  .filter(platform => {
-                    // Show platform if it has data or if it's Download (always show)
-                    const key = platform.key || platform.name;
-                    return analyticsData?.totalEngagement?.[key] > 0 || key === 'Direct';
-                  })
                   .map(platform => {
                     const key = platform.key || platform.name;
                     const IconComponent = iconComponents[platform.icon];

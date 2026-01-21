@@ -16,7 +16,7 @@ const PaginationContainer = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-top: 24px;
-  padding: 16px 0;
+  padding: 16px;
   gap: 16px;
 
   @media (max-width: 768px) {
