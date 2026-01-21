@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect,useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./ShareScreen.css";
@@ -7,8 +7,69 @@ import { Phone } from "@mui/icons-material";
 const ShareScreen = () => {
   const { photoId } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [mediaData, setMediaData] = useState(null);
+  const [isVideo, setIsVideo] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [instagramLink, setInstagramLink] = useState('https://www.instagram.com/kanchivmlsilks/?hl=en');
+  const videoRef = useRef(null);
+
+  // Fetch media data and determine if it's a video, and get Instagram link
+  useEffect(() => {
+    const fetchMediaData = async () => {
+      if (!photoId) return;
+      
+      try {
+        setLoading(true);
+        const response = await axios.get(`https://api.bilimbebrandactivations.com/api/upload/media/${photoId}`);
+        const data = response.data;
+        setMediaData(data);
+        
+        // Determine if it's a video
+        const isVideoType = data.source === 'video merge app' || 
+                           data.mergedVideoId || 
+                           data.posterVideoId || 
+                           data.videoId;
+        setIsVideo(!!isVideoType);
+        
+        // Set media URL
+        if (isVideoType) {
+          const videoId = data.mergedVideoId || data.posterVideoId || data.videoId;
+          if (videoId) {
+            setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`);
+          }
+        } else {
+          setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`);
+        }
+        
+        // Fetch Instagram link from admin settings based on adminid
+        if (data.adminid) {
+          try {
+            const settingsResponse = await axios.get(`https://api.bilimbebrandactivations.com/api/users/premium-settings?adminid=${data.adminid}`);
+            if (settingsResponse.data?.success && settingsResponse.data?.settings?.general?.instagramLink) {
+              setInstagramLink(settingsResponse.data.settings.general.instagramLink);
+            }
+          } catch (settingsErr) {
+            console.error("Error fetching Instagram link:", settingsErr);
+            // Keep default Instagram link if fetch fails
+          }
+        }
+        
+        // For images, set loading to false immediately
+        if (!isVideoType) {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching media data:", err);
+        setImageError(true);
+        setLoading(false);
+      }
+    };
+    
+    fetchMediaData();
+  }, [photoId]);
 
   // Track URL click when ShareScreen is viewed
   useEffect(() => {
@@ -72,7 +133,43 @@ const ShareScreen = () => {
   const handleImageError = () => {
     setLoading(false);
     setImageError(true);
-    Alert("Error", "Failed to load image. Please try again.");
+    Alert("Error", `Failed to load ${isVideo ? 'video' : 'image'}. Please try again.`);
+  };
+
+  const handleVideoError = () => {
+    setLoading(false);
+    setVideoLoading(false);
+    setImageError(true);
+    Alert("Error", "Failed to load video. Please try again.");
+  };
+
+  const handleVideoLoadStart = () => {
+    setVideoLoading(true);
+    setLoading(true);
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    // Metadata loaded - we now know video dimensions, can show it
+    setVideoLoading(false);
+    setLoading(false);
+  };
+
+  const handleVideoCanPlay = () => {
+    // Video can start playing - ensure it's visible
+    setVideoLoading(false);
+    setLoading(false);
+  };
+
+  const handleVideoCanPlayThrough = () => {
+    // Video has enough data to play through - ensure it's visible
+    setVideoLoading(false);
+    setLoading(false);
+  };
+
+  const handleVideoLoadedData = () => {
+    // First frame loaded - show the video
+    setVideoLoading(false);
+    setLoading(false);
   };
 
   const handleUpdateCount = async (field) => {
@@ -88,8 +185,8 @@ const ShareScreen = () => {
   };
 
   const handleShare = async (platform) => {
-    const imageUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
-    const text = "Check out my merged photo!";
+    const shareUrl = mediaUrl || `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
+    const text = isVideo ? "Check out my merged video!" : "Check out my merged photo!";
     const currentUrl = window.location.href;
     const platformKey = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
 
@@ -104,17 +201,19 @@ const ShareScreen = () => {
       handleUpdateCount(fieldMap[platformKey]);
     }
 
-    // ON MOBILE: Use Web Share API for ALL platforms to share the actual photo file
+    // ON MOBILE: Use Web Share API for ALL platforms to share the actual photo/video file
     if (navigator.share) {
       try {
-        const response = await fetch(imageUrl);
+        const response = await fetch(shareUrl);
         const blob = await response.blob();
-        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+        const fileName = isVideo ? 'video.mp4' : 'photo.jpg';
+        const fileType = isVideo ? 'video/mp4' : 'image/jpeg';
+        const file = new File([blob], fileName, { type: fileType });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: 'Merged Photo',
+            title: isVideo ? 'Merged Video' : 'Merged Photo',
             text: text,
           });
           return;
@@ -141,12 +240,12 @@ const ShareScreen = () => {
     if (!photoId) return;
     handleUpdateCount("downloadcount");
 
-    const imageUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
+    const downloadUrl = mediaUrl || `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
 
     // Create a temporary link element
     const link = document.createElement("a");
-    link.href = imageUrl;
-    link.download = `merged-photo-${photoId}.jpg`;
+    link.href = downloadUrl;
+    link.download = isVideo ? `merged-video-${photoId}.mp4` : `merged-photo-${photoId}.jpg`;
 
     // Append to body, click, and remove
     document.body.appendChild(link);
@@ -187,7 +286,7 @@ const ShareScreen = () => {
 
   const InstagramLink = () => (
     <a
-      href="https://www.instagram.com/kanchivmlsilks/?hl=en"
+      href={instagramLink}
       target="_blank"
       rel="noopener noreferrer"
       className="instagram-link-row"
@@ -204,14 +303,87 @@ const ShareScreen = () => {
   return (
     <div className="share-screen">
       <div className="share-content-wrapper">
-        <div className="image-section">
-          <img
-            src={`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`}
-            alt="Merged photo"
-            className="merged-image"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          />
+        <div className="image-section" style={{ position: 'relative' }}>
+          {isVideo ? (
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                minHeight: videoLoading ? '400px' : 'auto',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'relative',
+                backgroundColor: videoLoading ? '#f5f5f5' : 'transparent',
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+            >
+              {videoLoading && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      border: '4px solid rgba(102, 126, 234, 0.2)',
+                      borderTop: '4px solid #667eea',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}
+                  />
+                  <span style={{ color: '#667eea', fontSize: '14px', fontWeight: 600 }}>Loading video...</span>
+                </div>
+              )}
+              <video
+                ref={videoRef}
+                src={mediaUrl}
+                controls
+                autoPlay
+                loop
+                preload="metadata"
+                className="merged-image"
+                style={{
+                  width: '100%',
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  height: 'auto',
+                  objectFit: 'contain',
+                  borderRadius: '12px',
+                  opacity: videoLoading ? 0 : 1,
+                  transition: 'opacity 0.3s ease',
+                  visibility: videoLoading ? 'hidden' : 'visible',
+                  display: videoLoading ? 'none' : 'block'
+                }}
+                onLoadStart={handleVideoLoadStart}
+                onLoadedMetadata={handleVideoLoadedMetadata}
+                onLoadedData={handleVideoLoadedData}
+                onCanPlay={handleVideoCanPlay}
+                onCanPlayThrough={handleVideoCanPlayThrough}
+                onError={handleVideoError}
+              />
+            </div>
+          ) : (
+            <img
+              src={mediaUrl || `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`}
+              alt="Merged photo"
+              className="merged-image"
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            />
+          )}
         </div>
 
         <div className="actions-section">

@@ -2495,4 +2495,27 @@ router.post("/videovideo", async (req, res) => {
 //     }
 //   }
 // );
+
+// GET single media item by ID (must be before /file/:id route)
+router.get("/media/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid media ID" });
+    }
+
+    const media = await Media.findById(id);
+    
+    if (!media) {
+      return res.status(404).json({ error: "Media not found" });
+    }
+
+    res.json(media);
+  } catch (err) {
+    console.error("Error fetching media:", err);
+    res.status(500).json({ error: "Server error while fetching media" });
+  }
+});
+
 module.exports = router;
