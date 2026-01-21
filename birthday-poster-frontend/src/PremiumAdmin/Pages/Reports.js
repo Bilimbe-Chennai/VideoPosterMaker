@@ -233,7 +233,7 @@ const DownloadButton = styled.button`
     transform: translateY(0);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
-
+  
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -471,8 +471,8 @@ const Reports = () => {
 
   // Fetch all data from APIs
   const fetchReportData = useCallback(async () => {
-    try {
-      setLoading(true);
+      try {
+        setLoading(true);
 
       const adminId = user._id || user.id;
       if (!adminId) {
@@ -537,21 +537,21 @@ const Reports = () => {
       setTemplatesData(templates);
 
       // Calculate all-time statistics from API data (for comparison)
-      const customersSet = new Set();
-      let totalShares = 0;
-      let totalDownloads = 0;
+        const customersSet = new Set();
+        let totalShares = 0;
+        let totalDownloads = 0;
       let totalClicks = 0;
 
-      rawItems.forEach(item => {
-        const phone = item.whatsapp || item.mobile || '';
-        const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-        customersSet.add(key);
-
-        totalShares += (item.whatsappsharecount || 0) +
-          (item.facebooksharecount || 0) +
-          (item.twittersharecount || 0) +
-          (item.instagramsharecount || 0);
-        totalDownloads += (item.downloadcount || 0);
+        rawItems.forEach(item => {
+          const phone = item.whatsapp || item.mobile || '';
+          const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+          customersSet.add(key);
+          
+          totalShares += (item.whatsappsharecount || 0) +
+            (item.facebooksharecount || 0) +
+            (item.twittersharecount || 0) +
+            (item.instagramsharecount || 0);
+          totalDownloads += (item.downloadcount || 0);
         totalClicks += (item.urlclickcount || 0);
       });
 
@@ -581,7 +581,7 @@ const Reports = () => {
       const filteredVideosItems = filterDataByRange(videosItems, activeRange, false);
 
       // Calculate all-time stats for comparison
-      const totalCustomers = customersSet.size;
+        const totalCustomers = customersSet.size;
       const totalPhotos = photosItems.length;
       const totalVideos = videosItems.length;
       const totalCampaigns = campaigns.length;
@@ -596,7 +596,7 @@ const Reports = () => {
 
       // Calculate growth metrics (current period vs previous period)
       const days = getDaysFromRange(activeRange);
-      const now = new Date();
+        const now = new Date();
       let currentStart, currentEnd, previousStart, previousEnd;
 
       if (activeRange === 'Today') {
@@ -655,28 +655,28 @@ const Reports = () => {
       // Get current download counts from state
       const currentDownloadCounts = downloadCounts;
 
-      const reportsData = [
-        {
-          id: 'customer',
-          name: 'Customer Engagement',
-          type: 'User Analysis',
-          description: 'Detailed analysis of customer visits, photo merge activity, and sharing behavior.',
+        const reportsData = [
+          {
+            id: 'customer',
+            name: 'Customer Engagement',
+            type: 'User Analysis',
+            description: 'Detailed analysis of customer visits, photo merge activity, and sharing behavior.',
           color: '#B8653A',
-          icon: <Users size={24} />,
+            icon: <Users size={24} />,
           records: filteredTotalCustomers,
           size: estimateSize(filteredTotalCustomers),
           lastGenerated: nowFormatted,
           downloadCount: currentDownloadCounts['customer'] || 0,
           data: filteredItems, // Use filtered data
           allData: rawItems // Keep all data for export
-        },
-        {
-          id: 'photo',
-          name: 'Photo Analytics',
-          type: 'Asset Performance',
-          description: 'Insights into category distribution, total views, and download counts per template.',
-          color: '#8E44AD',
-          icon: <Image size={24} />,
+          },
+          {
+            id: 'photo',
+            name: 'Photo Analytics',
+            type: 'Asset Performance',
+            description: 'Insights into category distribution, total views, and download counts per template.',
+            color: '#8E44AD',
+            icon: <Image size={24} />,
           records: filteredTotalPhotos,
           size: estimateSize(filteredTotalPhotos),
           lastGenerated: nowFormatted,
@@ -699,42 +699,42 @@ const Reports = () => {
           data: filteredVideosItems, // Use filtered videos data
           allData: videosItems, // Keep all videos data for export
           templates: templates
-        },
-        {
-          id: 'campaign',
-          name: 'Campaign Performance',
-          type: 'Marketing ROI',
-          description: 'Comprehensive metrics for WhatsApp, Email, and SMS outreach effectiveness.',
+          },
+          {
+            id: 'campaign',
+            name: 'Campaign Performance',
+            type: 'Marketing ROI',
+            description: 'Comprehensive metrics for WhatsApp, Email, and SMS outreach effectiveness.',
           color: '#5A7519',
-          icon: <Send size={24} />,
+            icon: <Send size={24} />,
           records: filteredTotalCampaigns,
           size: estimateSize(filteredTotalCampaigns),
           lastGenerated: nowFormatted,
           downloadCount: currentDownloadCounts['campaign'] || 0,
           data: filteredCampaigns, // Use filtered data
           allData: campaigns // Keep all data for export
-        },
-        {
-          id: 'share',
-          name: 'Share Tracking',
-          type: 'Social Distribution',
-          description: 'Audit log of all platform-specific sharing activities and click-through rates.',
-          color: '#B58B00',
-          icon: <Share2 size={24} />,
+          },
+          {
+            id: 'share',
+            name: 'Share Tracking',
+            type: 'Social Distribution',
+            description: 'Audit log of all platform-specific sharing activities and click-through rates.',
+            color: '#B58B00',
+            icon: <Share2 size={24} />,
           records: filteredTotalSharesAndDownloads, // Include shares + downloads
           size: estimateSize(filteredTotalSharesAndDownloads),
           lastGenerated: nowFormatted,
           downloadCount: currentDownloadCounts['share'] || 0,
           data: filteredItems, // Use filtered data
           allData: rawItems // Keep all data for export
-        }
-      ];
+          }
+        ];
 
-      setReports(reportsData);
+        setReports(reportsData);
 
       // Calculate summary stats dynamically (using filtered data for current period)
       const totalRecords = filteredTotalCustomers + filteredTotalPhotos + filteredTotalVideos + filteredTotalCampaigns + filteredTotalSharesAndDownloads;
-      const totalSizeKB = totalRecords * 0.5;
+        const totalSizeKB = totalRecords * 0.5;
 
       // Fetch downloads this month from API
       let downloadsThisMonth = 0;
@@ -758,12 +758,12 @@ const Reports = () => {
         }).length;
       }
 
-      setSummaryStats({
+        setSummaryStats({
         totalReports: reportsData.length,
         generatedThisMonth: downloadsThisMonth, // Show downloads this month
-        totalRecords: totalRecords,
-        totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
-      });
+          totalRecords: totalRecords,
+          totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
+        });
 
       // Fetch downloads previous month from API
       let downloadsPreviousMonth = 0;
@@ -812,19 +812,19 @@ const Reports = () => {
       const prevTotalRecords = prevCustomersSet.size + previousPhotos.length + previousVideos.length + previousCampaigns.length + prevShares + prevDataDownloads;
       const prevTotalSize = prevTotalRecords * 0.5;
 
-      setGrowthMetrics({
+        setGrowthMetrics({
         reportsGrowth: 0, // Always 4 reports, no growth
         generatedGrowth: calculateGrowth(downloadsThisMonth, downloadsPreviousMonth), // Compare downloads this month vs previous month
         recordsGrowth: calculateGrowth(currentTotalRecords, prevTotalRecords), // Compare total records
         sizeGrowth: calculateGrowth(currentTotalSize, prevTotalSize) // Compare sizes
-      });
+        });
 
-    } catch (error) {
-      console.error("Error fetching report data:", error);
+      } catch (error) {
+        console.error("Error fetching report data:", error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to load report data. Please try again.';
       showAlert(errorMessage, 'error');
-    } finally {
-      setLoading(false);
+      } finally {
+        setLoading(false);
       setRefreshing(false);
     }
   }, [axiosData, activeRange, user._id, user.id, filterDataByRange, showAlert]);
@@ -1118,7 +1118,7 @@ const Reports = () => {
 
       // Create and download CSV
       const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `${report.name.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.csv`;
@@ -1345,17 +1345,17 @@ const Reports = () => {
           <p>Generate, manage and download high-level performance data for your store</p>
         </HeaderText>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <RangeSelector>
+        <RangeSelector>
             {['Today', '7 Days', '30 Days', '90 Days'].map(range => (
-              <RangeButton
-                key={range}
-                $active={activeRange === range}
-                onClick={() => setActiveRange(range)}
-              >
-                {range}
-              </RangeButton>
-            ))}
-          </RangeSelector>
+            <RangeButton
+              key={range}
+              $active={activeRange === range}
+              onClick={() => setActiveRange(range)}
+            >
+              {range}
+            </RangeButton>
+          ))}
+        </RangeSelector>
           <PrimaryButton
             onClick={handleRefresh}
             disabled={refreshing || loading}

@@ -589,6 +589,168 @@ const ListThumbnail = styled.img`
   }
 `;
 
+const VideoThumbnail = ({ src, onClick }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [isVideoLoading, setIsVideoLoading] = React.useState(false);
+  const [isVideoLoaded, setIsVideoLoaded] = React.useState(false);
+  const [isVisible, setIsVisible] = React.useState(false);
+  const videoRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+
+  // IntersectionObserver to detect when video is visible
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        rootMargin: '50px',
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Load video only when visible and add to queue
+  React.useEffect(() => {
+    if (isVisible && videoRef.current && !isVideoLoaded) {
+      videoLoadQueue.push({
+        videoRef,
+        callback: () => {
+          setIsVideoLoaded(true);
+        }
+      });
+      processVideoQueue();
+    }
+  }, [isVisible, isVideoLoaded]);
+
+  React.useEffect(() => {
+    if (isHovered && videoRef.current && isVideoLoaded) {
+      setIsVideoLoading(true);
+      const playPromise = videoRef.current.play();
+      if (playPromise && playPromise.catch) {
+        playPromise.catch(() => {
+          setIsVideoLoading(false);
+        });
+      }
+    } else if (videoRef.current) {
+      videoRef.current.pause();
+      if (videoRef.current) videoRef.current.currentTime = 0;
+      setIsVideoLoading(false);
+    }
+  }, [isHovered, isVideoLoaded]);
+
+  const handleVideoLoadStart = () => {
+    setIsVideoLoading(true);
+    setIsVideoLoaded(false);
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    setIsVideoLoading(true);
+  };
+
+  const handleVideoLoadedData = () => {
+    setIsVideoLoading(true);
+  };
+
+  const handleVideoCanPlay = () => {
+    setIsVideoLoading(true);
+  };
+
+  const handleVideoCanPlayThrough = () => {
+    setIsVideoLoading(false);
+    setIsVideoLoaded(true);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '50px',
+        height: '50px',
+        borderRadius: '8px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        cursor: 'pointer',
+        border: '2px solid #F5F5F5',
+        transition: 'transform 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontSize: '10px',
+        fontWeight: 600,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+          {isHovered && isVisible ? (
+            <>
+              {isVideoLoading && !isVideoLoaded && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10,
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderTop: '2px solid white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}
+                />
+              )}
+              {isVisible && (
+                <video
+                  ref={videoRef}
+                  src={src}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    opacity: isVideoLoaded ? 1 : 0,
+                    transition: 'opacity 0.5s ease',
+                    display: isVideoLoaded ? 'block' : 'none'
+                  }}
+                  muted
+                  loop
+                  playsInline
+                  preload="none"
+                  onLoadStart={handleVideoLoadStart}
+                  onLoadedMetadata={handleVideoLoadedMetadata}
+                  onLoadedData={handleVideoLoadedData}
+                  onCanPlay={handleVideoCanPlay}
+                  onCanPlayThrough={handleVideoCanPlayThrough}
+                />
+              )}
+            </>
+          ) : (
+            <span>Video</span>
+          )}
+    </div>
+  );
+};
+
 const CustomerInfo = styled.div`
   display: flex;
   flex-direction: column;
@@ -673,15 +835,20 @@ const pulsate = keyframes`
   100% { background-color: #f8f8f8; }
 `;
 
+const spin = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+`;
+
 const ImageWrapper = styled.div`
   margin:15px 0px;
   position: relative;
   border: 4px solid #F5F5F5;
   overflow: hidden;
   background-color: #f8f8f8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  min-height: 300px;
   
   &::before {
     content: "";
@@ -692,6 +859,7 @@ const ImageWrapper = styled.div`
     right: 0;
     bottom: 0;
     animation: ${pulsate} 1.5s ease-in-out infinite;
+    z-index: 0;
   }
 `;
 
@@ -701,11 +869,232 @@ const StyledImage = styled.img`
   object-fit: cover;
   transition: opacity 0.5s ease;
   opacity: ${props => props.$loaded ? 1 : 0};
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
 `;
 
+// Video loading queue to load videos one at a time
+let videoLoadQueue = [];
+let isVideoLoading = false;
+
+const processVideoQueue = () => {
+  if (isVideoLoading || videoLoadQueue.length === 0) return;
+  
+  const { videoRef, callback } = videoLoadQueue.shift();
+  isVideoLoading = true;
+  
+  if (videoRef.current) {
+    videoRef.current.load();
+    // Wait for metadata to load before processing next video
+    const onMetadataLoaded = () => {
+      isVideoLoading = false;
+      if (callback) callback();
+      // Process next video in queue
+      setTimeout(() => processVideoQueue(), 100);
+    };
+    
+    videoRef.current.addEventListener('loadedmetadata', onMetadataLoaded, { once: true });
+    
+    // Timeout fallback
+    setTimeout(() => {
+      if (isVideoLoading) {
+        isVideoLoading = false;
+        if (callback) callback();
+        setTimeout(() => processVideoQueue(), 100);
+      }
+    }, 2000);
+  } else {
+    isVideoLoading = false;
+    setTimeout(() => processVideoQueue(), 100);
+  }
+};
+
 // Helper Component for individual image loading
-const GalleryImage = ({ src, alt }) => {
+const GalleryImage = ({ src, alt, isVideo = false }) => {
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [isVideoLoadingState, setIsVideoLoadingState] = React.useState(false);
+  const [isVisible, setIsVisible] = React.useState(false);
+  const videoRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+
+  // IntersectionObserver to detect when video is visible
+  React.useEffect(() => {
+    if (!isVideo || !containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        rootMargin: '100px', // Start loading 100px before entering viewport
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isVideo]);
+
+  // Load video only when visible
+  React.useEffect(() => {
+    if (isVideo && isVisible && videoRef.current && !isLoaded) {
+      // Add to queue for sequential loading
+      videoLoadQueue.push({
+        videoRef,
+        callback: () => {
+          setIsVideoLoadingState(false);
+          setIsLoaded(true);
+        }
+      });
+      setIsVideoLoadingState(true);
+      processVideoQueue();
+    }
+  }, [isVideo, isVisible, isLoaded]);
+
+  React.useEffect(() => {
+    if (isVideo && videoRef.current && isLoaded) {
+      if (isHovered && videoRef.current) {
+        setIsVideoLoadingState(true);
+        const playPromise = videoRef.current.play();
+        if (playPromise && playPromise.catch) {
+          playPromise.catch(() => {
+            setIsVideoLoadingState(false);
+          });
+        }
+      } else if (videoRef.current) {
+        videoRef.current.pause();
+        if (videoRef.current) videoRef.current.currentTime = 0;
+        setIsVideoLoadingState(false);
+      }
+    }
+  }, [isVideo, isHovered, isLoaded]);
+
+  const handleVideoLoadStart = () => {
+    setIsVideoLoadingState(true);
+    setIsLoaded(false);
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    // Metadata loaded - we now know video dimensions, can show it
+    setIsVideoLoadingState(false);
+    setIsLoaded(true);
+  };
+
+  const handleVideoLoadedData = () => {
+    // First frame loaded - show the video immediately
+    setIsVideoLoadingState(false);
+    setIsLoaded(true);
+  };
+
+  const handleVideoCanPlay = () => {
+    // Video can start playing - ensure it's shown
+    setIsVideoLoadingState(false);
+    setIsLoaded(true);
+  };
+
+  const handleVideoCanPlayThrough = () => {
+    // Video has enough data to play through - ensure it's shown
+    setIsVideoLoadingState(false);
+    setIsLoaded(true);
+  };
+
+  if (isVideo) {
+    return (
+      <ImageWrapper 
+        ref={containerRef}
+        $loaded={isLoaded}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {isVideoLoadingState && !isLoaded && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '3px solid rgba(102, 126, 234, 0.2)',
+                borderTop: '3px solid #667eea',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}
+            />
+            <span style={{ color: '#667eea', fontSize: '12px', fontWeight: 600 }}>Loading...</span>
+          </div>
+        )}
+        {!isLoaded && !isVideoLoadingState && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 5,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#667eea'
+            }}
+          >
+            <Video size={32} />
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>Video</span>
+          </div>
+        )}
+        <video
+          ref={videoRef}
+          src={isVisible ? src : undefined}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            borderRadius: '12px',
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.5s ease',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            zIndex: isLoaded ? 1 : 0,
+            visibility: isLoaded ? 'visible' : 'hidden',
+            pointerEvents: isLoaded ? 'auto' : 'none',
+            display: 'block'
+          }}
+          controls={false}
+          muted
+          loop
+          playsInline
+          preload="none"
+          onLoadStart={handleVideoLoadStart}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+          onLoadedData={handleVideoLoadedData}
+          onCanPlay={handleVideoCanPlay}
+          onCanPlayThrough={handleVideoCanPlayThrough}
+        />
+      </ImageWrapper>
+    );
+  }
   return (
     <ImageWrapper $loaded={isLoaded}>
       <StyledImage
@@ -973,6 +1362,10 @@ const Photos = () => {
   const [isSending, setIsSending] = useState(false);
   const [photos, setPhotos] = useState([]);
   const [viewImage, setViewImage] = useState(null);
+  const [viewImageIsVideo, setViewImageIsVideo] = useState(false);
+  const [lightboxVideoLoading, setLightboxVideoLoading] = useState(false);
+  const [lightboxVideoLoaded, setLightboxVideoLoaded] = useState(false);
+  const lightboxVideoRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -1088,6 +1481,49 @@ const Photos = () => {
     fetchPhotos(1, false);
   }, []);
 
+  // Reset lightbox video state when lightbox opens/closes
+  useEffect(() => {
+    if (viewImage && viewImageIsVideo) {
+      // Lightbox opened with video - reset loading states
+      setLightboxVideoLoading(true);
+      setLightboxVideoLoaded(false);
+      // Load video when lightbox opens
+      if (lightboxVideoRef.current) {
+        lightboxVideoRef.current.load();
+      }
+    } else {
+      // Lightbox closed - reset states
+      setLightboxVideoLoading(false);
+      setLightboxVideoLoaded(false);
+    }
+  }, [viewImage, viewImageIsVideo]);
+
+  // Lightbox video loading handlers
+  const handleLightboxVideoLoadStart = () => {
+    setLightboxVideoLoading(true);
+    setLightboxVideoLoaded(false);
+  };
+
+  const handleLightboxVideoLoadedMetadata = () => {
+    setLightboxVideoLoading(false);
+    setLightboxVideoLoaded(true);
+  };
+
+  const handleLightboxVideoCanPlay = () => {
+    setLightboxVideoLoading(false);
+    setLightboxVideoLoaded(true);
+  };
+
+  const handleLightboxVideoCanPlayThrough = () => {
+    setLightboxVideoLoading(false);
+    setLightboxVideoLoaded(true);
+  };
+
+  const handleLightboxVideoError = () => {
+    setLightboxVideoLoading(false);
+    setLightboxVideoLoaded(false);
+  };
+
   const fetchPhotos = async (page = 1, append = false) => {
     try {
       if (!append) {
@@ -1180,11 +1616,26 @@ const Photos = () => {
         // Use centralized accessType utility (future-proof)
         const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: true });
 
+        // Determine the correct media URL based on type
+        let mediaUrl = 'https://via.placeholder.com/300';
+        if (isVideo) {
+          // For video merge: use mergedVideoId, fallback to posterVideoId
+          const videoId = item.mergedVideoId || item.posterVideoId || item.videoId;
+          if (videoId) {
+            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`;
+          }
+        } else {
+          // For photos: use photoId
+          if (item.photoId) {
+            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.photoId}`;
+          }
+        }
+
         return {
           id: item._id || index,
-          url: (item.photoId || item.posterVideoId)
-            ? `https://api.bilimbebrandactivations.com/api/upload/file/${item.photoId || item.posterVideoId}`
-            : 'https://via.placeholder.com/300',
+          url: mediaUrl,
+          isVideo: isVideo,
+          videoId: isVideo ? (item.mergedVideoId || item.posterVideoId || item.videoId) : null,
           category: item.template_name || item.templatename || item.type,
           template_name: item.template_name || item.templatename || item.type,
           branch: item.source || 'Head Office',
@@ -1879,7 +2330,7 @@ const Photos = () => {
                 />
               </SelectionOverlay>
 
-              <GalleryImage src={photo.url} alt={photo.customer} />
+              <GalleryImage src={photo.url} alt={photo.customer} isVideo={photo.isVideo} />
 
               <PhotoInfo>
                 <CustomerName>{highlightText(photo.customer, searchQuery)}</CustomerName>
@@ -1902,7 +2353,10 @@ const Photos = () => {
                     <MessageCircle size={16} />
                     Message
                   </SendMessageButton>
-                  <EyeButton onClick={() => setViewImage(photo.url)} title="View Full Image">
+                  <EyeButton onClick={() => {
+                    setViewImage(photo.url);
+                    setViewImageIsVideo(photo.isVideo);
+                  }} title={photo.isVideo ? "View Full Video" : "View Full Image"}>
                     <Eye size={18} />
                   </EyeButton>
                 </ActionRow>
@@ -1951,13 +2405,26 @@ const Photos = () => {
                 checked={selectedPhotos.includes(photo.id)}
                 onChange={() => toggleSelect(photo.id)}
               />
-              <ListThumbnail
-                src={photo.url}
-                alt={photo.customer}
-                onClick={() => setViewImage(photo.url)}
-                loading="lazy"
-                decoding="async"
-              />
+              {photo.isVideo ? (
+                <VideoThumbnail
+                  src={photo.url}
+                  onClick={() => {
+                    setViewImage(photo.url);
+                    setViewImageIsVideo(true);
+                  }}
+                />
+              ) : (
+                <ListThumbnail
+                  src={photo.url}
+                  alt={photo.customer}
+                  onClick={() => {
+                    setViewImage(photo.url);
+                    setViewImageIsVideo(false);
+                  }}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
               <CustomerInfo>
                 <ListCustomerName>{highlightText(photo.customer, searchQuery)}</ListCustomerName>
                 <ListCategory>{highlightText(photo.category, searchQuery)}</ListCategory>
@@ -1974,8 +2441,11 @@ const Photos = () => {
                   <MessageCircle size={16} />
                 </ListActionButton>
                 <ListActionButton
-                  title="View Full Image"
-                  onClick={() => setViewImage(photo.url)}
+                  title={photo.isVideo ? "View Full Video" : "View Full Image"}
+                  onClick={() => {
+                    setViewImage(photo.url);
+                    setViewImageIsVideo(photo.isVideo);
+                  }}
                 >
                   <Eye size={16} />
                 </ListActionButton>
@@ -1993,11 +2463,71 @@ const Photos = () => {
 
       {
         viewImage && (
-          <LightboxOverlay onClick={() => setViewImage(null)}>
-            <CloseButton onClick={() => setViewImage(null)}>
+          <LightboxOverlay onClick={() => {
+            setViewImage(null);
+            setViewImageIsVideo(false);
+          }}>
+            <CloseButton onClick={() => {
+              setViewImage(null);
+              setViewImageIsVideo(false);
+            }}>
               <X size={24} />
             </CloseButton>
-            <LightboxImage src={viewImage} onClick={(e) => e.stopPropagation()} />
+            {viewImageIsVideo ? (
+              <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90vh' }}>
+                {lightboxVideoLoading && !lightboxVideoLoaded && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        border: '4px solid rgba(255, 255, 255, 0.3)',
+                        borderTop: '4px solid white',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}
+                    />
+                    <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>Loading video...</span>
+                  </div>
+                )}
+                <video
+                  ref={lightboxVideoRef}
+                  src={viewImage}
+                  controls
+                  autoPlay
+                  preload="metadata"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '90vh',
+                    borderRadius: '8px',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                    opacity: lightboxVideoLoaded ? 1 : 0,
+                    transition: 'opacity 0.3s ease',
+                    display: lightboxVideoLoaded ? 'block' : 'none'
+                  }}
+                  onLoadStart={handleLightboxVideoLoadStart}
+                  onLoadedMetadata={handleLightboxVideoLoadedMetadata}
+                  onCanPlay={handleLightboxVideoCanPlay}
+                  onCanPlayThrough={handleLightboxVideoCanPlayThrough}
+                  onError={handleLightboxVideoError}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            ) : (
+              <LightboxImage src={viewImage} onClick={(e) => e.stopPropagation()} />
+            )}
           </LightboxOverlay>
         )
       }

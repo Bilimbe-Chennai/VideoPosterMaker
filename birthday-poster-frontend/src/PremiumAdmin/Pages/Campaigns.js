@@ -997,7 +997,7 @@ const Campaigns = () => {
       await axiosData.post('campaigns', duplicateData);
       await fetchCampaigns();
       showAlert('Campaign duplicated successfully!', 'success');
-    } catch (error) {
+      } catch (error) {
       console.error('Error duplicating campaign:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to duplicate campaign. Please try again.';
       showAlert(errorMessage, 'error');
@@ -1023,10 +1023,10 @@ const Campaigns = () => {
     } catch (error) {
       console.error('Error refreshing data:', error);
       showAlert('Failed to refresh data. Please try again.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
 
   const resetForm = () => {
     setFormData({
@@ -1279,8 +1279,8 @@ const Campaigns = () => {
           </SearchBox>
           <div ref={typeDropdownRef} style={{ position: 'relative' }}>
             <DropdownSelector onClick={() => setShowTypeDropdown(!showTypeDropdown)}>
-              <Filter size={16} /> {filterType} <ChevronDown size={14} />
-            </DropdownSelector>
+            <Filter size={16} /> {filterType} <ChevronDown size={14} />
+          </DropdownSelector>
             <DropdownMenu $show={showTypeDropdown}>
               <DropdownItem
                 $active={filterType === 'All Channels'}
@@ -1302,7 +1302,7 @@ const Campaigns = () => {
           <div ref={statusDropdownRef} style={{ position: 'relative' }}>
             <DropdownSelector onClick={() => setShowStatusDropdown(!showStatusDropdown)}>
               <Calendar size={16} /> {filterStatus} <ChevronDown size={14} />
-            </DropdownSelector>
+          </DropdownSelector>
             <DropdownMenu $show={showStatusDropdown}>
               <DropdownItem
                 $active={filterStatus === 'All Status'}
@@ -1324,121 +1324,121 @@ const Campaigns = () => {
         </FilterSection>
 
         {viewMode === 'table' ? (
-          <CampaignTable>
-            <thead>
-              <tr>
+        <CampaignTable>
+          <thead>
+            <tr>
                 <th style={{ width: '40px' }}></th>
-                <th>Campaign Details</th>
-                <th>Channel</th>
-                <th>Status</th>
-                <th>Performance</th>
-                <th>Period</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+              <th>Campaign Details</th>
+              <th>Channel</th>
+              <th>Status</th>
+              <th>Performance</th>
+              <th>Period</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan="7">
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '100px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                    <Loader className="rotate" size={48} color="#1A1A1A" />
+                    <div style={{ fontWeight: 600, color: '#666' }}>Loading campaign data...</div>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="7">
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '100px', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                      <Loader className="rotate" size={48} color="#1A1A1A" />
-                      <div style={{ fontWeight: 600, color: '#666' }}>Loading campaign data...</div>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredCampaigns.length === 0 ? (
-                <tr>
-                  <td colSpan="7">
+            ) : filteredCampaigns.length === 0 ? (
+              <tr>
+                <td colSpan="7">
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: '80px 20px',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    background: '#FFF'
+                  }}>
                     <div style={{
+                      width: '80px',
+                      height: '80px',
+                      background: '#F9FAFB',
+                      borderRadius: '24px',
                       display: 'flex',
-                      justifyContent: 'center',
-                      padding: '80px 20px',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      background: '#FFF'
+                      justifyContent: 'center',
+                      marginBottom: '20px',
+                      color: '#6B7280'
                     }}>
-                      <div style={{
-                        width: '80px',
-                        height: '80px',
-                        background: '#F9FAFB',
-                        borderRadius: '24px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '20px',
-                        color: '#6B7280'
-                      }}>
-                        <Send size={40} />
-                      </div>
-                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
-                        No campaigns found
-                      </div>
-                      <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
-                        {searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status'
-                          ? `We couldn't find any campaigns matching your current search or filter criteria.`
-                          : "No campaigns have been created yet. Launch your first campaign to start reaching your customers!"}
-                      </div>
-                      {(searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status') && (
-                        <SecondaryButton
-                          style={{ marginTop: '24px', borderRadius: '12px' }}
-                          onClick={() => {
-                            setSearchQuery('');
-                            setFilterType('All Channels');
-                            setFilterStatus('All Status');
-                          }}
-                        >
-                          Reset All Filters
-                        </SecondaryButton>
-                      )}
+                      <Send size={40} />
                     </div>
-                  </td>
-                </tr>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
+                      No campaigns found
+                    </div>
+                    <div style={{ color: '#6B7280', textAlign: 'center', maxWidth: '400px', fontSize: '15px', lineHeight: '1.6' }}>
+                      {searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status'
+                        ? `We couldn't find any campaigns matching your current search or filter criteria.`
+                        : "No campaigns have been created yet. Launch your first campaign to start reaching your customers!"}
+                    </div>
+                    {(searchQuery || filterType !== 'All Channels' || filterStatus !== 'All Status') && (
+                      <SecondaryButton
+                        style={{ marginTop: '24px', borderRadius: '12px' }}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setFilterType('All Channels');
+                          setFilterStatus('All Status');
+                        }}
+                      >
+                        Reset All Filters
+                      </SecondaryButton>
+                    )}
+                  </div>
+                </td>
+              </tr>
               ) : paginatedCampaigns.map((c) => {
-                const channel = getChannelConfig(c.type);
+              const channel = getChannelConfig(c.type);
                 const deliveryRate = (c.sent || 0) > 0 ? ((c.delivered || 0) / c.sent) * 100 : 0;
                 const ctr = (c.delivered || 0) > 0 ? ((c.clicks || 0) / c.delivered) * 100 : 0;
 
-                return (
+              return (
                   <tr key={c._id || c.id}>
                     <td></td>
-                    <td>
-                      <InfoGroup>
-                        <h4>{c.name}</h4>
+                  <td>
+                    <InfoGroup>
+                      <h4>{c.name}</h4>
                         <p>ID: {c._id || c.id} • {(c.description || '').substring(0, 30)}...</p>
-                      </InfoGroup>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <ChannelIcon $color={channel.color}>
-                          {channel.icon}
-                        </ChannelIcon>
-                        <span style={{ fontWeight: 600 }}>{c.type}</span>
+                    </InfoGroup>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <ChannelIcon $color={channel.color}>
+                        {channel.icon}
+                      </ChannelIcon>
+                      <span style={{ fontWeight: 600 }}>{c.type}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <StatusBadge $status={c.status}>
+                      {getStatusIcon(c.status)} {c.status}
+                    </StatusBadge>
+                  </td>
+                  <td>
+                    <InfoGroup>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', fontWeight: 700 }}>
+                        <span>CTR: {ctr.toFixed(1)}%</span>
+                        <span>Del: {deliveryRate.toFixed(1)}%</span>
                       </div>
-                    </td>
-                    <td>
-                      <StatusBadge $status={c.status}>
-                        {getStatusIcon(c.status)} {c.status}
-                      </StatusBadge>
-                    </td>
-                    <td>
-                      <InfoGroup>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '120px', fontSize: '11px', fontWeight: 700 }}>
-                          <span>CTR: {ctr.toFixed(1)}%</span>
-                          <span>Del: {deliveryRate.toFixed(1)}%</span>
-                        </div>
-                        <ProgressBar $percent={ctr * 2}>
-                          <div className="fill" />
-                        </ProgressBar>
-                      </InfoGroup>
-                    </td>
-                    <td>
-                      <InfoGroup>
+                      <ProgressBar $percent={ctr * 2}>
+                        <div className="fill" />
+                      </ProgressBar>
+                    </InfoGroup>
+                  </td>
+                  <td>
+                    <InfoGroup>
                         <p>{formatDate(c.startDate, getStoredDateFormat())}</p>
                         <p style={{ color: '#999' }}>to {formatDate(c.endDate, getStoredDateFormat())}</p>
-                      </InfoGroup>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    </InfoGroup>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <IconButton
                           title="View Details"
                           onClick={() => handleViewCampaign(c)}
@@ -1475,13 +1475,13 @@ const Campaigns = () => {
                         >
                           <Trash2 size={18} />
                         </IconButton>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </CampaignTable>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </CampaignTable>
         ) : (
           <CampaignGrid>
             {loading ? (

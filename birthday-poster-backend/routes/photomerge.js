@@ -531,6 +531,10 @@ router.delete('/templates/:id', async (req, res) => {
 // POST endpoint for mobile app to send middle video and generate final video
 router.post('/templates/:id/generate', async (req, res) => {
     try {
+        // Video merge can take time—extend timeouts to avoid premature errors
+        req.setTimeout(10 * 60 * 1000);
+        res.setTimeout(10 * 60 * 1000);
+
         const templateId = req.params.id;
         if (!mongoose.Types.ObjectId.isValid(templateId)) {
             return res.status(400).json({ error: 'Invalid template ID' });
@@ -676,13 +680,15 @@ router.post('/templates/:id/generate', async (req, res) => {
                     // Apply GIF animation overlay (similar to photogif API)
                     await new Promise((resolve, reject) => {
                         ffmpeg()
-                            .input(tempMergedVideoPath) // 0:v - merged video
+                            .input(tempMergedVideoPath) // 0:v - merged video (keep original orientation/size)
                             .input(tempGifPath) // 1:v - gif
                             .inputOptions(["-stream_loop", "-1"]) // loop gif
                             .complexFilter([
-                                "[0:v]scale=1080:1920,setsar=1[bg]",
-                                "[1:v]scale=1080:1920:flags=lanczos,format=rgba[gif]",
-                                "[bg][gif]overlay=0:0:shortest=1[v]"
+                                // Keep base video as-is, normalize SAR
+                                "[0:v]setsar=1[bg]",
+                                // Scale gif to fit inside base while preserving aspect ratio, then center overlay
+                                "[1:v]scale=w=main_w:h=main_h:force_original_aspect_ratio=decrease,format=rgba[gif]",
+                                "[bg][gif]overlay=(main_w-w)/2:(main_h-h)/2:shortest=1[v]"
                             ])
                             .outputOptions([
                                 "-map [v]",
@@ -718,7 +724,12 @@ router.post('/templates/:id/generate', async (req, res) => {
                     }
                 }
 
-                // Save to Media collection
+                // Verify merge completed successfully - finalVideoId must exist
+                if (!finalVideoId) {
+                    throw new Error('Video merge failed - no final video ID generated');
+                }
+
+                // Only save media data after merge is fully completed and verified
                 const _id = new mongoose.Types.ObjectId();
                 const media = new Media({
                     _id,
@@ -738,7 +749,23 @@ router.post('/templates/:id/generate', async (req, res) => {
                 });
                 await media.save();
 
-                res.status(201).json({ success: true, media });
+                // Stream the final merged video back in the response so the client
+                // receives the actual output once the flow is done.
+                const { bucket } = getConnection();
+                res.status(201);
+                res.setHeader('Content-Type', 'video/mp4');
+                res.setHeader('Content-Disposition', 'attachment; filename="merged-video.mp4"');
+
+                const downloadStream = bucket.openDownloadStream(finalVideoId);
+                downloadStream.on('error', (err) => {
+                    console.error('Error streaming merged video:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({ error: 'Failed to stream merged video', message: err.message });
+                    } else {
+                        res.end();
+                    }
+                });
+                downloadStream.pipe(res);
             } catch (err) {
                 console.error('Error generating video:', err);
                 res.status(500).json({ error: 'Internal Server Error', message: err.message });

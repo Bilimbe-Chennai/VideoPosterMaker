@@ -291,6 +291,7 @@ const DEFAULT_SETTINGS = {
         companyName: '',
         email: '',
         phone: '',
+        instagramLink: '',
         dateFormat: 'YYYY-MM-DD',
         exportFormat: 'Excel'
     },
@@ -583,6 +584,15 @@ const SettingsPage = () => {
                                             <Input
                                                 value={settings.general.phone}
                                                 onChange={e => updateSetting('general', 'phone', e.target.value)}
+                                            />
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Instagram Page Link</Label>
+                                            <Input
+                                                type="url"
+                                                placeholder="https://www.instagram.com/yourpage/"
+                                                value={settings.general.instagramLink || ''}
+                                                onChange={e => updateSetting('general', 'instagramLink', e.target.value)}
                                             />
                                         </FormGroup>
                                         <FormGroup>
