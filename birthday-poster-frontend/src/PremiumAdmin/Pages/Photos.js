@@ -1380,8 +1380,8 @@ const Photos = () => {
       ? filteredPhotos.filter(p => selectedPhotos.includes(p.id))
       : filteredPhotos);
 
-    const csvContent = "Customer,Category,Template,Date,Visit Count,Total Shares\n"
-      + finalData.map(e => `${e.customer},${e.category},${e.template_name},${e.date},${e.views},${e.shares}`).join("\n");
+    const csvContent = "Customer,Category,Template,Media Link,Date,Visit Count,Total Shares\n"
+      + finalData.map(e => `${e.customer},${e.category},${e.template_name},${e.url},${e.date},${e.views},${e.shares}`).join("\n");
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
