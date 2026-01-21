@@ -17,7 +17,7 @@ const Settings = lazy(() => import('./Components/Settings'));
 const TemplateManager = lazy(() => import('./SuperAdmin/TemplateManager'));
 const CreateTemplate = lazy(() => import('./Components/CreateTemplate'));
 const UserManager = lazy(() => import('./SuperAdmin/UserManager'));
-const UserForm = lazy(() => import('./Components/UserForm'));
+const UserForm = lazy(() => import('./SuperAdmin/CreateAdmin'));
 const UserDetails = lazy(() => import('./Components/UserDetails'));
 const PhotoUpload = lazy(() => import('./Components/PhotoUpload'));
 // Layout component (needs to be imported or created)
