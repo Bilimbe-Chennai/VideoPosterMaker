@@ -222,8 +222,6 @@ router.post("/custom-share", async (req, res) => {
       }
     );
 
-    console.log("ChatMyBot Response:", JSON.stringify(response.data, null, 2));
-
     if (response.status !== 200 || (response.data && response.data.status === "error")) {
       return res.status(response.status || 500).json({
         error: "Failed to send message via ChatMyBot",
@@ -396,7 +394,6 @@ const saveTempFile = async (buffer, extension) => {
       console.error("Error saving file:", err);
       return;
     }
-    console.log("File saved successfully!");
   });
 
   return tempFilePath;
@@ -586,8 +583,6 @@ router.get("/all", async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    console.log('Fetching media items with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
-
     // Get total count for pagination
     const total = await Media.countDocuments(query);
 
@@ -597,8 +592,6 @@ router.get("/all", async (req, res) => {
       .skip(skip)
       .limit(limitNum)
       .lean();
-
-    console.log(`Found ${mediaItems.length} media items (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
 
     // Return paginated response
     res.json({

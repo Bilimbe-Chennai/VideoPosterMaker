@@ -329,6 +329,35 @@ router.put('/templates/:id', async (req, res) => {
                 let photosBuffers = [];
                 let photoOrder = null;
 
+                // Video merge fields - initialize as null to distinguish between "not sent" and "sent as empty"
+                let name = null, date = null, clientname = null, brandname = null, congratsOption = null, video1TextOption = null, video2TextOption = null, video3TextOption = null, hasAnimation = null;
+                let video1Buffer, video3Buffer, audioBuffer, gifBuffer;
+                let removeVideo1 = false, removeVideo3 = false, removeAudio = false, removeGif = false;
+                let accessType = null;
+                let unsetFields = {}; // For fields that need to be unset (cleared)
+                let fieldsReceived = {}; // Track which fields were actually sent in the form data
+
+                // First pass: determine accessType
+                parts.forEach((part) => {
+                    const [rawHeaders, rawBody] = splitBuffer(part, Buffer.from('\r\n\r\n'));
+                    const headersText = rawHeaders.toString();
+                    const body = rawBody.slice(0, rawBody.length - 2);
+
+                    if (headersText.includes('name="accessType"')) {
+                        accessType = body.toString().trim();
+                    }
+                });
+
+                // Get existing template to determine accessType if not provided
+                const existingTemplate = await PhotoMergeTemplate.findById(templateId);
+                if (!existingTemplate) {
+                    return res.status(404).json({ error: 'Template not found' });
+                }
+                if (!accessType) {
+                    accessType = existingTemplate.accessType || 'photomerge';
+                }
+
+                // Second pass: parse all fields
                 parts.forEach((part) => {
                     const [rawHeaders, rawBody] = splitBuffer(part, Buffer.from('\r\n\r\n'));
                     const headersText = rawHeaders.toString();
@@ -350,51 +379,182 @@ router.put('/templates/:id', async (req, res) => {
                         updateData.accessType = body.toString().trim();
                     } else if (headersText.includes('name="status"')) {
                         updateData.status = body.toString().trim();
-                    } else if (headersText.includes('name="photos"')) {
-                        photosBuffers.push({
-                            buffer: body,
-                            filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
-                            mimetype: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'image/jpeg'
-                        });
-                    } else if (headersText.includes('name="photoOrder"')) {
-                        try {
-                            photoOrder = JSON.parse(body.toString().trim());
-                        } catch (e) {
-                            console.error('Failed to parse photoOrder', e);
+                    } else if (accessType === 'videomerge') {
+                        // Parse video merge fields
+                        if (headersText.includes('name="name"')) {
+                            name = body.toString().trim();
+                            fieldsReceived.name = true;
+                        } else if (headersText.includes('name="date"')) {
+                            date = body.toString().trim();
+                            fieldsReceived.date = true;
+                        } else if (headersText.includes('name="clientname"')) {
+                            clientname = body.toString().trim();
+                            fieldsReceived.clientname = true;
+                        } else if (headersText.includes('name="brandname"')) {
+                            brandname = body.toString().trim();
+                            fieldsReceived.brandname = true;
+                        } else if (headersText.includes('name="congratsOption"')) {
+                            congratsOption = body.toString().trim();
+                            fieldsReceived.congratsOption = true;
+                        } else if (headersText.includes('name="video1TextOption"')) {
+                            video1TextOption = body.toString().trim();
+                            fieldsReceived.video1TextOption = true;
+                        } else if (headersText.includes('name="video2TextOption"')) {
+                            video2TextOption = body.toString().trim();
+                            fieldsReceived.video2TextOption = true;
+                        } else if (headersText.includes('name="video3TextOption"')) {
+                            video3TextOption = body.toString().trim();
+                            fieldsReceived.video3TextOption = true;
+                        } else if (headersText.includes('name="hasAnimation"')) {
+                            hasAnimation = body.toString().trim() === 'true';
+                            fieldsReceived.hasAnimation = true;
+                        } else if (headersText.includes('name="video1"')) {
+                            video1Buffer = body.length > 0 ? body : null;
+                        } else if (headersText.includes('name="video3"')) {
+                            video3Buffer = body.length > 0 ? body : null;
+                        } else if (headersText.includes('name="audio"')) {
+                            audioBuffer = body.length > 0 ? body : null;
+                        } else if (headersText.includes('name="gif"')) {
+                            gifBuffer = body.length > 0 ? body : null;
+                        } else if (headersText.includes('name="removeVideo1"')) {
+                            removeVideo1 = body.toString().trim() === 'true';
+                        } else if (headersText.includes('name="removeVideo3"')) {
+                            removeVideo3 = body.toString().trim() === 'true';
+                        } else if (headersText.includes('name="removeAudio"')) {
+                            removeAudio = body.toString().trim() === 'true';
+                        } else if (headersText.includes('name="removeGif"')) {
+                            removeGif = body.toString().trim() === 'true';
+                        }
+                    } else {
+                        // Photo merge fields
+                        if (headersText.includes('name="photos"')) {
+                            photosBuffers.push({
+                                buffer: body,
+                                filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
+                                mimetype: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'image/jpeg'
+                            });
+                        } else if (headersText.includes('name="photoOrder"')) {
+                            try {
+                                photoOrder = JSON.parse(body.toString().trim());
+                            } catch (e) {
+                                console.error('Failed to parse photoOrder', e);
+                            }
                         }
                     }
                 });
 
-                if (photoOrder && Array.isArray(photoOrder)) {
-                    // Hybrid Update Logic
-                    const templatePhotos = [];
-                    let fileIndex = 0;
-
-                    for (const item of photoOrder) {
-                        if (item === 'NEW_FILE') {
-                            if (fileIndex < photosBuffers.length) {
-                                const p = photosBuffers[fileIndex];
-                                const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
-                                templatePhotos.push(photoId);
-                                fileIndex++;
-                            }
+                if (accessType === 'videomerge') {
+                    // Handle video merge template updates
+                    // Separate $set and $unset operations for proper field clearing
+                    // Reset unsetFields for this update
+                    unsetFields = {};
+                    
+                    // Update text fields if provided - empty strings should clear the field
+                    // Only process fields that were actually sent in the form data
+                    if (fieldsReceived.name) {
+                        if (name === '' || name === null) {
+                            unsetFields.name = '';
                         } else {
-                            // Verify it's a valid ID to prevent injection/errors?
-                            if (mongoose.Types.ObjectId.isValid(item)) {
-                                templatePhotos.push(item);
-                            }
+                            updateData.name = name;
                         }
                     }
-                    updateData.templatePhotos = templatePhotos;
-
-                } else if (photosBuffers.length > 0) {
-                    // Legacy: Replace all
-                    const templatePhotos = [];
-                    for (const p of photosBuffers) {
-                        const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
-                        templatePhotos.push(photoId);
+                    if (fieldsReceived.date) {
+                        if (date === '' || date === null) {
+                            unsetFields.date = '';
+                        } else {
+                            updateData.date = date;
+                        }
                     }
-                    updateData.templatePhotos = templatePhotos;
+                    if (fieldsReceived.clientname) {
+                        if (clientname === '' || clientname === null) {
+                            unsetFields.clientname = '';
+                        } else {
+                            updateData.clientname = clientname;
+                        }
+                    }
+                    if (fieldsReceived.brandname) {
+                        if (brandname === '' || brandname === null) {
+                            unsetFields.brandname = '';
+                        } else {
+                            updateData.brandname = brandname;
+                        }
+                    }
+                    if (fieldsReceived.congratsOption) updateData.congratsOption = congratsOption;
+                    if (fieldsReceived.video1TextOption) updateData.video1TextOption = video1TextOption;
+                    if (fieldsReceived.video2TextOption) updateData.video2TextOption = video2TextOption;
+                    if (fieldsReceived.video3TextOption) updateData.video3TextOption = video3TextOption;
+                    if (fieldsReceived.hasAnimation) updateData.hasAnimation = hasAnimation;
+
+                    // Handle video files - upload new ones or remove existing
+                    if (video1Buffer) {
+                        // New video1 uploaded
+                        const video1Id = await uploadToGridFS(`video1-${Date.now()}.mp4`, video1Buffer, "video/mp4");
+                        updateData.video1Id = video1Id;
+                    } else if (removeVideo1) {
+                        // Remove video1
+                        updateData.video1Id = null;
+                    }
+
+                    if (video3Buffer) {
+                        // New video3 uploaded
+                        const video3Id = await uploadToGridFS(`video3-${Date.now()}.mp4`, video3Buffer, "video/mp4");
+                        updateData.video3Id = video3Id;
+                    } else if (removeVideo3) {
+                        // Remove video3
+                        updateData.video3Id = null;
+                    }
+
+                    if (audioBuffer) {
+                        // New audio uploaded
+                        const audioId = await uploadToGridFS(`audio-${Date.now()}.mp3`, audioBuffer, "audio/mp3");
+                        updateData.audioId = audioId;
+                    } else if (removeAudio) {
+                        // Remove audio
+                        updateData.audioId = null;
+                    }
+
+                    // Handle GIF
+                    if (gifBuffer) {
+                        // New GIF uploaded
+                        const gifId = await uploadToGridFS(`animation-${Date.now()}.gif`, gifBuffer, "image/gif");
+                        updateData.gifId = gifId;
+                    } else if (removeGif) {
+                        // Remove GIF
+                        updateData.gifId = null;
+                    }
+                } else {
+                    // Handle photo merge template updates
+                    if (photoOrder && Array.isArray(photoOrder)) {
+                        // Hybrid Update Logic
+                        const templatePhotos = [];
+                        let fileIndex = 0;
+
+                        for (const item of photoOrder) {
+                            if (item === 'NEW_FILE') {
+                                if (fileIndex < photosBuffers.length) {
+                                    const p = photosBuffers[fileIndex];
+                                    const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
+                                    templatePhotos.push(photoId);
+                                    fileIndex++;
+                                }
+                            } else {
+                                // Verify it's a valid ID to prevent injection/errors?
+                                if (mongoose.Types.ObjectId.isValid(item)) {
+                                    templatePhotos.push(item);
+                                }
+                            }
+                        }
+                        updateData.templatePhotos = templatePhotos;
+
+                    } else if (photosBuffers.length > 0) {
+                        // Legacy: Replace all
+                        const templatePhotos = [];
+                        for (const p of photosBuffers) {
+                            const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
+                            templatePhotos.push(photoId);
+                        }
+                        updateData.templatePhotos = templatePhotos;
+                    }
                 }
 
                 // Set source based on accessType if not provided in updateData
@@ -408,9 +568,31 @@ router.put('/templates/:id', async (req, res) => {
                     }
                 }
                 
+                // Build update query with both $set and $unset
+                const updateQuery = {};
+                
+                // Always include updatedDate in $set
+                if (Object.keys(updateData).length > 0) {
+                    updateQuery.$set = updateData;
+                } else {
+                    // Even if no other fields, we still need $set for updatedDate
+                    updateQuery.$set = { updatedDate: new Date() };
+                }
+                
+                // Add $unset if there are fields to unset
+                // MongoDB $unset requires the value to be any truthy value (1, "", true) - it just removes the field
+                if (accessType === 'videomerge' && Object.keys(unsetFields).length > 0) {
+                    // Convert empty strings to 1 for $unset (MongoDB standard)
+                    const unsetQuery = {};
+                    Object.keys(unsetFields).forEach(key => {
+                        unsetQuery[key] = 1;
+                    });
+                    updateQuery.$unset = unsetQuery;
+                }
+                
                 const updatedTemplate = await PhotoMergeTemplate.findByIdAndUpdate(
                     templateId,
-                    { $set: updateData },
+                    updateQuery,
                     { new: true }
                 );
 
@@ -445,9 +627,7 @@ router.get('/templates', async (req, res) => {
             query.status = 'active';
         }
 
-        console.log('Fetching templates with query:', query);
         const templates = await PhotoMergeTemplate.find(query).sort({ createdAt: -1 }).lean();
-        console.log(`Found ${templates.length} templates`);
         res.json(templates || []);
     } catch (err) {
         console.error('Error fetching templates:', err);

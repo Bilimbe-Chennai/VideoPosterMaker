@@ -1633,7 +1633,6 @@ const ClientPageUser = () => {
   const handleCameraCapture = (photoDataUrl) => {
     setUserData((prev) => ({ ...prev, userPhoto: photoDataUrl }));
     setErrors((prev) => ({ ...prev, photo: "" }));
-    console.log("Photo captured with template frame");
   };
 
   // Trigger file input
@@ -2035,10 +2034,8 @@ const ClientPageUser = () => {
             file.name.replace(/\.(heic|heif)$/i, ".jpg"),
             { type: "image/jpeg" }
           );
-
-          console.log("Converted HEIC to JPEG");
         } catch (error) {
-          console.error("HEIC conversion error:", error);
+          // HEIC conversion error
           setErrors((prev) => ({
             ...prev,
             photo:

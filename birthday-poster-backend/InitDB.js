@@ -12,8 +12,6 @@ const connectDB = async () => {
   useUnifiedTopology: true,
 });
 
-    console.log('✅ Connected to MongoDB');
-
     const db = mongoose.connection.db;
 
     // Initialize GridFSBucket

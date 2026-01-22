@@ -219,7 +219,6 @@ const ShareScreen = () => {
           return;
         }
       } catch (error) {
-        console.log('Native file sharing failed, falling back to link sharing:', error);
       }
     }
 

@@ -471,12 +471,11 @@ const Reports = () => {
 
   // Fetch all data from APIs
   const fetchReportData = useCallback(async () => {
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
 
       const adminId = user._id || user.id;
       if (!adminId) {
-        console.warn('No admin ID found in user object');
         showAlert('User information not found. Please log in again.', 'error');
         return;
       }
@@ -488,11 +487,6 @@ const Reports = () => {
         axiosData.get(`campaigns?adminid=${adminId}&page=1&limit=500`),
         axiosData.get(`/photomerge/templates?adminid=${adminId}`)
       ]);
-
-      // Log responses for debugging
-      console.log('Media Response:', { status: mediaResponse.status, dataLength: mediaResponse.data?.data?.length || mediaResponse.data?.length });
-      console.log('Campaigns Response:', { status: campaignsResponse.status, dataLength: campaignsResponse.data?.data?.length || campaignsResponse.data?.length });
-      console.log('Templates Response:', { status: templatesResponse.status, dataLength: templatesResponse.data?.data?.length || templatesResponse.data?.length });
 
       // Handle paginated or non-paginated responses
       const mediaDataArray = Array.isArray(mediaResponse.data?.data)
@@ -526,32 +520,26 @@ const Reports = () => {
       const photosItems = filterByAccessType(rawItems, 'photomerge', templateAccessTypeMap);
       const videosItems = filterByAccessType(rawItems, 'videomerge', templateAccessTypeMap);
 
-      console.log('Processed Data:', {
-        rawItems: rawItems.length,
-        campaigns: campaigns.length,
-        templates: templates.length
-      });
-
       setMediaData(rawItems);
       setCampaignsData(campaigns);
       setTemplatesData(templates);
 
       // Calculate all-time statistics from API data (for comparison)
-        const customersSet = new Set();
-        let totalShares = 0;
-        let totalDownloads = 0;
+      const customersSet = new Set();
+      let totalShares = 0;
+      let totalDownloads = 0;
       let totalClicks = 0;
 
-        rawItems.forEach(item => {
-          const phone = item.whatsapp || item.mobile || '';
-          const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
-          customersSet.add(key);
-          
-          totalShares += (item.whatsappsharecount || 0) +
-            (item.facebooksharecount || 0) +
-            (item.twittersharecount || 0) +
-            (item.instagramsharecount || 0);
-          totalDownloads += (item.downloadcount || 0);
+      rawItems.forEach(item => {
+        const phone = item.whatsapp || item.mobile || '';
+        const key = phone && phone !== 'N/A' ? phone : (item.name || 'Unknown');
+        customersSet.add(key);
+        
+        totalShares += (item.whatsappsharecount || 0) +
+          (item.facebooksharecount || 0) +
+          (item.twittersharecount || 0) +
+          (item.instagramsharecount || 0);
+        totalDownloads += (item.downloadcount || 0);
         totalClicks += (item.urlclickcount || 0);
       });
 
@@ -581,7 +569,7 @@ const Reports = () => {
       const filteredVideosItems = filterDataByRange(videosItems, activeRange, false);
 
       // Calculate all-time stats for comparison
-        const totalCustomers = customersSet.size;
+      const totalCustomers = customersSet.size;
       const totalPhotos = photosItems.length;
       const totalVideos = videosItems.length;
       const totalCampaigns = campaigns.length;
@@ -596,7 +584,7 @@ const Reports = () => {
 
       // Calculate growth metrics (current period vs previous period)
       const days = getDaysFromRange(activeRange);
-        const now = new Date();
+      const now = new Date();
       let currentStart, currentEnd, previousStart, previousEnd;
 
       if (activeRange === 'Today') {
@@ -655,7 +643,7 @@ const Reports = () => {
       // Get current download counts from state
       const currentDownloadCounts = downloadCounts;
 
-        const reportsData = [
+      const reportsData = [
           {
             id: 'customer',
             name: 'Customer Engagement',
@@ -734,7 +722,7 @@ const Reports = () => {
 
       // Calculate summary stats dynamically (using filtered data for current period)
       const totalRecords = filteredTotalCustomers + filteredTotalPhotos + filteredTotalVideos + filteredTotalCampaigns + filteredTotalSharesAndDownloads;
-        const totalSizeKB = totalRecords * 0.5;
+      const totalSizeKB = totalRecords * 0.5;
 
       // Fetch downloads this month from API
       let downloadsThisMonth = 0;
@@ -747,7 +735,6 @@ const Reports = () => {
           }
         }
       } catch (error) {
-        console.error('Error fetching this month downloads:', error);
         // Fallback to calculating from history if API fails
         const currentMonth = new Date();
         currentMonth.setDate(1);
@@ -758,12 +745,12 @@ const Reports = () => {
         }).length;
       }
 
-        setSummaryStats({
+      setSummaryStats({
         totalReports: reportsData.length,
         generatedThisMonth: downloadsThisMonth, // Show downloads this month
-          totalRecords: totalRecords,
-          totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
-        });
+        totalRecords: totalRecords,
+        totalSize: totalSizeKB >= 1024 ? `${(totalSizeKB / 1024).toFixed(1)} MB` : `${totalSizeKB.toFixed(0)} KB`
+      });
 
       // Fetch downloads previous month from API
       let downloadsPreviousMonth = 0;
@@ -776,7 +763,6 @@ const Reports = () => {
           }
         }
       } catch (error) {
-        console.error('Error fetching previous month downloads:', error);
         // Fallback to calculating from history if API fails
         const currentMonth = new Date();
         currentMonth.setDate(1);
@@ -812,19 +798,18 @@ const Reports = () => {
       const prevTotalRecords = prevCustomersSet.size + previousPhotos.length + previousVideos.length + previousCampaigns.length + prevShares + prevDataDownloads;
       const prevTotalSize = prevTotalRecords * 0.5;
 
-        setGrowthMetrics({
+      setGrowthMetrics({
         reportsGrowth: 0, // Always 4 reports, no growth
         generatedGrowth: calculateGrowth(downloadsThisMonth, downloadsPreviousMonth), // Compare downloads this month vs previous month
         recordsGrowth: calculateGrowth(currentTotalRecords, prevTotalRecords), // Compare total records
         sizeGrowth: calculateGrowth(currentTotalSize, prevTotalSize) // Compare sizes
-        });
+      });
 
-      } catch (error) {
-        console.error("Error fetching report data:", error);
+    } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to load report data. Please try again.';
       showAlert(errorMessage, 'error');
-      } finally {
-        setLoading(false);
+    } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   }, [axiosData, activeRange, user._id, user.id, filterDataByRange, showAlert]);
@@ -864,7 +849,6 @@ const Reports = () => {
     try {
       const adminId = user._id || user.id;
       if (!adminId) {
-        console.warn('No admin ID found');
         return;
       }
 

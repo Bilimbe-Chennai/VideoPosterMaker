@@ -307,7 +307,7 @@ const CreateAdmin = () => {
   const availableOptions = [
     { value: 'photomerge', label: 'Photo Merge' },
     { value: 'videovideo', label: 'Video + Video' },
-    { value: 'videovideovideo', label: 'Video + Video + Video' },
+    { value: 'videomerge', label: 'Video + Video + Video' },
   ];
 
   const handleChange = (e) => {

@@ -609,16 +609,14 @@ const Dashboard = () => {
               templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
             }
           });
-          console.log('Templates fetched:', templates.length, 'AccessType map:', templateAccessTypeMap);
         } catch (templatesError) {
-          console.error("Error fetching templates (will use fallback logic):", templatesError);
+          // Error fetching templates - will use fallback logic
         }
 
         // STEP 2: Fetch DATA first (completely independent of metrics)
         // Optimized: Fetch only last 1000 items for dashboard (faster load)
         // Metrics will fetch full data in background if needed
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=1000`);
-        console.log('DATA API Response - Total items:', response.data?.data?.length || response.data?.length || 0);
 
         // STEP 3: Fetch METRICS separately (only for growth percentages)
         // Metrics do NOT affect data display
@@ -626,9 +624,8 @@ const Dashboard = () => {
         try {
           const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
           apiMetrics = metricsResponse.data?.metrics?.dashboard || {};
-          console.log('METRICS API Response (growth only):', apiMetrics);
         } catch (metricsError) {
-          console.error("Error fetching metrics (will use defaults for growth):", metricsError);
+          // Error fetching metrics - will use defaults for growth
           // Metrics error should NOT affect data display
         }
 
@@ -641,8 +638,6 @@ const Dashboard = () => {
         const rawItems = dataArray.filter(item =>
           item.source === 'photo merge app' || item.source === 'video merge app'
         );
-
-        console.log('DATA Processing - Filtered items count:', rawItems.length);
 
         const customersMap = {};
         const dailyTrends = {};
@@ -776,20 +771,6 @@ const Dashboard = () => {
           totalVideosGrowth: 0, // Split metrics might not be available
           sharesGrowth: apiMetrics.totalShares?.growth ?? 0
         };
-        console.log('DATA Stats (from actual data):', {
-          totalCustomers,
-          totalPhotos: photoCount,
-          totalVideos: videoCount,
-          totalShares,
-          totalDownloads
-        });
-        console.log('METRICS Stats (growth only):', {
-          customerGrowth: finalStats.customerGrowth,
-          photosGrowth: finalStats.photosGrowth,
-          totalVideosGrowth: finalStats.totalVideosGrowth,
-          sharesGrowth: finalStats.sharesGrowth
-        });
-        console.log('Final Stats (data + metrics):', finalStats);
         setStats(finalStats);
 
         // Top Customers Update

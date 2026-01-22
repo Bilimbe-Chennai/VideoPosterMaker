@@ -63,8 +63,6 @@ const { getAdminSettings } = require('./settingsUtils');
 // Function to automatically send a scheduled campaign
 const sendScheduledCampaign = async (campaign) => {
   try {
-    console.log(`[Campaign Scheduler] Processing scheduled campaign: ${campaign.name} (ID: ${campaign._id})`);
-
     // Fetch Admin Settings for Dynamic Integrations
     const adminSettings = await getAdminSettings(campaign.adminid);
     const waToken = adminSettings.integrations?.whatsapp?.apiKey || process.env.CHATMYBOT_TOKEN;
@@ -104,7 +102,6 @@ const sendScheduledCampaign = async (campaign) => {
     const totalCustomers = customers.length;
 
     if (totalCustomers === 0) {
-      console.log(`[Campaign Scheduler] No valid customers found for campaign: ${campaign.name}`);
       campaign.status = 'Failed';
       campaign.updatedAt = new Date();
       await campaign.save();
@@ -172,8 +169,6 @@ const sendScheduledCampaign = async (campaign) => {
     campaign.updatedAt = new Date();
     await campaign.save();
 
-    console.log(`[Campaign Scheduler] Campaign "${campaign.name}" sent: ${deliveredCount} delivered, ${failedCount} failed out of ${totalCustomers} customers`);
-
     return {
       success: sentCount > 0,
       message: `Campaign sent: ${deliveredCount} delivered, ${failedCount} failed out of ${totalCustomers} customers`,
@@ -211,8 +206,6 @@ const checkAndActivateScheduledCampaigns = async () => {
       return; // No campaigns to activate
     }
 
-    console.log(`[Campaign Scheduler] Found ${scheduledCampaigns.length} scheduled campaign(s) to activate`);
-
     // Process each scheduled campaign
     for (const campaign of scheduledCampaigns) {
       try {
@@ -228,8 +221,6 @@ const checkAndActivateScheduledCampaigns = async () => {
 
 // Start the scheduler
 const startCampaignScheduler = () => {
-  console.log('[Campaign Scheduler] Starting campaign scheduler...');
-
   // Check immediately on startup
   checkAndActivateScheduledCampaigns();
 
@@ -237,8 +228,6 @@ const startCampaignScheduler = () => {
   const interval = setInterval(() => {
     checkAndActivateScheduledCampaigns();
   }, 60000); // Check every 1 minute
-
-  console.log('[Campaign Scheduler] Campaign scheduler started. Checking every 1 minute for scheduled campaigns.');
 
   return interval;
 };

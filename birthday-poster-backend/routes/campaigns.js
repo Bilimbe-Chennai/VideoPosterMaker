@@ -25,8 +25,6 @@ router.get('/', async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    console.log('Fetching campaigns with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
-
     // Get total count for pagination
     const total = await Campaign.countDocuments(query);
 
@@ -36,8 +34,6 @@ router.get('/', async (req, res) => {
       .skip(skip)
       .limit(limitNum)
       .lean();
-
-    console.log(`Found ${campaigns.length} campaigns (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
 
     res.json({
       data: campaigns || [],

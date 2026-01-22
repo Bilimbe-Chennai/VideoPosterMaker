@@ -754,8 +754,6 @@ export default function ClientPage() {
                     spaceBetween={30}
                     slidesPerView={4}
                     style={{ borderRadius: "10px" }}
-                    onSlideChange={() => console.log("slide change")}
-                    onSwiper={(swiper) => console.log(swiper)}
                   >
                     {genderOptions.map((key, index) => (
                       <SwiperSlide key={key}>
