@@ -971,7 +971,7 @@ const ShareTracking = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch templates to get accessType mapping
       let templateAccessTypeMap = {};
       try {
@@ -996,14 +996,15 @@ const ShareTracking = () => {
 
       // Filter to include both photo merge app and video merge app items
       const data = dataArray.filter(item =>
-        item.source === 'photo merge app' || item.source === 'video merge app'
+        (item.source && item.source.toLowerCase() === 'photo merge app') ||
+        (item.source && item.source.toLowerCase() === 'video merge app')
       );
 
       // Add accessType to each item for processing (future-proof)
       const enrichedData = data.map(item => {
         const accessType = getAccessType(item, templateAccessTypeMap);
-        return { 
-          ...item, 
+        return {
+          ...item,
           _accessType: accessType,
           _templateAccessTypeMap: templateAccessTypeMap // Pass map for filtering
         };
@@ -1041,7 +1042,7 @@ const ShareTracking = () => {
       // Reconstruct templateAccessTypeMap from enriched data if available
       const templateAccessTypeMap = item._templateAccessTypeMap || {};
       const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: false });
-      
+
       // Calculate shares dynamically based on platform config
       let totalEngagement = 0;
       const platformShares = {};

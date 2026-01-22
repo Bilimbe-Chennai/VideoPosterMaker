@@ -698,55 +698,55 @@ const VideoThumbnail = ({ src, onClick }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-          {isHovered && isVisible ? (
-            <>
-              {isVideoLoading && !isVideoLoaded && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 10,
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    borderTop: '2px solid white',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}
-                />
-              )}
-              {isVisible && (
-                <video
-                  ref={videoRef}
-                  src={src}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    opacity: isVideoLoaded ? 1 : 0,
-                    transition: 'opacity 0.5s ease',
-                    display: isVideoLoaded ? 'block' : 'none'
-                  }}
-                  muted
-                  loop
-                  playsInline
-                  preload="none"
-                  onLoadStart={handleVideoLoadStart}
-                  onLoadedMetadata={handleVideoLoadedMetadata}
-                  onLoadedData={handleVideoLoadedData}
-                  onCanPlay={handleVideoCanPlay}
-                  onCanPlayThrough={handleVideoCanPlayThrough}
-                />
-              )}
-            </>
-          ) : (
-            <span>Video</span>
+      {isHovered && isVisible ? (
+        <>
+          {isVideoLoading && !isVideoLoaded && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10,
+                width: '16px',
+                height: '16px',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderTop: '2px solid white',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}
+            />
           )}
+          {isVisible && (
+            <video
+              ref={videoRef}
+              src={src}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                opacity: isVideoLoaded ? 1 : 0,
+                transition: 'opacity 0.5s ease',
+                display: isVideoLoaded ? 'block' : 'none'
+              }}
+              muted
+              loop
+              playsInline
+              preload="none"
+              onLoadStart={handleVideoLoadStart}
+              onLoadedMetadata={handleVideoLoadedMetadata}
+              onLoadedData={handleVideoLoadedData}
+              onCanPlay={handleVideoCanPlay}
+              onCanPlayThrough={handleVideoCanPlayThrough}
+            />
+          )}
+        </>
+      ) : (
+        <span>Video</span>
+      )}
     </div>
   );
 };
@@ -881,10 +881,10 @@ let isVideoLoading = false;
 
 const processVideoQueue = () => {
   if (isVideoLoading || videoLoadQueue.length === 0) return;
-  
+
   const { videoRef, callback } = videoLoadQueue.shift();
   isVideoLoading = true;
-  
+
   if (videoRef.current) {
     videoRef.current.load();
     // Wait for metadata to load before processing next video
@@ -894,9 +894,9 @@ const processVideoQueue = () => {
       // Process next video in queue
       setTimeout(() => processVideoQueue(), 100);
     };
-    
+
     videoRef.current.addEventListener('loadedmetadata', onMetadataLoaded, { once: true });
-    
+
     // Timeout fallback
     setTimeout(() => {
       if (isVideoLoading) {
@@ -914,6 +914,7 @@ const processVideoQueue = () => {
 // Helper Component for individual image loading
 const GalleryImage = ({ src, alt, isVideo = false }) => {
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [hasError, setHasError] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
   const [isVideoLoadingState, setIsVideoLoadingState] = React.useState(false);
   const [isVisible, setIsVisible] = React.useState(false);
@@ -1011,7 +1012,7 @@ const GalleryImage = ({ src, alt, isVideo = false }) => {
 
   if (isVideo) {
     return (
-      <ImageWrapper 
+      <ImageWrapper
         ref={containerRef}
         $loaded={isLoaded}
         onMouseEnter={() => setIsHovered(true)}
@@ -1097,13 +1098,39 @@ const GalleryImage = ({ src, alt, isVideo = false }) => {
   }
   return (
     <ImageWrapper $loaded={isLoaded}>
-      <StyledImage
-        src={src}
-        alt={alt}
-        loading="lazy"
-        onLoad={() => setIsLoaded(true)}
-        $loaded={isLoaded}
-      />
+      {!hasError ? (
+        <StyledImage
+          src={src}
+          alt={alt}
+          loading="lazy"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => {
+            console.warn('Image failed to load:', src);
+            setIsLoaded(true);
+            setHasError(true);
+          }}
+          $loaded={isLoaded}
+        />
+      ) : (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          backgroundColor: '#F3F4F6',
+          color: '#9CA3AF',
+          zIndex: 10
+        }}>
+          <Image size={24} />
+          <span style={{ fontSize: '10px', marginTop: '4px' }}>Failed</span>
+          <span style={{ fontSize: '8px', color: '#EF4444', padding: '0 4px', textAlign: 'center', wordBreak: 'break-all' }}>{src}</span>
+        </div>
+      )}
     </ImageWrapper>
   );
 };
@@ -1379,6 +1406,7 @@ const Photos = () => {
   // Alert & Confirmation Modal States
   const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const [debugData, setDebugData] = useState(null); // Debug state
   const axiosData = useAxios();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1547,16 +1575,25 @@ const Photos = () => {
       }
 
       // Use pagination to load photos in chunks for better performance
-      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
+      // REVERTING PAGINATION TO TEST IF IT FIXES DATA VISIBILITY
+      // const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=${page}&limit=${pagination.limit}`);
+      const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}`);
 
       // Handle both paginated and non-paginated responses
       const dataArray = Array.isArray(response.data?.data)
         ? response.data.data
         : (Array.isArray(response.data) ? response.data : []);
 
-      const data = dataArray.filter(item =>
-        item.source === 'photo merge app' || item.source === 'video merge app'
-      );
+      const data = dataArray;
+      //  .filter(item =>
+      //   (item.source && item.source.toLowerCase() === 'photo merge app') ||
+      //   (item.source && item.source.toLowerCase() === 'video merge app')
+      // );
+
+      if (data.length > 0) {
+        console.log('First Item (Newest?):', data[0]);
+        setDebugData(data[0]);
+      }
 
       // Update pagination info if available
       if (response.data?.pagination) {
@@ -1625,9 +1662,17 @@ const Photos = () => {
             mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`;
           }
         } else {
-          // For photos: use photoId
-          if (item.photoId) {
+          // For photos: check for full URL first, then fallback to photoId
+          if (item.url && item.url.startsWith('http')) {
+            mediaUrl = item.url;
+          } else if (item.photoId) {
             mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.photoId}`;
+          } else if (item.posterVideoId) { // Fallback used in ViewAllPoster.js
+            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.posterVideoId}`;
+          } else if (item.fileId) { // Fallback for some API responses
+            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.fileId}`;
+          } else if (item._id) { // Final fallback to document ID
+            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item._id}`;
           }
         }
 
@@ -2016,6 +2061,31 @@ const Photos = () => {
           </ActionButton> */}
         </HeaderActions>
       </HeaderSection>
+
+      {/* DEBUG SECTION - FIXED OVERLAY */}
+      {debugData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10000,
+          background: 'rgba(0,0,0,0.95)',
+          color: '#00ff00',
+          padding: '20px',
+          maxHeight: '50vh',
+          overflow: 'auto',
+          borderBottom: '4px solid white',
+          fontFamily: 'monospace'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ marginTop: 0 }}>DEBUG: DATA INSPECTOR</h3>
+            <button onClick={() => setDebugData(null)} style={{ padding: '5px 20px', background: 'red', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>CLOSE DEBUG</button>
+          </div>
+          <p><strong>Please provide a screenshot of this data:</strong></p>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(debugData, null, 2)}</pre>
+        </div>
+      )}
 
       <KPIBox>
         {(() => {

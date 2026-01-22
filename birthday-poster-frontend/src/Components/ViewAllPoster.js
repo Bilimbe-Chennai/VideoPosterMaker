@@ -523,13 +523,13 @@ export default function ViewAllPoster() {
     const matchesSearch = media.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-   const matchesType =
-  typeFilter === "all" ||
-  (
-    media?.type
-      ? media.type === typeFilter
-      : media?.source === typeFilter
-  );
+    const matchesType =
+      typeFilter === "all" ||
+      (
+        media?.type
+          ? media.type === typeFilter
+          : media?.source === typeFilter
+      );
 
     return matchesSearch && matchesType;
   });
@@ -543,14 +543,14 @@ export default function ViewAllPoster() {
         bgColor: "rgba(255, 61, 61, 0.1)",
         description: "Dual video composition",
       },
-       videovideovideo: {
+      videovideovideo: {
         display: "Video Combo",
         icon: <Videocam />,
         color: "#ff3d3d", // Vibrant red
         bgColor: "rgba(255, 61, 61, 0.1)",
         description: "3 video composition",
       },
-     "Photo Merge App": {
+      "Photo Merge App": {
         display: "Photo + Template",
         icon: <Image />,
         color: "#4caf50", // Vibrant red
@@ -811,7 +811,7 @@ export default function ViewAllPoster() {
                         }
                       }}
                     /> */}
-                        {(media?.type === "videovideo" || media?.type === "videovideovideo")? (
+                        {(media?.type === "videovideo" || media?.type === "videovideovideo") ? (
                           // Video poster with play icon overlay
                           <>
                             {/* <CardMedia
@@ -903,20 +903,19 @@ export default function ViewAllPoster() {
                           />
                         )}
                         <Chip
-                          label={getTypeDetails(media.type ||media.source).display}
+                          label={getTypeDetails(media.type || media.source).display}
                           size="small"
-                          icon={getTypeDetails(media.type ||media.source).icon}
+                          icon={getTypeDetails(media.type || media.source).icon}
                           sx={{
                             position: "absolute",
                             top: 12,
                             right: 12,
-                            backgroundColor: getTypeDetails(media.type ||media.source).bgColor,
+                            backgroundColor: getTypeDetails(media.type || media.source).bgColor,
                             color: "#fff",
                             backdropFilter: "blur(4px)",
                             fontWeight: 600,
-                            border: `1px solid ${
-                              getTypeDetails(media.type ||media.source).color
-                            }`,
+                            border: `1px solid ${getTypeDetails(media.type || media.source).color
+                              }`,
                           }}
                           color="#fff"
                         />
@@ -932,21 +931,21 @@ export default function ViewAllPoster() {
                         }}
                       >
                         <Typography variant="h6" fontWeight={700}>
-                          {media?.name||""}
+                          {media?.name || ""}
                         </Typography>
                         <Typography
                           variant="caption"
                           color="black"
                           sx={{ mb: 1 }}
                         >
-                          {new Date(media.date ||media.createdAt).toLocaleDateString()}
+                          {new Date(media.date || media.createdAt).toLocaleDateString()}
                         </Typography>
                         <Typography
                           variant="body2"
                           color="text.secondary"
                           sx={{ mb: 2 }}
                         >
-                          {getTypeDetails(media.type||media.source).description || ""}
+                          {getTypeDetails(media.type || media.source).description || ""}
                         </Typography>
 
                         <Box
@@ -973,12 +972,12 @@ export default function ViewAllPoster() {
                                   href={`https://api.bilimbebrandactivations.com/api/upload/file/${media.posterId}`}
                                   sx={{
                                     borderRadius: 2,
-                                    borderColor: getTypeDetails(media.type||media.source)
+                                    borderColor: getTypeDetails(media.type || media.source)
                                       .color,
-                                    color: getTypeDetails(media.type||media.source).color,
+                                    color: getTypeDetails(media.type || media.source).color,
                                     "&:hover": {
                                       backgroundColor: getTypeDetails(
-                                        media.type||media.source
+                                        media.type || media.source
                                       ).bgColor,
                                     },
                                   }}
@@ -1006,47 +1005,43 @@ export default function ViewAllPoster() {
                                 }
                                 sx={{
                                   borderRadius: 2,
-                                  background: `linear-gradient(45deg, ${
-                                    getTypeDetails(media.type||media.source).color
-                                  } 0%, ${
-                                    getTypeDetails(media.type||media.source).color
-                                  }80 100%)`,
-                                  boxShadow: `0 2px 8px ${
-                                    getTypeDetails(media.type||media.source).color
-                                  }40`,
+                                  background: `linear-gradient(45deg, ${getTypeDetails(media.type || media.source).color
+                                    } 0%, ${getTypeDetails(media.type || media.source).color
+                                    }80 100%)`,
+                                  boxShadow: `0 2px 8px ${getTypeDetails(media.type || media.source).color
+                                    }40`,
                                   "&:hover": {
-                                    boxShadow: `0 4px 12px ${
-                                      getTypeDetails(media.type||media.source).color
-                                    }60`,
+                                    boxShadow: `0 4px 12px ${getTypeDetails(media.type || media.source).color
+                                      }60`,
                                   },
                                 }}
                               >
-                              {media.source ?"Photo":"Video"} 
+                                {media.source ? "Photo" : "Video"}
                               </Button>
                             </div>
                             {(media.whatsappstatus === "pending" ||
                               media.whatsappstatus === "no") && (
-                              <div
-                                style={{
-                                  margin: "5px",
-                                  display: "flex",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <IconButton
-                                  onClick={() => {
-                                    setMedia(media);
-                                    openModal();
-                                  }}
+                                <div
                                   style={{
-                                    color: "white",
-                                    backgroundColor: "green",
+                                    margin: "5px",
+                                    display: "flex",
+                                    justifyContent: "center",
                                   }}
                                 >
-                                  <WhatsAppIcon />
-                                </IconButton>
-                              </div>
-                            )}
+                                  <IconButton
+                                    onClick={() => {
+                                      setMedia(media);
+                                      openModal();
+                                    }}
+                                    style={{
+                                      color: "white",
+                                      backgroundColor: "green",
+                                    }}
+                                  >
+                                    <WhatsAppIcon />
+                                  </IconButton>
+                                </div>
+                              )}
                           </Stack>
                         </Box>
                         {media?.qrCode && (
