@@ -181,9 +181,6 @@ async function runFaceSwap(imageBuffer, video1Id) {
   const tempVideoPath = await saveTempFile(videoBuffer, "mp4");
   // 🔥 GET TOTAL VIDEO DURATION
   const videoDuration = await getVideoDuration(tempVideoPath);
-  existsVideo: fs2.existsSync(tempVideoPath),
-  existsImage: fs2.existsSync(tempImagePath),
-});
 const safeDuration = Math.max(1, Math.floor(videoDuration - 1));
 
 // const uploadRes = await client.v1.files.uploadUrls.create({

@@ -8,7 +8,7 @@ const photomergeRoutes = require('./routes/photomerge');
 const userRoutes = require('./routes/user');
 const activityHistoryRoutes = require('./routes/activityHistory');
 const campaignRoutes = require('./routes/campaigns');
-const initDb = require("./InitDB");
+require("./InitDB");
 const path = require('path');
 const os = require("os");
 const bodyParser = require("body-parser");
@@ -82,7 +82,7 @@ const startSchedulerWhenReady = () => {
     try {
       campaignSchedulerInterval = startCampaignScheduler();
     } catch (error) {
-      console.error('❌ Error starting campaign scheduler:', error);
+      // Error starting campaign scheduler
     }
   } else {
     // Wait and check again
@@ -106,7 +106,8 @@ setTimeout(() => {
 // Video merge and animation can take several minutes
 app.timeout = 900000; // 15 minutes
 
-const server = app.listen(process.env.PORT, () => {
+const PORT = process.env.PORT || 7000;
+const server = app.listen(PORT, () => {
   // Server started
 });
 
