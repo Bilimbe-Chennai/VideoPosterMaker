@@ -1235,7 +1235,8 @@ router.post("/client/:temp_name", async (req, res) => {
           } else if (/name="template_name"/i.test(headersText)) {
             template_name = body.toString().trim();
           } else if (/name="source"/i.test(headersText)) {
-            source = body.toString().trim();
+            // Normalize source to lowercase only: "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+            source = body.toString().trim().toLowerCase();
           } else if (/name="adminid"/i.test(headersText)) {
             adminid = body.toString().trim();
           } else if (/name="branchid"/i.test(headersText)) {
@@ -1293,8 +1294,9 @@ router.post("/client/:temp_name", async (req, res) => {
               return res.status(400).json({ error: 'Template must have at least one video (video1 or video3)' });
             }
 
-            // Set source based on template accessType
-            const mediaSource = source || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
+            // Set source based on template accessType, normalize to lowercase only (preserve spaces)
+            const normalizedSource = source ? source.trim().toLowerCase() : null;
+            const mediaSource = normalizedSource || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
             
             // Create media record immediately with processing status
             // This allows us to return quickly and avoid gateway timeout
@@ -1496,22 +1498,33 @@ router.post("/client/:temp_name", async (req, res) => {
             );
           }
 
-            // Set source based on template accessType, default to what mobile app sends if not provided
-            const mediaSource = source || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
+            // Set source based on template accessType, normalize to lowercase only (preserve spaces)
+            // Normalize "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+            const normalizedSource = source ? source.trim().toLowerCase() : null;
+            const mediaSource = normalizedSource || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
 
-          const media = new Media({
+          // If accessType is photomerge, save in photoId, otherwise save in posterVideoId
+          const mediaData = {
             _id: new mongoose.Types.ObjectId(),
             name: clientName,
             email,
-              template_name: temp_name,
-            posterVideoId: clientphotoId,
-              source: mediaSource,
+            template_name: temp_name,
+            source: mediaSource,
             whatsapp,
             whatsappstatus: "pending",
             createdAt: new Date(),
             adminid,
             branchName,
-          });
+          };
+
+          // Save photo based on accessType
+          if (template.accessType === 'photomerge') {
+            mediaData.photoId = clientphotoId;
+          } else {
+            mediaData.posterVideoId = clientphotoId;
+          }
+
+          const media = new Media(mediaData);
           await media.save();
 
           // Log activity for photo merge creation

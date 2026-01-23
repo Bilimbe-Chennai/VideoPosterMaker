@@ -98,7 +98,8 @@ router.post('/template-upload', async (req, res) => {
                     } else if (headersText.includes('name="type"')) {
                         type = body.toString().trim();
                     } else if (headersText.includes('name="source"')) {
-                        source = body.toString().trim();
+                        // Normalize source to lowercase only (preserve spaces): "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+                        source = body.toString().trim().toLowerCase();
                     } else if (headersText.includes('name="adminid"')) {
                         adminid = body.toString().trim();
                     } else if (headersText.includes('name="branchid"')) {
@@ -220,8 +221,10 @@ router.post('/template-upload', async (req, res) => {
                         );
                     }
 
-                    // Set source based on accessType if not provided
-                    const templateSource = source || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
+                    // Set source based on accessType if not provided, normalize to lowercase only (preserve spaces)
+                    // Normalize "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+                    const normalizedSource = source ? source.trim().toLowerCase() : null;
+                    const templateSource = normalizedSource || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
                     
                     // Only save template data, no video merging or media saving
                     const template = new PhotoMergeTemplate({
@@ -269,7 +272,9 @@ router.post('/template-upload', async (req, res) => {
                 }
 
                 // Set source based on accessType if not provided
-                const templateSource = source || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
+                // Normalize source to lowercase only (preserve spaces): "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+                const normalizedSource = source ? source.trim().toLowerCase() : null;
+                const templateSource = normalizedSource || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
                 
                 const template = new PhotoMergeTemplate({
                     templatename,
@@ -370,7 +375,8 @@ router.put('/templates/:id', async (req, res) => {
                     } else if (headersText.includes('name="type"')) {
                         updateData.type = body.toString().trim();
                     } else if (headersText.includes('name="source"')) {
-                        updateData.source = body.toString().trim();
+                        // Normalize source to lowercase only (preserve spaces): "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+                        updateData.source = body.toString().trim().toLowerCase();
                     } else if (headersText.includes('name="adminid"')) {
                         updateData.adminid = body.toString().trim();
                     } else if (headersText.includes('name="branchid"')) {
@@ -558,9 +564,12 @@ router.put('/templates/:id', async (req, res) => {
                 }
 
                 // Set source based on accessType if not provided in updateData
-                if (!updateData.source && updateData.accessType) {
+                // Normalize source to lowercase only if provided (preserve spaces): "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+                if (updateData.source) {
+                    updateData.source = updateData.source.trim().toLowerCase();
+                } else if (updateData.accessType) {
                     updateData.source = updateData.accessType === 'videomerge' ? 'video merge app' : 'photo merge app';
-                } else if (!updateData.source) {
+                } else {
                     // If accessType is not being updated, get it from existing template
                     const existingTemplate = await PhotoMergeTemplate.findById(templateId);
                     if (existingTemplate) {

@@ -2278,10 +2278,10 @@ const Templates = () => {
                                                     />
                                                 </FormGroup>
                                                 <FormGroup>
-                                                    <label>Client Name</label>
+                                                    <label>Main Overlay Text</label>
                                                     <input
                                                         type="text"
-                                                        placeholder="Enter client name"
+                                                        placeholder="Enter Main Overlay Text"
                                                         value={formData.clientname || ''}
                                                         onChange={e => setFormData({ ...formData, clientname: e.target.value })}
                                                     />
@@ -2289,10 +2289,10 @@ const Templates = () => {
                                             </FormRow>
                                             <FormRow>
                                                 <FormGroup>
-                                                    <label>Brand Name</label>
+                                                    <label>Sub Overlay Test</label>
                                                     <input
                                                         type="text"
-                                                        placeholder="Enter brand name"
+                                                        placeholder="Enter Sub Overlay Text"
                                                         value={formData.brandname || ''}
                                                         onChange={e => setFormData({ ...formData, brandname: e.target.value })}
                                                     />

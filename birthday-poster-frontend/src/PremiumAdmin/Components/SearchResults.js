@@ -187,7 +187,7 @@ const SearchResults = ({ query, show, onResultClick }) => {
                     }));
 
                 // AGGREGATE Unique Customers from posters (Matches Customers.js logic)
-                const posterData = (photosRes.data || []).filter(item => item.source === 'Photo Merge App');
+                const posterData = (photosRes.data || []).filter(item => item.source === 'photo merge app');
                 const customersMap = {};
 
                 posterData.forEach(item => {
@@ -216,9 +216,9 @@ const SearchResults = ({ query, show, onResultClick }) => {
                 // Combine results for "Customers" category
                 const combinedUsers = [...filteredCustomers].slice(0, 10);
 
-                // Filter photos (from Photo Merge App)
+                // Filter photos (from photo merge app)
                 const photoMergePhotos = (photosRes.data || [])
-                    .filter(item => item.source === 'Photo Merge App');
+                    .filter(item => item.source === 'photo merge app');
 
                 const filteredPhotos = photoMergePhotos
                     .filter(p =>

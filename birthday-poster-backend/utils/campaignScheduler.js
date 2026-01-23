@@ -72,7 +72,7 @@ const sendScheduledCampaign = async (campaign) => {
     const defaultTemplateId = process.env.WHATSAPP_TEMPLATE_ID_APP || process.env.WHATSAPP_TEMPLATE_ID;
 
     // Get target customers
-    const query = { source: campaign.targetAudience?.source || 'Photo Merge App' };
+    const query = { source: campaign.targetAudience?.source || 'photo merge app' };
     if (campaign.adminid) {
       query.adminid = campaign.adminid;
     }

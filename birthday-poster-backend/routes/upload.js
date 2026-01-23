@@ -693,7 +693,7 @@ router.get("/dashboard-metrics", async (req, res) => {
     if (adminid) {
       query.adminid = adminid;
     }
-    query.source = "Photo Merge App";
+    query.source = "photo merge app";
 
     // Helper function to calculate growth
     // Returns count change as percentage based on 100% scale
@@ -2494,11 +2494,22 @@ router.get("/media/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid media ID" });
+    // Try to find by _id first (if valid ObjectId)
+    let media = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      media = await Media.findById(id);
     }
-
-    const media = await Media.findById(id);
+    
+    // If not found by _id, try to find by photoId, posterVideoId, or mergedVideoId
+    if (!media) {
+      media = await Media.findOne({
+        $or: [
+          { photoId: id },
+          { posterVideoId: id },
+          { mergedVideoId: id }
+        ]
+      });
+    }
     
     if (!media) {
       return res.status(404).json({ error: "Media not found" });

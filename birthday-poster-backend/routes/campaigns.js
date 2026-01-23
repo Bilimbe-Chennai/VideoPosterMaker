@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
       startDate: startDate ? new Date(startDate) : new Date(),
       endDate: endDate ? new Date(endDate) : new Date(),
       adminid,
-      targetAudience: targetAudience || { source: 'Photo Merge App' },
+      targetAudience: targetAudience || { source: 'photo merge app' },  
       message: message || '',
       sent: sent !== undefined ? sent : 0,
       delivered: delivered !== undefined ? delivered : 0,
@@ -169,11 +169,11 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET Photo Merge App customers for targeting
+// GET photo merge app customers for targeting
 router.get('/target/customers', async (req, res) => {
   try {
     const { adminid, template_name } = req.query;
-    const query = { source: 'Photo Merge App' };
+    const query = { source: 'photo merge app' };
 
     if (adminid) {
       query.adminid = adminid;
@@ -282,7 +282,7 @@ router.post('/:id/send', async (req, res) => {
     }
 
     // Get target customers
-    const query = { source: campaign.targetAudience.source || 'Photo Merge App' };
+    const query = { source: campaign.targetAudience.source || 'photo merge app' };
     if (campaign.adminid) {
       query.adminid = campaign.adminid;
     }

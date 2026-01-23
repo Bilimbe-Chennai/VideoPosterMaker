@@ -16,7 +16,7 @@ const ActivityHistorySchema = new mongoose.Schema({
   },
   activityType: {
     type: String,
-    enum: ['photo_created', 'photo_shared_whatsapp', 'photo_shared_facebook', 'photo_shared_twitter', 'photo_shared_instagram', 'photo_downloaded', 'message_sent', 'video_created', 'poster_created'],
+    enum: ['photo_created', 'photo_shared_whatsapp', 'photo_shared_facebook', 'photo_shared_twitter', 'photo_shared_instagram', 'photo_downloaded', 'message_sent', 'video_created', 'poster_created', 'url_clicked'],
     required: true
   },
   activityDescription: {

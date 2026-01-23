@@ -868,7 +868,7 @@ const Campaigns = () => {
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : new Date().toISOString(),
         targetAudience: {
-          source: 'Photo Merge App'
+          source: 'photo merge app'
         }
       };
 
@@ -939,7 +939,7 @@ const Campaigns = () => {
     const campaignType = campaign?.type || 'WhatsApp';
 
     showConfirm(
-      `Are you sure you want to send this ${campaignType} campaign? It will be sent to ${customerCount} Photo Merge App customers.`,
+      `Are you sure you want to send this ${campaignType} campaign? It will be sent to ${customerCount} photo merge app customers.`,
       async () => {
         try {
           setOperationLoading(true);
@@ -987,7 +987,7 @@ const Campaigns = () => {
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
         adminid: user._id || user.id,
-        targetAudience: campaign.targetAudience || { source: 'Photo Merge App' },
+        targetAudience: campaign.targetAudience || { source: 'photo merge app' },
         message: campaign.message || '',
         sent: 1,
         delivered: 1,
@@ -1190,7 +1190,7 @@ const Campaigns = () => {
           <p>Create, manage and analyze your marketing performance across all channels</p>
           {photoMergeCustomers.length > 0 && (
             <p style={{ fontSize: '13px', color: '#059669', marginTop: '4px' }}>
-              {photoMergeCustomers.length} Photo Merge App customers available for targeting
+              {photoMergeCustomers.length} photo merge app customers available for targeting
             </p>
           )}
         </HeaderInfo>
@@ -1688,7 +1688,7 @@ const Campaigns = () => {
                 fontSize: '13px',
                 color: '#1E40AF'
               }}>
-                <strong>Target Audience:</strong> This campaign will target {photoMergeCustomers.length} Photo Merge App customers.
+                <strong>Target Audience:</strong> This campaign will target {photoMergeCustomers.length} photo merge app customers.
               </div>
             </ModalBody>
             <ModalFooter>

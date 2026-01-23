@@ -351,7 +351,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
             });
 
             // Photos
-            (photosRes.data || []).filter(item => item.source === 'Photo Merge App')
+            (photosRes.data || []).filter(item => item.source === 'photo merge app')
               .sort((a, b) => {
                 const timeA = Math.max(new Date(a.createdAt || a.date).getTime(), new Date(a.updatedAt || a.date).getTime());
                 const timeB = Math.max(new Date(b.createdAt || b.date).getTime(), new Date(b.updatedAt || b.date).getTime());
@@ -438,7 +438,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
 
         // Recent photos
         const recentPhotos = (photosRes.data || [])
-          .filter(item => item.source === 'Photo Merge App')
+          .filter(item => item.source === 'photo merge app')
           .sort((a, b) => {
             const timeA = Math.max(new Date(a.createdAt || a.date).getTime(), new Date(a.updatedAt || a.date).getTime());
             const timeB = Math.max(new Date(b.createdAt || b.date).getTime(), new Date(b.updatedAt || b.date).getTime());

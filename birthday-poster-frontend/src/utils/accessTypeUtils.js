@@ -84,7 +84,7 @@ export const filterByAccessType = (items, targetAccessType, templateAccessTypeMa
       return isVideoType(item, templateAccessTypeMap, { enableFallback: false });
     });
   } else if (targetAccessType === 'photomerge') {
-    // For photos: check source === 'Photo Merge App' first, then accessType
+    // For photos: check source === 'photo merge app' first, then accessType
     return items.filter(item => {
       if (item.source === 'photo merge app') return true;
       if (item.source === 'video merge app') return false;

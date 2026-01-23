@@ -34,7 +34,7 @@ const CampaignSchema = new mongoose.Schema({
   targetAudience: {
     source: {
       type: String,
-      default: 'Photo Merge App'
+      default: 'photo merge app'
     },
     template_name: {
       type: String,
