@@ -8,7 +8,10 @@ import {
   Shield,
   TrendingUp,
   Clock,
-  MoreHorizontal
+  MoreHorizontal,
+  Download,
+  CheckCircle,
+  XCircle
 } from 'react-feather';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import useAxios from "../useAxios";
@@ -286,11 +289,11 @@ const Dashboard = () => {
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
-
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const calculateGrowth = (current, previous) => {
     // Calculate the count change

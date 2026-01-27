@@ -760,8 +760,9 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
     // Priority: mergedVideoId, video3Id, video1Id
     const videoItemsWithLabels = [];
     if (mergedVideoId) videoItemsWithLabels.push({ id: mergedVideoId, label: 'Merged Video' });
-    if (video3Id) videoItemsWithLabels.push({ id: video3Id, label: 'End Video (Video 3)' });
     if (video1Id) videoItemsWithLabels.push({ id: video1Id, label: 'Start Video (Video 1)' });
+    if (video3Id) videoItemsWithLabels.push({ id: video3Id, label: 'End Video (Video 3)' });
+    
     
     const items = isVideoTemplate ? videoItemsWithLabels.map(v => v.id) : (photos || []);
     const hasMultipleItems = items.length > 1;
@@ -1024,7 +1025,7 @@ const Templates = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All Templates');
-    const [selectedSource, setSelectedSource] = useState('All Sources');
+    const [selectedSource, setSelectedSource] = useState('All Media Types');
     const [pagination, setPagination] = useState({
         page: 1,
         limit: 25,
@@ -1176,6 +1177,7 @@ const Templates = () => {
         }
     }, []);
 
+    const [pdfGuideUrl, setPdfGuideUrl] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
         status: 'active',
@@ -1458,6 +1460,43 @@ const Templates = () => {
         fetchData();
     }, [fetchData]);
 
+    // Fetch PDF guide URL when accessType changes - only if guide exists in database
+    useEffect(() => {
+        const fetchPdfGuide = async () => {
+            if (!formData.accessType) {
+                setPdfGuideUrl(null);
+                return;
+            }
+
+            try {
+                // First, check if the guide exists in the database
+                const response = await axiosData.get('/admin/template-guide');
+                if (response.data && response.data.success && response.data.guides) {
+                    const guideExists = response.data.guides.some(
+                        guide => guide.accessType === formData.accessType
+                    );
+                    
+                    if (guideExists) {
+                        // Only set the URL if the guide exists
+                        const baseURL = axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/';
+                        const pdfUrl = `${baseURL}admin/template-guide/${formData.accessType}`;
+                        setPdfGuideUrl(pdfUrl);
+                    } else {
+                        // Guide doesn't exist, clear the URL
+                        setPdfGuideUrl(null);
+                    }
+                } else {
+                    setPdfGuideUrl(null);
+                }
+            } catch (error) {
+                console.error("Error checking PDF guide:", error);
+                setPdfGuideUrl(null);
+            }
+        };
+
+        fetchPdfGuide();
+    }, [formData.accessType, axiosData]);
+
     useEffect(() => {
         const { highlightedTemplateId, query } = location.state || {};
 
@@ -1502,6 +1541,12 @@ const Templates = () => {
     const saveTemplates = (newList) => {
         setTemplates(newList);
         localStorage.setItem('photo_templates', JSON.stringify(newList));
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setEditingTemplate(null);
+        setOriginalTemplateData(null);
     };
 
     const handleCreate = () => {
@@ -1754,7 +1799,7 @@ const Templates = () => {
                 // Check if there are any changes before making the request
                 if (!hasChanges) {
                     showAlert('No changes detected. Nothing to update.', 'info');
-                    setShowModal(false);
+                    handleCloseModal();
                     return;
                 }
 
@@ -1773,7 +1818,7 @@ const Templates = () => {
                 // Add required metadata
                 uploadData.append('adminid', adminInfo.id);
                 uploadData.append('branchid', adminInfo.branchid);
-                uploadData.append('source', 'photo merge app');
+                uploadData.append('source', formData.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
 
                 if (formData.accessType === 'videomerge') {
                     // Append video merge fields
@@ -1813,7 +1858,7 @@ const Templates = () => {
                 fetchData();
                 showAlert('Template created successfully!', 'success');
             }
-            setShowModal(false);
+            handleCloseModal();
         } catch (error) {
             console.error('Error saving template:', error);
             showAlert('Failed to save template: ' + (error.response?.data?.error || error.message), 'error');
@@ -1842,8 +1887,8 @@ const Templates = () => {
             tmpl.id.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory = selectedCategory === 'All Templates' || tmpl.name === selectedCategory;
         const matchesStatus = selectedStatus === 'All Status' || tmpl.status.toLowerCase() === selectedStatus.toLowerCase();
-        // Filter by source: check if template's sources include the selected source
-        const matchesSource = selectedSource === 'All Sources' || 
+        // Filter by media type: check if template's sources include the selected media type
+        const matchesSource = selectedSource === 'All Media Types' || 
             (tmpl.sources && tmpl.sources.includes(selectedSource)) ||
             (tmpl.source === selectedSource);
         return matchesSearch && matchesCategory && matchesStatus && matchesSource;
@@ -1963,6 +2008,35 @@ const Templates = () => {
                 </SearchBox>
 
                 <FilterGroup>
+                <Dropdown ref={sourceRef}>
+                        <DropdownBtn onClick={() => setShowSourceDropdown(!showSourceDropdown)}>
+                            <Filter size={16} />
+                            {selectedSource}
+                            <ChevronDown size={14} />
+                        </DropdownBtn>
+                        {showSourceDropdown && (
+                            <div style={{
+                                position: 'absolute', top: '100%', left: 0, width: '200px',
+                                background: 'white', border: '1px solid #EEE', borderRadius: '12px',
+                                boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 100, padding: '8px',
+                                marginTop: '8px'
+                            }}>
+                                {['All Media Types', 'photo merge app', 'video merge app'].map(s => (
+                                    <div
+                                        key={s}
+                                        onClick={() => { setSelectedSource(s); setShowSourceDropdown(false); }}
+                                        style={{
+                                            padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
+                                            fontSize: '14px', background: selectedSource === s ? '#E5E5E5' : 'transparent',
+                                            fontWeight: selectedSource === s ? 600 : 400
+                                        }}
+                                    >
+                                        {s}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Dropdown>
                     <Dropdown ref={categoryRef}>
                         <DropdownBtn onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}>
                             <Filter size={16} />
@@ -1987,35 +2061,6 @@ const Templates = () => {
                                         }}
                                     >
                                         {c}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </Dropdown>
-                    <Dropdown ref={sourceRef}>
-                        <DropdownBtn onClick={() => setShowSourceDropdown(!showSourceDropdown)}>
-                            <Filter size={16} />
-                            {selectedSource}
-                            <ChevronDown size={14} />
-                        </DropdownBtn>
-                        {showSourceDropdown && (
-                            <div style={{
-                                position: 'absolute', top: '100%', left: 0, width: '200px',
-                                background: 'white', border: '1px solid #EEE', borderRadius: '12px',
-                                boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 100, padding: '8px',
-                                marginTop: '8px'
-                            }}>
-                                {['All Sources', 'photo merge app', 'video merge app'].map(s => (
-                                    <div
-                                        key={s}
-                                        onClick={() => { setSelectedSource(s); setShowSourceDropdown(false); }}
-                                        style={{
-                                            padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
-                                            fontSize: '14px', background: selectedSource === s ? '#E5E5E5' : 'transparent',
-                                            fontWeight: selectedSource === s ? 600 : 400
-                                        }}
-                                    >
-                                        {s}
                                     </div>
                                 ))}
                             </div>
@@ -2087,13 +2132,13 @@ const Templates = () => {
                                 ? `We couldn't find any templates matching your current search or filter criteria.`
                                 : "No templates have been created yet. Click 'Create New Template' to get started."}
                         </div>
-                        {(searchQuery || selectedCategory !== 'All Templates' || selectedSource !== 'All Sources' || selectedStatus !== 'All Status') && (
+                        {(searchQuery || selectedCategory !== 'All Templates' || selectedSource !== 'All Media Types' || selectedStatus !== 'All Status') && (
                             <Button
                                 style={{ marginTop: '24px', background: '#F3F4F6', color: '#374151' }}
                                 onClick={() => {
                                     setSearchQuery('');
                                     setSelectedCategory('All Templates');
-                                    setSelectedSource('All Sources');
+                                    setSelectedSource('All Media Types');
                                     setSelectedStatus('All Status');
                                     setSearchQuery('');
                                 }}
@@ -2109,7 +2154,7 @@ const Templates = () => {
                         $selected={selectedIds.includes(tmpl.id)}
                         $highlighted={tmpl.id === highlightedId}
                     >
-                        <TemplatePreview $active={tmpl.status === 'active'} onClick={() => handleEdit(tmpl)}>
+                        <TemplatePreview $active={tmpl.status === 'active'}>
                             <TemplateCarousel 
                                 photos={tmpl.photos} 
                                 name={tmpl.name} 
@@ -2147,9 +2192,9 @@ const Templates = () => {
                         </TemplateInfo>
                         <ActionFooter>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                {/* <Button style={{ padding: '6px', minWidth: '32px' }} title="Edit" onClick={() => handleEdit(tmpl)}>
+                                <Button style={{ padding: '6px', minWidth: '32px' }} title="Edit" onClick={() => handleEdit(tmpl)}>
                                     <Edit2 size={14} />
-                                </Button> */}
+                                </Button>
                                 <Button
                                     style={{ padding: '6px', minWidth: '32px' }}
                                     title={tmpl.status === 'active' ? 'Deactivate' : 'Activate'}
@@ -2203,11 +2248,11 @@ const Templates = () => {
 
             {
                 showModal && (
-                    <ModalOverlay onClick={() => setShowModal(false)}>
+                    <ModalOverlay onClick={handleCloseModal}>
                         <ModalContent onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <h2>{editingTemplate ? 'Edit Template' : 'Create New Template'}</h2>
-                                <X size={24} style={{ cursor: 'pointer' }} onClick={() => setShowModal(false)} />
+                                <X size={24} style={{ cursor: 'pointer' }} onClick={handleCloseModal} />
                             </div>
 
                             <form onSubmit={handleSubmit}>
@@ -2251,6 +2296,77 @@ const Templates = () => {
                                     </FormGroup>
                                 </FormRow>
 
+                                {/* PDF Document Section based on Access Type - Only show if guide exists in database */}
+                                {formData.accessType && pdfGuideUrl && (
+                                    <div style={{
+                                        marginBottom: '20px',
+                                        padding: '12px 16px',
+                                        background: '#FFF',
+                                        borderRadius: '12px',
+                                        border: '2px solid #1A1A1A',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '12px'
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            flex: 1
+                                        }}>
+                                            {/* <Download size={18} style={{ color: '#1A1A1A', flexShrink: 0 }} /> */}
+                                            <span style={{
+                                                fontSize: '14px',
+                                                color: '#1A1A1A',
+                                                fontWeight: 600
+                                            }}>
+                                                {formData.accessType === 'photomerge' 
+                                                    ? 'Photo Merge' 
+                                                    : formData.accessType === 'videomerge' 
+                                                    ? 'Video Merge' 
+                                                    : 'Template'} Template Guide
+                                            </span>
+                                        </div>
+                                        <a
+                                            href={pdfGuideUrl || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                color: '#FFF',
+                                                textDecoration: 'none',
+                                                fontSize: '13px',
+                                                fontWeight: 600,
+                                                padding: '8px 16px',
+                                                borderRadius: '8px',
+                                                background: '#0F0F0F',
+                                                border: '1px solid #0F0F0F',
+                                                transition: 'all 0.2s ease',
+                                                whiteSpace: 'nowrap',
+                                                ...(pdfGuideUrl ? {} : { 
+                                                    pointerEvents: 'none', 
+                                                    opacity: 0.5,
+                                                    cursor: 'not-allowed'
+                                                })
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = '#1A1A1A';
+                                                e.currentTarget.style.borderColor = '#1A1A1A';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = '#0F0F0F';
+                                                e.currentTarget.style.borderColor = '#0F0F0F';
+                                            }}
+                                        >
+                                            <ArrowUpRight size={14} />
+                                            <span>View</span>
+                                        </a>
+                                    </div>
+                                )}
+
                                 {formData.accessType === 'videomerge' ? (
                                     <>
                                         {/* Basic Information Section */}
@@ -2269,14 +2385,14 @@ const Templates = () => {
                                                 Basic Information
                                             </h3>
                                             <FormRow>
-                                                <FormGroup>
+                                                {/* <FormGroup>
                                                     <label>Date</label>
                                                     <input
                                                         type="date"
                                                         value={formData.date || ''}
                                                         onChange={e => setFormData({ ...formData, date: e.target.value })}
                                                     />
-                                                </FormGroup>
+                                                </FormGroup> */}
                                                 <FormGroup>
                                                     <label>Main Overlay Text</label>
                                                     <input
@@ -2286,8 +2402,17 @@ const Templates = () => {
                                                         onChange={e => setFormData({ ...formData, clientname: e.target.value })}
                                                     />
                                                 </FormGroup>
+                                                <FormGroup>
+                                                    <label>Sub Overlay Test</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter Sub Overlay Text"
+                                                        value={formData.brandname || ''}
+                                                        onChange={e => setFormData({ ...formData, brandname: e.target.value })}
+                                                    />
+                                                </FormGroup>
                                             </FormRow>
-                                            <FormRow>
+                                            {/* <FormRow>
                                                 <FormGroup>
                                                     <label>Sub Overlay Test</label>
                                                     <input
@@ -2298,7 +2423,7 @@ const Templates = () => {
                                                     />
                                                 </FormGroup>
                                                 <FormGroup style={{ marginBottom: 0 }}></FormGroup>
-                                            </FormRow>
+                                            </FormRow> */}
                                         </div>
 
                                         {/* Video Options Section */}
@@ -2674,7 +2799,7 @@ const Templates = () => {
                                                         alignItems: 'center', 
                                                         gap: '8px'
                                                     }}>
-                                                        <span>Audio *</span>
+                                                        <span>Audio</span>
                                                         {typeof formData.audio === 'string' && formData.audio && (
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
@@ -2694,11 +2819,10 @@ const Templates = () => {
                                                     </label>
                                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                         <input
-                                                            accept="audio/*"
+                                                            accept="audio/*,video/*"
                                                             type="file"
                                                             data-field="audio"
                                                             onChange={handleVideoFileChange('audio')}
-                                                            required={!editingTemplate}
                                                             style={{ 
                                                                 flex: 1,
                                                                 padding: '12px 16px',
@@ -2792,7 +2916,7 @@ const Templates = () => {
                                                             opacity: editingTemplate ? 0.6 : 1
                                                         }}
                                                     />
-                                                    <span style={{ flex: 1 }}>Enable Animation (GIF + Photo)</span>
+                                                    <span style={{ flex: 1 }}>Enable Animation (Overlay GIF)</span>
                                                 </label>
                                             </FormGroup>
                                         </div>
@@ -2837,6 +2961,21 @@ const Templates = () => {
                                                             </span>
                                                         )}
                                                     </label>
+                                                    <div style={{ 
+                                                        fontSize: '12px', 
+                                                        color: '#666', 
+                                                        marginBottom: '8px',
+                                                        padding: '8px 12px',
+                                                        background: '#F3F4F6',
+                                                        borderRadius: '8px',
+                                                        border: '1px solid #E5E7EB',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px'
+                                                    }}>
+                                                        <AlertCircle size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
+                                                        <span>Note: GIF size should be <strong>1080×1920</strong> pixels</span>
+                                                    </div>
                                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                         <input
                                                             accept="image/gif"
@@ -2917,7 +3056,7 @@ const Templates = () => {
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
                                     <Button 
                                         type="button" 
-                                        onClick={() => setShowModal(false)} 
+                                        onClick={handleCloseModal} 
                                         style={{ flex: 1 }}
                                         disabled={isSubmitting}
                                     >
