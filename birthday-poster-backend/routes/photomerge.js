@@ -173,11 +173,6 @@ router.post('/template-upload', async (req, res) => {
                         return res.status(400).json({ error: 'Template name is required' });
                     }
                     
-                    // Require audio
-                    if (!audioBuffer) {
-                        return res.status(400).json({ error: 'Audio is required' });
-                    }
-                    
                     // If animation is enabled, require gif
                     if (hasAnimation) {
                         if (!gifBuffer) {
@@ -206,12 +201,29 @@ router.post('/template-upload', async (req, res) => {
                             "video/mp4"
                         );
                     }
-                    // audio is required
-                    audioId = await uploadToGridFS(
-                        `audio-${Date.now()}.mp3`,
-                        audioBuffer,
-                        "audio/mp3"
-                    );
+                    // audio is optional - can be audio or video file
+                    if (audioBuffer) {
+                        // Check if it's a video file and extract audio if needed
+                        const filename = audioBuffer.filename || '';
+                        const contentType = audioBuffer.contentType || '';
+                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) || 
+                                       contentType.startsWith('video/');
+                        
+                        let finalAudioBuffer = audioBuffer.buffer;
+                        
+                        if (isVideo) {
+                            // Extract audio from video
+                            const { extractAudioFromVideo } = require('../utils/videoMerge');
+                            const extension = filename.split('.').pop() || 'mp4';
+                            finalAudioBuffer = await extractAudioFromVideo(finalAudioBuffer, extension);
+                        }
+                        
+                        audioId = await uploadToGridFS(
+                            `audio-${Date.now()}.mp3`,
+                            finalAudioBuffer,
+                            "audio/mp3"
+                        );
+                    }
                     // Upload animation file if enabled
                     if (hasAnimation && gifBuffer) {
                         gifId = await uploadToGridFS(
@@ -419,7 +431,15 @@ router.put('/templates/:id', async (req, res) => {
                         } else if (headersText.includes('name="video3"')) {
                             video3Buffer = body.length > 0 ? body : null;
                         } else if (headersText.includes('name="audio"')) {
-                            audioBuffer = body.length > 0 ? body : null;
+                            if (body.length > 0) {
+                                audioBuffer = {
+                                    buffer: body,
+                                    filename: headersText.match(/filename="(.+?)"/)?.[1] || `audio-${Date.now()}.mp3`,
+                                    contentType: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'audio/mpeg'
+                                };
+                            } else {
+                                audioBuffer = null;
+                            }
                         } else if (headersText.includes('name="gif"')) {
                             gifBuffer = body.length > 0 ? body : null;
                         } else if (headersText.includes('name="removeVideo1"')) {
@@ -511,8 +531,23 @@ router.put('/templates/:id', async (req, res) => {
                     }
 
                     if (audioBuffer) {
-                        // New audio uploaded
-                        const audioId = await uploadToGridFS(`audio-${Date.now()}.mp3`, audioBuffer, "audio/mp3");
+                        // New audio uploaded - can be audio or video file
+                        // Check if it's a video file and extract audio if needed
+                        const filename = audioBuffer.filename || '';
+                        const contentType = audioBuffer.contentType || '';
+                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) || 
+                                       contentType.startsWith('video/');
+                        
+                        let finalAudioBuffer = audioBuffer.buffer;
+                        
+                        if (isVideo) {
+                            // Extract audio from video
+                            const { extractAudioFromVideo } = require('../utils/videoMerge');
+                            const extension = filename.split('.').pop() || 'mp4';
+                            finalAudioBuffer = await extractAudioFromVideo(finalAudioBuffer, extension);
+                        }
+                        
+                        const audioId = await uploadToGridFS(`audio-${Date.now()}.mp3`, finalAudioBuffer, "audio/mp3");
                         updateData.audioId = audioId;
                     } else if (removeAudio) {
                         // Remove audio
@@ -866,9 +901,21 @@ router.post('/templates/:id/generate', async (req, res) => {
                     const tempGifPath = await saveTempFile(gifBufferFromGridFS, "gif");
                     const outputPath = path.join(os.tmpdir(), `animated-${Date.now()}.mp4`);
 
+                    // Check if merged video has audio
+                    const getStreamInfo = (filePath) => {
+                        return new Promise((resolve, reject) => {
+                            ffmpeg.ffprobe(filePath, (err, metadata) => {
+                                if (err) return reject(err);
+                                const hasAudio = metadata.streams.some((s) => s.codec_type === "audio");
+                                resolve(hasAudio);
+                            });
+                        });
+                    };
+                    const hasAudio = await getStreamInfo(tempMergedVideoPath).catch(() => false);
+
                     // Apply GIF animation overlay (similar to photogif API)
                     await new Promise((resolve, reject) => {
-                        ffmpeg()
+                        const ffmpegCmd = ffmpeg()
                             .input(tempMergedVideoPath) // 0:v - merged video (keep original orientation/size)
                             .input(tempGifPath) // 1:v - gif
                             .inputOptions(["-stream_loop", "-1"]) // loop gif
@@ -881,9 +928,8 @@ router.post('/templates/:id/generate', async (req, res) => {
                             ])
                             .outputOptions([
                                 "-map [v]",
-                                "-map 0:a", // Use audio from merged video
+                                ...(hasAudio ? ["-map 0:a", "-c:a aac"] : ["-an"]), // Use audio from merged video if available
                                 "-c:v libx264",
-                                "-c:a aac",
                                 "-pix_fmt yuv420p",
                                 "-shortest"
                             ])

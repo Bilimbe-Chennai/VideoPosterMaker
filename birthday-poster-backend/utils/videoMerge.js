@@ -44,6 +44,58 @@ const saveTempFile = async (buffer, extension) => {
 };
 
 /**
+ * Extract audio from a video file or return the audio file as-is
+ * @param {Buffer} buffer - File buffer (can be video or audio)
+ * @param {string} originalExtension - Original file extension
+ * @returns {Promise<Buffer>} - Audio buffer in MP3 format
+ */
+const extractAudioFromVideo = async (buffer, originalExtension) => {
+  // Check if it's a video file
+  const isVideo = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(originalExtension.toLowerCase());
+  
+  if (!isVideo) {
+    // It's already an audio file, return as-is
+    return buffer;
+  }
+  
+  // Save video to temp file
+  const tempVideoPath = await saveTempFile(buffer, originalExtension);
+  const tempAudioPath = path.join(os.tmpdir(), `extracted-audio-${Date.now()}.mp3`);
+  
+  try {
+    // Extract audio using ffmpeg
+    await new Promise((resolve, reject) => {
+      ffmpeg(tempVideoPath)
+        .outputOptions([
+          '-vn', // No video
+          '-acodec', 'libmp3lame', // MP3 codec
+          '-ab', '192k', // Audio bitrate
+          '-ar', '44100', // Sample rate
+          '-y' // Overwrite output file
+        ])
+        .output(tempAudioPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+    
+    // Read extracted audio
+    const audioBuffer = await fs.readFile(tempAudioPath);
+    
+    // Cleanup temp files
+    await fs.unlink(tempVideoPath).catch(() => {});
+    await fs.unlink(tempAudioPath).catch(() => {});
+    
+    return audioBuffer;
+  } catch (error) {
+    // Cleanup on error
+    await fs.unlink(tempVideoPath).catch(() => {});
+    await fs.unlink(tempAudioPath).catch(() => {});
+    throw new Error(`Failed to extract audio from video: ${error.message}`);
+  }
+};
+
+/**
  * Merge two videos + one audio track into a single MP4
  */
 async function mergeTwoVideos({
@@ -58,23 +110,34 @@ async function mergeTwoVideos({
   // Get files from GridFS
   const video1Buffer = await getFileFromGridFS(video1Id);
   const video2Buffer = await getFileFromGridFS(video2Id);
-  const audioBuffer = await getFileFromGridFS(audioId);
   // const clientPhotoBuffer = await getFileFromGridFS(clientPhotoId);
   // Save temp files
   const tempvideo1Path = await saveTempFile(video1Buffer, "mp4");
   const tempvideo2Path = await saveTempFile(video2Buffer, "mp4");
-  const tempAudioPath = await saveTempFile(audioBuffer, "mp3");
   //const tempClientPhotoPath = await saveTempFile(clientPhotoBuffer, "jpg");
+  
+  // Handle optional audio
+  let tempAudioPath = null;
+  if (audioId) {
+    const audioBuffer = await getFileFromGridFS(audioId);
+    tempAudioPath = await saveTempFile(audioBuffer, "mp3");
+  }
+  
   // Output path
   const outputPath = path.join(os.tmpdir(), `merged-${Date.now()}.mp4`);
 
   // Run ffmpeg merge
   await new Promise((resolve, reject) => {
-    ffmpeg()
+    const ffmpegCmd = ffmpeg()
       .input(tempvideo1Path)
-      .input(tempvideo2Path)
-      .input(tempAudioPath)
-      .inputOptions(["-stream_loop -1"]) // loop audio
+      .input(tempvideo2Path);
+    
+    // Add audio input if available
+    if (tempAudioPath) {
+      ffmpegCmd.input(tempAudioPath).inputOptions(["-stream_loop -1"]); // loop audio
+    }
+    
+    ffmpegCmd
       .complexFilter([
         "[0:v]scale=1080:1920,fps=30,setsar=1[v0]",
         "[1:v]scale=1080:1920,fps=30,setsar=1[v1]",
@@ -82,9 +145,8 @@ async function mergeTwoVideos({
       ])
       .outputOptions([
         "-map [v]",
-        "-map 2:a",
+        ...(tempAudioPath ? ["-map 2:a", "-c:a aac"] : ["-an"]), // Add audio if available, otherwise no audio
         "-c:v libx264",
-        "-c:a aac",
         "-pix_fmt yuv420p",
         "-shortest",
         "-movflags +faststart",
@@ -102,6 +164,15 @@ async function mergeTwoVideos({
     mergedBuffer,
     "video/mp4"
   );
+
+  // Cleanup temp files
+  try {
+    if (tempAudioPath) {
+      await fs.unlink(tempAudioPath);
+    }
+  } catch (cleanupErr) {
+    console.warn("Failed to cleanup temp audio file:", cleanupErr);
+  }
 
   return posterVideoId;
 }
@@ -812,16 +883,29 @@ async function mergeThreeVideos({
   video2TextOption,
   video3TextOption,
   clientPhotoId,
+  gifId,
 }) {
   const video1Buffer = await getFileFromGridFS(video1Id);
   const video2Buffer = await getFileFromGridFS(video2Id);
   const video3Buffer = await getFileFromGridFS(video3Id);
-  const audioBuffer = await getFileFromGridFS(audioId);
 
   const tempvideo1Path = await saveTempFile(video1Buffer, "mp4");
   const tempvideo2Path = await saveTempFile(video2Buffer, "mp4");
   const tempvideo3Path = await saveTempFile(video3Buffer, "mp4");
-  const tempAudioPath = await saveTempFile(audioBuffer, "mp3");
+  
+  // Handle optional audio
+  let tempAudioPath = null;
+  if (audioId) {
+    const audioBuffer = await getFileFromGridFS(audioId);
+    tempAudioPath = await saveTempFile(audioBuffer, "mp3");
+  }
+
+  // Handle GIF animation - only for middle video (video2)
+  let tempGifPath = null;
+  if (gifId) {
+    const gifBuffer = await getFileFromGridFS(gifId);
+    tempGifPath = await saveTempFile(gifBuffer, "gif");
+  }
 
   const outputPath = path.join(os.tmpdir(), `merged-${Date.now()}.mp4`);
 
@@ -916,8 +1000,21 @@ async function mergeThreeVideos({
   
   // console.log("Congrats Option:", congratsOption);
   
+  // Video 1 - no animation
   filters.push(buildVideoFilter(0, showText1));
-  filters.push(buildVideoFilter(1, showText2));
+  
+  // Video 2 (middle video) - apply GIF animation if available
+  if (tempGifPath) {
+    // First apply text to video2
+    filters.push(buildVideoFilter(1, showText2));
+    // Then overlay GIF animation on video2 (GIF is input index 3)
+    filters.push(`[3:v]scale=1080:1920:flags=lanczos,format=rgba[gif_scaled]`);
+    filters.push(`[v1][gif_scaled]overlay=0:0:shortest=1[v1]`);
+  } else {
+    filters.push(buildVideoFilter(1, showText2));
+  }
+  
+  // Video 3 - no animation
   filters.push(buildVideoFilter(2, showText3));
 
   // Get video durations for fade calculation
@@ -995,24 +1092,36 @@ async function mergeThreeVideos({
       let cmd = ffmpeg()
         .input(tempvideo1Path)
         .input(tempvideo2Path)
-        .input(tempvideo3Path)
-        .input(tempAudioPath)
-        .inputOptions(["-stream_loop", "-1"])
-        .complexFilter(filters)
+        .input(tempvideo3Path);
+      
+      // Add GIF input if available (for middle video animation) - this will be input index 3
+      if (tempGifPath) {
+        cmd.input(tempGifPath).inputOptions(["-stream_loop", "-1"]);
+      }
+      
+      // Add audio input if available - this will be input index 3 (if no GIF) or 4 (if GIF exists)
+      if (tempAudioPath) {
+        cmd.input(tempAudioPath).inputOptions(["-stream_loop", "-1"]);
+      }
+      
+      cmd.complexFilter(filters)
         .outputOptions([
           "-map [vout]",
-          "-map 3:a",
+          ...(tempAudioPath ? [`-map ${tempGifPath ? '4' : '3'}:a`, "-c:a aac", "-b:a 128k"] : ["-an"]), // Add audio if available, otherwise no audio
           "-c:v libx264",
           "-preset fast",
           "-crf 24",
-          "-c:a aac",
-          "-b:a 128k",
           "-pix_fmt yuv420p",
           "-movflags +faststart",
           "-shortest"
-        ])
-        .audioFilters(`afade=t=out:st=${fadeStart}:d=2`)
-        .output(outputPath)
+        ]);
+      
+      // Add audio fade filter only if audio is available
+      if (tempAudioPath) {
+        cmd.audioFilters(`afade=t=out:st=${fadeStart}:d=2`);
+      }
+      
+      cmd.output(outputPath)
         .on("start", (commandLine) => {
           // console.log("FFmpeg command started");
         })
@@ -1080,18 +1189,25 @@ async function mergeThreeVideos({
       let cmd = ffmpeg()
         .input(tempvideo1Path)
         .input(tempvideo2Path)
-        .input(tempvideo3Path)
-        .input(tempAudioPath)
-        .inputOptions(["-stream_loop", "-1"])
-        .complexFilter(filters)
+        .input(tempvideo3Path);
+      
+      // Add GIF input if available (for middle video animation) - this will be input index 3
+      if (tempGifPath) {
+        cmd.input(tempGifPath).inputOptions(["-stream_loop", "-1"]);
+      }
+      
+      // Add audio input if available - this will be input index 3 (if no GIF) or 4 (if GIF exists)
+      if (tempAudioPath) {
+        cmd.input(tempAudioPath).inputOptions(["-stream_loop", "-1"]);
+      }
+      
+      cmd.complexFilter(filters)
         .outputOptions([
           "-map [vout]",
-          "-map 3:a",
+          ...(tempAudioPath ? [`-map ${tempGifPath ? '4' : '3'}:a`, "-c:a aac", "-b:a 128k"] : ["-an"]), // Add audio if available, otherwise no audio
           "-c:v libx264",
           "-preset fast",
           "-crf 24",
-          "-c:a aac",
-          "-b:a 128k",
           "-pix_fmt yuv420p",
           "-movflags +faststart",
           "-shortest"
@@ -1132,7 +1248,12 @@ async function mergeThreeVideos({
     await fs.unlink(tempvideo1Path);
     await fs.unlink(tempvideo2Path);
     await fs.unlink(tempvideo3Path);
-    await fs.unlink(tempAudioPath);
+    if (tempAudioPath) {
+      await fs.unlink(tempAudioPath);
+    }
+    if (tempGifPath) {
+      await fs.unlink(tempGifPath);
+    }
     await fs.unlink(outputPath);
   } catch (cleanupErr) {
     console.warn("Failed to cleanup temp files:", cleanupErr);

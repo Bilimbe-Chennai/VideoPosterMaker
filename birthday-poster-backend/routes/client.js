@@ -616,13 +616,17 @@ async function logActivity({
     // Don't throw - activity logging should not break the main flow
   }
 }
-function imageShareEmailTemplate({ name, viewUrl }) {
+function imageShareEmailTemplate({ name, viewUrl, mediaType = 'photo' }) {
+  const isVideo = mediaType === 'video';
+  const mediaText = isVideo ? 'video' : 'photo';
+  const mediaTextCapitalized = isVideo ? 'Video' : 'Photo';
+  
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Your Photo Is Ready</title>
+  <title>Your ${mediaTextCapitalized} Is Ready</title>
 </head>
 <body style="margin:0; padding:0; background:#f4f4f4; font-family: Arial, sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
@@ -634,7 +638,7 @@ function imageShareEmailTemplate({ name, viewUrl }) {
           <tr>
             <td style="background:#b3152c; padding:20px; color:#fff; text-align:center;">
               <h1 style="margin:0; font-size:24px;">PhotoMerge</h1>
-              <p style="margin:5px 0 0; font-size:14px;">Your photo is ready to view</p>
+              <p style="margin:5px 0 0; font-size:14px;">Your ${mediaText} is ready to view</p>
             </td>
           </tr>
 
@@ -643,7 +647,7 @@ function imageShareEmailTemplate({ name, viewUrl }) {
             <td style="padding:30px; text-align:center;">
               <h2 style="margin-bottom:10px;">Hi ${name || "there"} </h2>
               <p style="color:#555; font-size:15px;">
-                Your photo has been successfully created.
+                Your ${mediaText} has been successfully created.
                 Click the button below to view and download it.
               </p>
 
@@ -663,7 +667,7 @@ function imageShareEmailTemplate({ name, viewUrl }) {
                   font-weight:bold;
                 "
               >
-                View Your Photo
+                View Your ${mediaTextCapitalized}
               </a>
             </td>
           </tr>
@@ -774,6 +778,22 @@ const shareOuputApp = async (whatsapp, viewUrl, id, name, res) => {
     if (!token) {
       throw new Error("ChatMyBot token not configured");
     }
+
+    // Fetch media to get templateId and determine accessType
+    const media = await Media.findById(_id);
+    let mediaType = 'photo'; // Default to photo
+    
+    if (media && media.templateId) {
+      // Fetch the template to get accessType
+      const template = await PhotoMergeTemplate.findById(media.templateId);
+      if (template && template.accessType) {
+        const accessType = template.accessType;
+        if (accessType === 'videomerge' || accessType === 'videovideovideo') {
+          mediaType = 'video';
+        }
+      }
+    }
+
     const payload = [
       {
         to: toNumber,
@@ -794,6 +814,10 @@ const shareOuputApp = async (whatsapp, viewUrl, id, name, res) => {
                 {
                   type: "text",
                   text: linksend,
+                },
+                {
+                  type: "text",
+                  text: mediaType,
                 },
               ],
             },
@@ -1286,10 +1310,6 @@ router.post("/client/:temp_name", async (req, res) => {
             const hasAnimation = template.hasAnimation;
 
             // Validate required template files
-            if (!audioId) {
-              return res.status(400).json({ error: 'Template audio is missing' });
-            }
-
             if (!video1Id && !video3Id) {
               return res.status(400).json({ error: 'Template must have at least one video (video1 or video3)' });
             }
@@ -1359,8 +1379,8 @@ router.post("/client/:temp_name", async (req, res) => {
             // Process video merge and animation asynchronously in the background
             (async () => {
               try {
-                // Merge videos using mergeThreeVideos
-                const mergedVideoId = await mergeThreeVideos({
+                // Merge videos using mergeThreeVideos with GIF animation applied only to middle video
+                const finalVideoId = await mergeThreeVideos({
                   name: clientName || template.name || template.templatename,
                   date: template.date || new Date().toISOString(),
                   type: template.type || 'template',
@@ -1374,84 +1394,11 @@ router.post("/client/:temp_name", async (req, res) => {
                   video1TextOption: template.video1TextOption === 'true' || template.video1TextOption === true || template.video1TextOption === '1',
                   video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
                   video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
-                  clientPhotoId: null
+                  clientPhotoId: null,
+                  gifId: (hasAnimation && gifId) ? gifId : undefined // Pass gifId only if animation is enabled
                 });
 
-                let finalVideoId = mergedVideoId;
-
-                // If animation is enabled, apply GIF animation to merged video
-                if (hasAnimation && gifId) {
-                  const { bucket } = getConnection();
-                  const getFileFromGridFS = async (fileId) => {
-                    return new Promise((resolve, reject) => {
-                      const chunks = [];
-                      bucket
-                        .openDownloadStream(fileId)
-                        .on("data", (chunk) => chunks.push(chunk))
-                        .on("end", () => resolve(Buffer.concat(chunks)))
-                        .on("error", reject);
-                    });
-                  };
-
-                  const mergedVideoBuffer = await getFileFromGridFS(mergedVideoId);
-                  const gifBufferFromGridFS = await getFileFromGridFS(gifId);
-
-                  const saveTempFile = async (buffer, extension) => {
-                    const tempFilePath = path.join(
-                      os.tmpdir(),
-                      `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
-                    );
-                    await fs.promises.writeFile(tempFilePath, buffer);
-                    return tempFilePath;
-                  };
-
-                  const tempMergedVideoPath = await saveTempFile(mergedVideoBuffer, "mp4");
-                  const tempGifPath = await saveTempFile(gifBufferFromGridFS, "gif");
-                  const outputPath = path.join(os.tmpdir(), `animated-${Date.now()}.mp4`);
-
-                  // Apply GIF animation overlay
-                  await new Promise((resolve, reject) => {
-                    ffmpeg()
-                      .input(tempMergedVideoPath)
-                      .input(tempGifPath)
-                      .inputOptions(["-stream_loop", "-1"])
-                      .complexFilter([
-                        "[0:v]scale=1080:1920,setsar=1[bg]",
-                        "[1:v]scale=1080:1920:flags=lanczos,format=rgba[gif]",
-                        "[bg][gif]overlay=0:0:shortest=1[v]"
-                      ])
-                      .outputOptions([
-                        "-map [v]",
-                        "-map 0:a",
-                        "-c:v libx264",
-                        "-c:a aac",
-                        "-pix_fmt yuv420p",
-                        "-shortest"
-                      ])
-                      .on("end", resolve)
-                      .on("error", (err) => {
-                        console.error("FFmpeg animation error:", err);
-                        reject(err);
-                      })
-                      .save(outputPath);
-                  });
-
-                  const animatedVideoBuffer = await fs.promises.readFile(outputPath);
-                  finalVideoId = await uploadToGridFS(
-                    `animated-${Date.now()}.mp4`,
-                    animatedVideoBuffer,
-                    "video/mp4"
-                  );
-
-                  // Cleanup temp files
-                  try {
-                    await fs.promises.unlink(tempMergedVideoPath);
-                    await fs.promises.unlink(tempGifPath);
-                    await fs.promises.unlink(outputPath);
-                  } catch (cleanupErr) {
-                    console.warn("Failed to cleanup temp files:", cleanupErr);
-                  }
-                }
+                // GIF animation is now applied during merge (only to middle video), so we don't need separate animation step
 
                 // Update media record with final merged video (with animation if enabled) as posterVideoId
                 await Media.findByIdAndUpdate(mediaId, {
@@ -1581,13 +1528,32 @@ router.post("/client/share/:whatsapp", async (req, res) => {
         }
       });
 
+      // Fetch media to get templateId and determine accessType
+      const media = await Media.findById(id);
+      let mediaType = 'photo'; // Default to photo
+      
+      if (media && media.templateId) {
+        // Fetch the template to get accessType
+        const template = await PhotoMergeTemplate.findById(media.templateId);
+        if (template && template.accessType) {
+          const accessType = template.accessType;
+          if (accessType === 'videomerge' || accessType === 'videovideovideo') {
+            mediaType = 'video';
+          }
+        }
+      }
+
+      const mediaTextCapitalized = mediaType === 'video' ? 'Video' : 'Photo';
+      const fromName = mediaType === 'video' ? 'VideoMerge' : 'PhotoMerge';
+      
       const mailOptions = {
-        from: '"PhotoMerge" <developmentbilimbedigital@gmail.com>',
+        from: `"${fromName}" <developmentbilimbedigital@gmail.com>`,
         to: email,
-        subject: "Your Photo Is Ready - PhotoMerge",
+        subject: `Your ${mediaTextCapitalized} Is Ready - ${fromName}`,
         html: imageShareEmailTemplate({
           name,
           viewUrl,
+          mediaType,
         }),
       };
       const info = await transporter.sendMail(mailOptions);
