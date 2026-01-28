@@ -81,6 +81,7 @@ router.post('/template-upload', async (req, res) => {
 
                 // Video merge fields (for accessType: 'videomerge')
                 let name, date, faceSwap, videosMergeOption, clientname, brandname,
+                    overlayTextColor, overlayFontFamily,
                     congratsOption, video1TextOption, video2TextOption, video3TextOption, approved;
                 let video1Buffer, video2Buffer, video3Buffer, audioBuffer;
                 // Animation fields
@@ -137,6 +138,10 @@ router.post('/template-upload', async (req, res) => {
                             video2TextOption = body.toString().trim();
                         } else if (headersText.includes('name="video3TextOption"')) {
                             video3TextOption = body.toString().trim();
+                        } else if (headersText.includes('name="overlayTextColor"')) {
+                            overlayTextColor = body.toString().trim();
+                        } else if (headersText.includes('name="overlayFontFamily"')) {
+                            overlayFontFamily = body.toString().trim();
                         } else if (headersText.includes('name="videosMergeOption"')) {
                             videosMergeOption = body.toString().trim();
                         } else if (headersText.includes('name="approved"')) {
@@ -261,6 +266,8 @@ router.post('/template-upload', async (req, res) => {
                         video1TextOption,
                         video2TextOption,
                         video3TextOption,
+                        overlayTextColor: overlayTextColor || '#FFFFFF',
+                        overlayFontFamily: overlayFontFamily || 'Arial',
                         approved,
                         // Animation fields
                         hasAnimation,
@@ -347,7 +354,7 @@ router.put('/templates/:id', async (req, res) => {
                 let photoOrder = null;
 
                 // Video merge fields - initialize as null to distinguish between "not sent" and "sent as empty"
-                let name = null, date = null, clientname = null, brandname = null, congratsOption = null, video1TextOption = null, video2TextOption = null, video3TextOption = null, hasAnimation = null;
+                let name = null, date = null, clientname = null, brandname = null, congratsOption = null, video1TextOption = null, video2TextOption = null, video3TextOption = null, hasAnimation = null, overlayTextColor = null, overlayFontFamily = null;
                 let video1Buffer, video3Buffer, audioBuffer, gifBuffer;
                 let removeVideo1 = false, removeVideo3 = false, removeAudio = false, removeGif = false;
                 let accessType = null;
@@ -423,6 +430,14 @@ router.put('/templates/:id', async (req, res) => {
                         } else if (headersText.includes('name="video3TextOption"')) {
                             video3TextOption = body.toString().trim();
                             fieldsReceived.video3TextOption = true;
+                        } else if (headersText.includes('name="overlayTextColor"')) {
+                            overlayTextColor = body.toString().trim();
+                            fieldsReceived.overlayTextColor = true;
+                            console.log('Received overlayTextColor:', overlayTextColor);
+                        } else if (headersText.includes('name="overlayFontFamily"')) {
+                            overlayFontFamily = body.toString().trim();
+                            fieldsReceived.overlayFontFamily = true;
+                            console.log('Received overlayFontFamily:', overlayFontFamily);
                         } else if (headersText.includes('name="hasAnimation"')) {
                             hasAnimation = body.toString().trim() === 'true';
                             fieldsReceived.hasAnimation = true;
@@ -504,6 +519,30 @@ router.put('/templates/:id', async (req, res) => {
                         } else {
                             updateData.brandname = brandname;
                         }
+                    }
+                    if (fieldsReceived.overlayTextColor) {
+                        // Accept both hex (#RRGGBB) and color names, normalize to hex
+                        let colorValue = overlayTextColor || '#FFFFFF';
+                        if (!colorValue.startsWith('#')) {
+                            // It's a color name, convert to hex
+                            const colorMap = {
+                                'white': '#FFFFFF', 'black': '#000000', 'red': '#FF0000',
+                                'green': '#00FF00', 'blue': '#0000FF', 'yellow': '#FFFF00',
+                                'cyan': '#00FFFF', 'magenta': '#FF00FF', 'gray': '#808080',
+                                'grey': '#808080', 'orange': '#FFA500', 'purple': '#800080',
+                                'pink': '#FFC0CB', 'brown': '#A52A2A', 'silver': '#C0C0C0',
+                                'gold': '#FFD700', 'navy': '#000080', 'maroon': '#800000',
+                                'lime': '#00FF00', 'aqua': '#00FFFF', 'teal': '#008080',
+                                'olive': '#808000'
+                            };
+                            colorValue = colorMap[colorValue.toLowerCase()] || '#FFFFFF';
+                        }
+                        updateData.overlayTextColor = colorValue.toUpperCase();
+                        console.log('Setting updateData.overlayTextColor to:', updateData.overlayTextColor);
+                    }
+                    if (fieldsReceived.overlayFontFamily) {
+                        updateData.overlayFontFamily = overlayFontFamily || 'Arial';
+                        console.log('Setting updateData.overlayFontFamily to:', updateData.overlayFontFamily);
                     }
                     if (fieldsReceived.congratsOption) updateData.congratsOption = congratsOption;
                     if (fieldsReceived.video1TextOption) updateData.video1TextOption = video1TextOption;
@@ -864,7 +903,9 @@ router.post('/templates/:id/generate', async (req, res) => {
                     video1TextOption: template.video1TextOption === 'true' || template.video1TextOption === true || template.video1TextOption === '1',
                     video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
                     video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
-                    clientPhotoId: null
+                    clientPhotoId: null,
+                    textColor: template.overlayTextColor || 'white',
+                    fontFamily: template.overlayFontFamily || 'Arial'
                 });
 
                 let finalVideoId = mergedVideoId;

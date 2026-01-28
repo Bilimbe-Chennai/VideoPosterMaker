@@ -884,6 +884,8 @@ async function mergeThreeVideos({
   video3TextOption,
   clientPhotoId,
   gifId,
+  textColor = 'white',
+  fontFamily = 'Arial',
 }) {
   const video1Buffer = await getFileFromGridFS(video1Id);
   const video2Buffer = await getFileFromGridFS(video2Id);
@@ -917,8 +919,14 @@ async function mergeThreeVideos({
   const animDuration = 1.0;
   const lineSpacing = 90;
   
-  // Text styling
-  const textColor = "white";
+  // Text styling - use provided values or defaults
+  // Convert hex color to FFmpeg format (0xRRGGBB) or use color name
+  let overlayTextColor = textColor || "white";
+  if (overlayTextColor.startsWith('#')) {
+    // Convert #RRGGBB to 0xRRGGBB format for FFmpeg
+    overlayTextColor = '0x' + overlayTextColor.substring(1).toUpperCase();
+  }
+  const overlayFontFamily = fontFamily || "Arial";
   const shadowColor = "black@0.6";
   const shadowX = 3;
   const shadowY = 3;
@@ -937,30 +945,69 @@ async function mergeThreeVideos({
   const clientName = escapeFFmpegText(clientname);
   const brandName = escapeFFmpegText(brandname);
 
-  // Helper function to build text with shadow effect
+  // Helper function to build text with glow effect (multiple shadow layers)
   function buildTextFilter(showText) {
     if (!showText) {
       return ""; // Return empty string if no text should be shown
     }
     
     const slideInX = `if(lt(t\\,${animDuration})\\, ${textXStart}+(t/${animDuration})*(${textXEnd}-${textXStart})\\, ${textXEnd})`;
-  const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
-  
-  // Client name with shadow - Using Arial font WITHOUT fontfile parameter
-  let filter = `drawtext=text='${clientName}':fontcolor=${shadowColor}:fontsize=${fontSizeName}:` +
-    `font='Arial':x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},` +
-    `drawtext=text='${clientName}':fontcolor=${textColor}:fontsize=${fontSizeName}:` +
-    `font='Arial':x=${slideInX}:y=${nameY}:${alpha}`;
-  
-  // Brand name with shadow - Using Arial font WITHOUT fontfile parameter
-  filter += `,drawtext=text='${brandName}':fontcolor=${shadowColor}:fontsize=${fontSizeBrand}:` +
-    `font='Arial':x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:` +
-    `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity},` +
-    `drawtext=text='${brandName}':fontcolor=${textColor}:fontsize=${fontSizeBrand}:` +
-    `font='Arial':x=${slideInX}:y=${brandY}:` +
-    `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
-  
-  return filter;
+    const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
+    const brandAlpha = `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
+    
+    // Create glow effect with multiple shadow layers
+    // Layer 1: Outer glow (largest, most transparent)
+    // Layer 2: Middle glow
+    // Layer 3: Inner shadow
+    // Layer 4: Main text
+    
+    // Client name with glow effect - Using configurable font
+    let filter = '';
+    
+    // Outer glow layers for client name (creates soft glow)
+    const glowOffsets = [
+      { x: 0, y: 0, opacity: 0.3 },
+      { x: 2, y: 2, opacity: 0.25 },
+      { x: -2, y: 2, opacity: 0.25 },
+      { x: 2, y: -2, opacity: 0.25 },
+      { x: -2, y: -2, opacity: 0.25 },
+      { x: 4, y: 0, opacity: 0.2 },
+      { x: -4, y: 0, opacity: 0.2 },
+      { x: 0, y: 4, opacity: 0.2 },
+      { x: 0, y: -4, opacity: 0.2 }
+    ];
+    
+    // Draw glow layers for client name
+    glowOffsets.forEach((offset, idx) => {
+      filter += `drawtext=text='${clientName}':fontcolor=black@${offset.opacity}:fontsize=${fontSizeName}:` +
+        `font='${overlayFontFamily}':x=${slideInX}+${offset.x}:y=${nameY}+${offset.y}:${alpha}`;
+      if (idx < glowOffsets.length - 1 || true) filter += ',';
+    });
+    
+    // Main shadow for client name
+    filter += `drawtext=text='${clientName}':fontcolor=black@0.7:fontsize=${fontSizeName}:` +
+      `font='${overlayFontFamily}':x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},`;
+    
+    // Main text for client name
+    filter += `drawtext=text='${clientName}':fontcolor=${overlayTextColor}:fontsize=${fontSizeName}:` +
+      `font='${overlayFontFamily}':x=${slideInX}:y=${nameY}:${alpha}`;
+    
+    // Brand name with glow effect
+    // Draw glow layers for brand name
+    glowOffsets.forEach((offset, idx) => {
+      filter += `,drawtext=text='${brandName}':fontcolor=black@${offset.opacity}:fontsize=${fontSizeBrand}:` +
+        `font='${overlayFontFamily}':x=${slideInX}+${offset.x}:y=${brandY}+${offset.y}:${brandAlpha}`;
+    });
+    
+    // Main shadow for brand name
+    filter += `,drawtext=text='${brandName}':fontcolor=black@0.7:fontsize=${fontSizeBrand}:` +
+      `font='${overlayFontFamily}':x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:${brandAlpha},`;
+    
+    // Main text for brand name
+    filter += `drawtext=text='${brandName}':fontcolor=${overlayTextColor}:fontsize=${fontSizeBrand}:` +
+      `font='${overlayFontFamily}':x=${slideInX}:y=${brandY}:${brandAlpha}`;
+    
+    return filter;
   }
 
   // Helper function to build filter for each video based on text option

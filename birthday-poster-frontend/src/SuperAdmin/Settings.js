@@ -345,10 +345,77 @@ const Settings = () => {
   const [customAccessTypes, setCustomAccessTypes] = useState([]); // Custom access types added by user
   const [showAddGuide, setShowAddGuide] = useState(false);
   const [newGuideType, setNewGuideType] = useState({ accessType: '', displayName: '' });
+  const [animations, setAnimations] = useState([]); // Store uploaded animations
+  const [uploadingAnimation, setUploadingAnimation] = useState(false);
+  const [newAnimationName, setNewAnimationName] = useState('');
+  const [newAnimationFile, setNewAnimationFile] = useState(null);
 
   useEffect(() => {
     fetchTemplateGuides();
+    fetchAnimations();
   }, []);
+
+  const fetchAnimations = async () => {
+    try {
+      const response = await axios.get('/admin/animation');
+      if (response.data.success) {
+        setAnimations(response.data.animations || []);
+      }
+    } catch (error) {
+      console.error('Error fetching animations:', error);
+    }
+  };
+
+  const handleAnimationUpload = async () => {
+    if (!newAnimationName.trim() || !newAnimationFile) {
+      alert('Please enter animation name and select a GIF file');
+      return;
+    }
+
+    if (!newAnimationFile.type.includes('gif')) {
+      alert('Please select a valid GIF file');
+      return;
+    }
+
+    setUploadingAnimation(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', newAnimationName.trim());
+      formData.append('gif', newAnimationFile);
+      formData.append('adminid', user._id || user.id || '');
+
+      const response = await axios.post('/admin/animation/upload', formData);
+      
+      if (response.data.success) {
+        setNewAnimationName('');
+        setNewAnimationFile(null);
+        await fetchAnimations();
+        alert('Animation uploaded successfully!');
+      }
+    } catch (error) {
+      console.error('Error uploading animation:', error);
+      alert('Failed to upload animation: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setUploadingAnimation(false);
+    }
+  };
+
+  const handleDeleteAnimation = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this animation?')) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(`/admin/animation/${id}`);
+      if (response.data.success) {
+        await fetchAnimations();
+        alert('Animation deleted successfully!');
+      }
+    } catch (error) {
+      console.error('Error deleting animation:', error);
+      alert('Failed to delete animation: ' + (error.response?.data?.error || error.message));
+    }
+  };
 
   // Get all unique access types from guides and custom types
   const getAllAccessTypes = () => {
@@ -526,6 +593,7 @@ const Settings = () => {
     { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
     { id: 'system', label: 'System', icon: <HardDrive size={18} /> },
     { id: 'guides', label: 'Template Guides', icon: <FileText size={18} /> },
+    { id: 'animations', label: 'Animations', icon: <Upload size={18} /> },
   ];
 
   return (
@@ -833,6 +901,111 @@ const Settings = () => {
                   </GuideCard>
                 );
               })}
+            </div>
+          </TabContent>
+
+          <TabContent $active={activeTab === 5}>
+            <SectionTitle><Upload size={20} /> Animation GIFs</SectionTitle>
+            <SectionDescription>
+              Upload GIF animation files that can be used in video merge templates. These animations will be available for selection in the Templates page.
+            </SectionDescription>
+            
+            {/* Upload New Animation Section */}
+            <div style={{ marginBottom: '24px', padding: '20px', background: '#F5F5F5', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#1A1A1A' }}>
+                Upload New Animation
+              </h3>
+              <FormGrid>
+                <FormGroup>
+                  <Label>Animation Name</Label>
+                  <Input
+                    type="text"
+                    placeholder="e.g., Birthday Celebration"
+                    value={newAnimationName}
+                    onChange={(e) => setNewAnimationName(e.target.value)}
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>GIF File</Label>
+                  <input
+                    type="file"
+                    accept="image/gif"
+                    onChange={(e) => setNewAnimationFile(e.target.files[0] || null)}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '14px',
+                      border: '1.5px solid #EEE',
+                      fontSize: '14px',
+                      width: '100%',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <p style={{ fontSize: '12px', color: '#888', margin: '4px 0 0 0' }}>
+                    Note: GIF size should be 1080×1920 pixels
+                  </p>
+                </FormGroup>
+              </FormGrid>
+              <Button 
+                $primary 
+                onClick={handleAnimationUpload} 
+                disabled={uploadingAnimation || !newAnimationName.trim() || !newAnimationFile}
+                style={{ marginTop: '12px' }}
+              >
+                <Upload size={16} />
+                {uploadingAnimation ? 'Uploading...' : 'Upload Animation'}
+              </Button>
+            </div>
+
+            {/* Existing Animations List */}
+            <div>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#1A1A1A' }}>
+                Uploaded Animations ({animations.length})
+              </h3>
+              {animations.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#888' }}>
+                  No animations uploaded yet. Upload your first animation above.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
+                  {animations.map((anim) => (
+                    <GuideCard key={anim._id}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <img
+                          src={`${axios.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${anim.gifId}`}
+                          alt={anim.name}
+                          style={{
+                            width: '100%',
+                            height: '150px',
+                            objectFit: 'contain',
+                            borderRadius: '8px',
+                            background: '#F0F0F0'
+                          }}
+                        />
+                      </div>
+                      <GuideInfo>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600 }}>
+                          {anim.name}
+                        </h3>
+                        <p style={{ fontSize: '11px', color: '#999', margin: '4px 0' }}>
+                          Uploaded: {new Date(anim.createdAt).toLocaleDateString()}
+                        </p>
+                      </GuideInfo>
+                      <Button
+                        onClick={() => handleDeleteAnimation(anim._id)}
+                        style={{
+                          marginTop: '12px',
+                          background: '#FF5252',
+                          color: 'white',
+                          width: '100%'
+                        }}
+                      >
+                        <X size={14} />
+                        Delete
+                      </Button>
+                    </GuideCard>
+                  ))}
+                </div>
+              )}
             </div>
           </TabContent>
 

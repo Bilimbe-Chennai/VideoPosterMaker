@@ -1016,6 +1016,60 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
 
 // --- Main Component ---
 
+// Helper function to convert color names to hex
+const convertColorToHex = (color) => {
+    if (!color) return '#FFFFFF';
+    
+    // If already hex, return as is
+    if (color.startsWith('#')) {
+        return color.toUpperCase();
+    }
+    
+    // Color name to hex mapping
+    const colorMap = {
+        'white': '#FFFFFF',
+        'black': '#000000',
+        'red': '#FF0000',
+        'green': '#00FF00',
+        'blue': '#0000FF',
+        'yellow': '#FFFF00',
+        'cyan': '#00FFFF',
+        'magenta': '#FF00FF',
+        'gray': '#808080',
+        'grey': '#808080',
+        'orange': '#FFA500',
+        'purple': '#800080',
+        'pink': '#FFC0CB',
+        'brown': '#A52A2A',
+        'silver': '#C0C0C0',
+        'gold': '#FFD700',
+        'navy': '#000080',
+        'maroon': '#800000',
+        'lime': '#00FF00',
+        'aqua': '#00FFFF',
+        'teal': '#008080',
+        'olive': '#808000'
+    };
+    
+    const lowerColor = color.toLowerCase().trim();
+    return colorMap[lowerColor] || '#FFFFFF';
+};
+
+// Helper function to convert hex to format for saving
+// Backend now accepts hex colors directly, so we can save hex format
+const convertHexToColorName = (hex) => {
+    if (!hex) return '#FFFFFF';
+    
+    // If it's already a color name (not starting with #), return as hex
+    if (!hex.startsWith('#')) {
+        // It's a color name, convert to hex first
+        return convertColorToHex(hex);
+    }
+    
+    // Return hex as is (backend will handle conversion to FFmpeg format)
+    return hex.toUpperCase();
+};
+
 const Templates = () => {
     const navigate = useNavigate();
     const axiosData = useAxios();
@@ -1051,6 +1105,8 @@ const Templates = () => {
     const [templateCount, setTemplateCount] = useState(3);
     const [userAccess, setUserAccess] = useState([]);
     const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
+    const [availableAnimations, setAvailableAnimations] = useState([]); // Store available GIF animations
+    const [selectedAnimationIndex, setSelectedAnimationIndex] = useState(0); // For slider navigation
 
     // Alert & Confirmation Modal States
     const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
@@ -1187,6 +1243,8 @@ const Templates = () => {
         date: '',
         clientname: '',
         brandname: '',
+        overlayTextColor: '#FFFFFF',
+        overlayFontFamily: 'Arial',
         congratsOption: false,
         video1TextOption: false,
         video2TextOption: false,
@@ -1385,9 +1443,79 @@ const Templates = () => {
                     video3TextOption: t.video3TextOption || '',
                     approved: t.approved || '',
                     // Animation fields
-                    hasAnimation: t.hasAnimation || false
+                    hasAnimation: t.hasAnimation || false,
+                    // Overlay text styling
+                    overlayTextColor: t.overlayTextColor || '#FFFFFF',
+                    overlayFontFamily: t.overlayFontFamily || 'Arial'
                 };
             });
+
+            // Fetch animations from Super Admin Settings (uploaded GIFs)
+            try {
+                const animationsResponse = await axiosData.get('/admin/animation');
+                if (animationsResponse.data?.success && animationsResponse.data?.animations) {
+                    const adminAnimations = animationsResponse.data.animations.map(anim => ({
+                        id: anim.gifId,
+                        name: anim.name || 'Animation'
+                    }));
+                    
+                    // Also collect GIF IDs from existing templates
+                    const templateGifIds = rawTemplates
+                        .filter(t => t.gifId)
+                        .map(t => ({ id: t.gifId, name: t.templatename || 'Animation' }));
+                    
+                    // Combine both sources and remove duplicates
+                    const allAnimations = [...adminAnimations, ...templateGifIds];
+                    const seenIds = new Set();
+                    const uniqueAnimations = allAnimations.filter(anim => {
+                        if (seenIds.has(anim.id.toString())) return false;
+                        seenIds.add(anim.id.toString());
+                        return true;
+                    });
+                    
+                    setAvailableAnimations(uniqueAnimations);
+                    
+                    // Reset slider index when animations are loaded
+                    if (uniqueAnimations.length > 0) {
+                        setSelectedAnimationIndex(0);
+                    }
+                } else {
+                    // Fallback: collect from templates only
+                    const uniqueGifIds = [...new Set(
+                        rawTemplates
+                            .filter(t => t.gifId)
+                            .map(t => ({ id: t.gifId, name: t.templatename || 'Animation' }))
+                    )];
+                    const seenIds = new Set();
+                    const uniqueAnimations = uniqueGifIds.filter(anim => {
+                        if (seenIds.has(anim.id.toString())) return false;
+                        seenIds.add(anim.id.toString());
+                        return true;
+                    });
+                    setAvailableAnimations(uniqueAnimations);
+                    if (uniqueAnimations.length > 0) {
+                        setSelectedAnimationIndex(0);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching animations:', error);
+                // Fallback: collect from templates only
+                const uniqueGifIds = [...new Set(
+                    rawTemplates
+                        .filter(t => t.gifId)
+                        .map(t => ({ id: t.gifId, name: t.templatename || 'Animation' }))
+                )];
+                const seenIds = new Set();
+                const uniqueAnimations = uniqueGifIds.filter(anim => {
+                    if (seenIds.has(anim.id.toString())) return false;
+                    seenIds.add(anim.id.toString());
+                    return true;
+                });
+                setAvailableAnimations(uniqueAnimations);
+                if (uniqueAnimations.length > 0) {
+                    setSelectedAnimationIndex(0);
+                }
+            }
 
             setTemplates(templateList);
 
@@ -1591,6 +1719,8 @@ const Templates = () => {
             video1TextOption: tmpl.video1TextOption === true || tmpl.video1TextOption === 'true' || tmpl.video1TextOption === '1',
             video2TextOption: tmpl.video2TextOption === true || tmpl.video2TextOption === 'true' || tmpl.video2TextOption === '1',
             video3TextOption: tmpl.video3TextOption === true || tmpl.video3TextOption === 'true' || tmpl.video3TextOption === '1',
+            overlayTextColor: convertColorToHex(tmpl.overlayTextColor || '#FFFFFF'),
+            overlayFontFamily: tmpl.overlayFontFamily || 'Arial',
             // Store existing IDs as strings (like photos), null if not set
             video1: tmpl.video1Id || null,
             video2: null, // Middle video (from mobile app, not stored in template)
@@ -1700,6 +1830,34 @@ const Templates = () => {
                     }
                     if (formData.brandname !== original.brandname) {
                         uploadData.append('brandname', formData.brandname || '');
+                        hasChanges = true;
+                    }
+                    // Always send overlayTextColor and overlayFontFamily to ensure they're saved
+                    // Backend now accepts hex colors directly
+                    const currentTextColor = (formData.overlayTextColor || '#FFFFFF').toUpperCase();
+                    const currentFontFamily = formData.overlayFontFamily || 'Arial';
+                    
+                    // Original is already in hex format (converted when loading)
+                    const originalTextColor = (original.overlayTextColor || '#FFFFFF').toUpperCase();
+                    const originalFontFamily = original.overlayFontFamily || 'Arial';
+                    
+                    // Send hex color directly (backend will handle it)
+                    const colorToSave = currentTextColor;
+                    
+                    // Always send these fields to ensure they're saved (especially for old templates)
+                    // Check if changed or missing in original
+                    const colorChanged = currentTextColor !== originalTextColor;
+                    const fontChanged = currentFontFamily !== originalFontFamily;
+                    const missingInOriginal = !original.overlayTextColor || !original.overlayFontFamily;
+                    
+                    // Always send to ensure they're saved in database
+                    uploadData.append('overlayTextColor', colorToSave);
+                    uploadData.append('overlayFontFamily', currentFontFamily);
+                    // Always mark as changed to ensure the update request is sent
+                    if (colorChanged || fontChanged || missingInOriginal) {
+                        hasChanges = true;
+                    } else {
+                        // Even if unchanged, mark as changed to ensure fields are saved
                         hasChanges = true;
                     }
                     if (formData.congratsOption !== original.congratsOption) {
@@ -1831,6 +1989,10 @@ const Templates = () => {
                     uploadData.append('video1TextOption', formData.video1TextOption);
                     uploadData.append('video2TextOption', formData.video2TextOption);
                     uploadData.append('video3TextOption', formData.video3TextOption);
+                    // Send hex color directly (backend will handle it)
+                    const colorToSave = (formData.overlayTextColor || '#FFFFFF').toUpperCase();
+                    uploadData.append('overlayTextColor', colorToSave);
+                    uploadData.append('overlayFontFamily', formData.overlayFontFamily || 'Arial');
                     uploadData.append('hasAnimation', formData.hasAnimation);
 
                     // Append video files (video2 will come from mobile app)
@@ -2369,63 +2531,6 @@ const Templates = () => {
 
                                 {formData.accessType === 'videomerge' ? (
                                     <>
-                                        {/* Basic Information Section */}
-                                        <div style={{ 
-                                            marginBottom: '28px',
-                                            paddingBottom: '24px',
-                                            borderBottom: '1px solid #E5E5E5'
-                                        }}>
-                                            <h3 style={{ 
-                                                fontSize: '15px', 
-                                                fontWeight: 600, 
-                                                color: '#1A1A1A', 
-                                                marginBottom: '20px',
-                                                letterSpacing: '0.3px'
-                                            }}>
-                                                Basic Information
-                                            </h3>
-                                            <FormRow>
-                                                {/* <FormGroup>
-                                                    <label>Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={formData.date || ''}
-                                                        onChange={e => setFormData({ ...formData, date: e.target.value })}
-                                                    />
-                                                </FormGroup> */}
-                                                <FormGroup>
-                                                    <label>Main Overlay Text</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Enter Main Overlay Text"
-                                                        value={formData.clientname || ''}
-                                                        onChange={e => setFormData({ ...formData, clientname: e.target.value })}
-                                                    />
-                                                </FormGroup>
-                                                <FormGroup>
-                                                    <label>Sub Overlay Test</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Enter Sub Overlay Text"
-                                                        value={formData.brandname || ''}
-                                                        onChange={e => setFormData({ ...formData, brandname: e.target.value })}
-                                                    />
-                                                </FormGroup>
-                                            </FormRow>
-                                            {/* <FormRow>
-                                                <FormGroup>
-                                                    <label>Sub Overlay Test</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Enter Sub Overlay Text"
-                                                        value={formData.brandname || ''}
-                                                        onChange={e => setFormData({ ...formData, brandname: e.target.value })}
-                                                    />
-                                                </FormGroup>
-                                                <FormGroup style={{ marginBottom: 0 }}></FormGroup>
-                                            </FormRow> */}
-                                        </div>
-
                                         {/* Video Options Section */}
                                         <div style={{ 
                                             marginBottom: '28px',
@@ -2450,7 +2555,7 @@ const Templates = () => {
                                                 borderRadius: '16px',
                                                 border: '1px solid #E8E8E8'
                                             }}>
-                                                <label
+                                                {/* <label
                                                     style={{
                                                         display: 'flex',
                                                         alignItems: 'center',
@@ -2537,7 +2642,7 @@ const Templates = () => {
                                                         }}
                                                     />
                                                     <span style={{ flex: 1 }}>Enable overlay text for video 1</span>
-                                                </label>
+                                                </label> */}
                                                 <label
                                                     style={{
                                                         display: 'flex',
@@ -2582,7 +2687,7 @@ const Templates = () => {
                                                     />
                                                     <span style={{ flex: 1 }}>Enable overlay text for video 2</span>
                                                 </label>
-                                                <label
+                                                {/* <label
                                                     style={{
                                                         display: 'flex',
                                                         alignItems: 'center',
@@ -2625,9 +2730,83 @@ const Templates = () => {
                                                         }}
                                                     />
                                                     <span style={{ flex: 1 }}>Enable overlay text for video 3</span>
-                                                </label>
+                                                </label> */}
                                             </div>
                                         </div>
+
+                                        {/* Basic Information Section - only when overlay for video 2 is enabled */}
+                                        {formData.video2TextOption && (
+                                            <div style={{ 
+                                                marginBottom: '28px',
+                                                paddingBottom: '24px',
+                                                borderBottom: '1px solid #E5E5E5'
+                                            }}>
+                                                <h3 style={{ 
+                                                    fontSize: '15px', 
+                                                    fontWeight: 600, 
+                                                    color: '#1A1A1A', 
+                                                    marginBottom: '20px',
+                                                    letterSpacing: '0.3px'
+                                                }}>
+                                                    Basic Information
+                                                </h3>
+                                                <FormRow>
+                                                    <FormGroup>
+                                                        <label>Main Overlay Text</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Enter Main Overlay Text"
+                                                            value={formData.clientname || ''}
+                                                            onChange={e => setFormData({ ...formData, clientname: e.target.value })}
+                                                            required={formData.video2TextOption}
+                                                        />
+                                                    </FormGroup>
+                                                    <FormGroup>
+                                                        <label>Sub Overlay Text</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Enter Sub Overlay Text"
+                                                            value={formData.brandname || ''}
+                                                            onChange={e => setFormData({ ...formData, brandname: e.target.value })}
+                                                            required={formData.video2TextOption}
+                                                        />
+                                                    </FormGroup>
+                                                </FormRow>
+                                                <FormRow>
+                                                    <FormGroup>
+                                                        <label>Overlay Text Color</label>
+                                                        <input
+                                                            type="color"
+                                                            value={formData.overlayTextColor || '#FFFFFF'}
+                                                            onChange={e => setFormData({ ...formData, overlayTextColor: e.target.value })}
+                                                            style={{ width: '100%', height: '40px', borderRadius: '8px', border: '1px solid #D0D0D0', cursor: 'pointer' }}
+                                                            required={formData.video2TextOption}
+                                                        />
+                                                    </FormGroup>
+                                                    <FormGroup>
+                                                        <label>Overlay Font Family</label>
+                                                        <select
+                                                            value={formData.overlayFontFamily || 'Arial'}
+                                                            onChange={e => setFormData({ ...formData, overlayFontFamily: e.target.value })}
+                                                            style={{ fontFamily: formData.overlayFontFamily || 'Arial' }}
+                                                            required={formData.video2TextOption}
+                                                        >
+                                                            <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial - Sample Text</option>
+                                                            <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica - Sample Text</option>
+                                                            <option value="Times New Roman" style={{ fontFamily: 'Times New Roman' }}>Times New Roman - Sample Text</option>
+                                                            <option value="Courier New" style={{ fontFamily: 'Courier New' }}>Courier New - Sample Text</option>
+                                                            <option value="Verdana" style={{ fontFamily: 'Verdana' }}>Verdana - Sample Text</option>
+                                                            <option value="Georgia" style={{ fontFamily: 'Georgia' }}>Georgia - Sample Text</option>
+                                                            <option value="Palatino" style={{ fontFamily: 'Palatino' }}>Palatino - Sample Text</option>
+                                                            <option value="Garamond" style={{ fontFamily: 'Garamond' }}>Garamond - Sample Text</option>
+                                                            <option value="Comic Sans MS" style={{ fontFamily: 'Comic Sans MS' }}>Comic Sans MS - Sample Text</option>
+                                                            <option value="Trebuchet MS" style={{ fontFamily: 'Trebuchet MS' }}>Trebuchet MS - Sample Text</option>
+                                                            <option value="Impact" style={{ fontFamily: 'Impact' }}>Impact - Sample Text</option>
+                                                        </select>
+                                                    </FormGroup>
+                                                </FormRow>
+                                            </div>
+                                        )}
 
                                         {/* Video Files Section */}
                                         <div style={{ marginBottom: '28px' }}>
@@ -2976,30 +3155,316 @@ const Templates = () => {
                                                         <AlertCircle size={14} style={{ color: '#6B7280', flexShrink: 0 }} />
                                                         <span>Note: GIF size should be <strong>1080×1920</strong> pixels</span>
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                        <input
-                                                            accept="image/gif"
-                                                            type="file"
-                                                            data-field="gif"
-                                                            onChange={handleVideoFileChange('gif')}
-                                                            required={formData.hasAnimation && !editingTemplate}
-                                                            style={{ 
-                                                                flex: 1,
-                                                                padding: '12px 16px',
-                                                                borderRadius: '12px',
-                                                                border: '1px solid #D0D0D0',
-                                                                fontSize: '14px',
-                                                                cursor: 'pointer',
-                                                                transition: 'all 0.2s ease',
-                                                                background: (formData.gif && typeof formData.gif !== 'string') ? '#F0FDF4' : 'white'
-                                                            }}
-                                                            onFocus={(e) => e.target.style.borderColor = '#1A1A1A'}
-                                                            onBlur={(e) => e.target.style.borderColor = '#D0D0D0'}
-                                                        />
-                                                        {editingTemplate && (formData.gif && typeof formData.gif === 'string') && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveFile('gif')}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        {/* Animation Slider - Select from existing animations */}
+                                                        {availableAnimations.length > 0 && (
+                                                            <FormGroup style={{ marginBottom: 0 }}>
+                                                                <label style={{ 
+                                                                    fontSize: '13px', 
+                                                                    fontWeight: 600, 
+                                                                    color: '#444', 
+                                                                    marginBottom: '12px',
+                                                                    display: 'block'
+                                                                }}>
+                                                                    Select Existing Animation ({availableAnimations.length} available)
+                                                                </label>
+                                                                
+                                                                {/* Animation Slider Container */}
+                                                                <div style={{
+                                                                    position: 'relative',
+                                                                    width: '100%',
+                                                                    padding: '16px',
+                                                                    background: '#F9FAFB',
+                                                                    borderRadius: '12px',
+                                                                    border: '1px solid #E5E7EB'
+                                                                }}>
+                                                                    {/* Navigation Arrows */}
+                                                                    {availableAnimations.length > 1 && (
+                                                                        <>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setSelectedAnimationIndex((prev) => 
+                                                                                        prev === 0 ? availableAnimations.length - 1 : prev - 1
+                                                                                    );
+                                                                                }}
+                                                                                style={{
+                                                                                    position: 'absolute',
+                                                                                    left: '8px',
+                                                                                    top: '50%',
+                                                                                    transform: 'translateY(-50%)',
+                                                                                    background: 'white',
+                                                                                    border: '1px solid #D0D0D0',
+                                                                                    borderRadius: '50%',
+                                                                                    width: '36px',
+                                                                                    height: '36px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    cursor: 'pointer',
+                                                                                    zIndex: 10,
+                                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                                                    transition: 'all 0.2s ease'
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    e.currentTarget.style.background = '#1A1A1A';
+                                                                                    e.currentTarget.style.color = 'white';
+                                                                                    e.currentTarget.style.borderColor = '#1A1A1A';
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    e.currentTarget.style.background = 'white';
+                                                                                    e.currentTarget.style.color = '#1A1A1A';
+                                                                                    e.currentTarget.style.borderColor = '#D0D0D0';
+                                                                                }}
+                                                                            >
+                                                                                <ChevronLeft size={20} />
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setSelectedAnimationIndex((prev) => 
+                                                                                        prev === availableAnimations.length - 1 ? 0 : prev + 1
+                                                                                    );
+                                                                                }}
+                                                                                style={{
+                                                                                    position: 'absolute',
+                                                                                    right: '8px',
+                                                                                    top: '50%',
+                                                                                    transform: 'translateY(-50%)',
+                                                                                    background: 'white',
+                                                                                    border: '1px solid #D0D0D0',
+                                                                                    borderRadius: '50%',
+                                                                                    width: '36px',
+                                                                                    height: '36px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    cursor: 'pointer',
+                                                                                    zIndex: 10,
+                                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                                                    transition: 'all 0.2s ease'
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    e.currentTarget.style.background = '#1A1A1A';
+                                                                                    e.currentTarget.style.color = 'white';
+                                                                                    e.currentTarget.style.borderColor = '#1A1A1A';
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    e.currentTarget.style.background = 'white';
+                                                                                    e.currentTarget.style.color = '#1A1A1A';
+                                                                                    e.currentTarget.style.borderColor = '#D0D0D0';
+                                                                                }}
+                                                                            >
+                                                                                <ChevronRight size={20} />
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                    
+                                                                    {/* Animation Display Area */}
+                                                                    <div style={{
+                                                                        display: 'flex',
+                                                                        flexDirection: 'column',
+                                                                        alignItems: 'center',
+                                                                        gap: '12px',
+                                                                        padding: availableAnimations.length > 1 ? '0 50px' : '0'
+                                                                    }}>
+                                                                        {/* Current Animation Preview */}
+                                                                        {availableAnimations[selectedAnimationIndex] && (
+                                                                            <div
+                                                                                onClick={() => {
+                                                                                    const selectedAnim = availableAnimations[selectedAnimationIndex];
+                                                                                    setFormData({ ...formData, gif: selectedAnim.id });
+                                                                                }}
+                                                                                style={{
+                                                                                    width: '100%',
+                                                                                    maxWidth: '300px',
+                                                                                    height: '200px',
+                                                                                    border: typeof formData.gif === 'string' && 
+                                                                                            formData.gif === availableAnimations[selectedAnimationIndex].id
+                                                                                        ? '3px solid #10B981' 
+                                                                                        : '2px solid #D0D0D0',
+                                                                                    borderRadius: '12px',
+                                                                                    overflow: 'hidden',
+                                                                                    cursor: 'pointer',
+                                                                                    transition: 'all 0.2s ease',
+                                                                                    background: 'white',
+                                                                                    position: 'relative',
+                                                                                    boxShadow: typeof formData.gif === 'string' && 
+                                                                                            formData.gif === availableAnimations[selectedAnimationIndex].id
+                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)' 
+                                                                                        : '0 2px 4px rgba(0,0,0,0.1)'
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    if (!(typeof formData.gif === 'string' && 
+                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                        e.currentTarget.style.borderColor = '#1A1A1A';
+                                                                                        e.currentTarget.style.transform = 'scale(1.02)';
+                                                                                    }
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    if (!(typeof formData.gif === 'string' && 
+                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                                                        e.currentTarget.style.transform = 'scale(1)';
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <img
+                                                                                    src={`${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${availableAnimations[selectedAnimationIndex].id}`}
+                                                                                    alt={availableAnimations[selectedAnimationIndex].name}
+                                                                                    style={{
+                                                                                        width: '100%',
+                                                                                        height: '100%',
+                                                                                        objectFit: 'contain'
+                                                                                    }}
+                                                                                />
+                                                                                {/* Selection Indicator */}
+                                                                                {typeof formData.gif === 'string' && 
+                                                                                 formData.gif === availableAnimations[selectedAnimationIndex].id && (
+                                                                                    <div style={{
+                                                                                        position: 'absolute',
+                                                                                        top: '8px',
+                                                                                        right: '8px',
+                                                                                        background: '#10B981',
+                                                                                        borderRadius: '50%',
+                                                                                        width: '28px',
+                                                                                        height: '28px',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                                                                    }}>
+                                                                                        <CheckCircle size={18} color="white" fill="white" />
+                                                                                    </div>
+                                                                                )}
+                                                                                {/* Animation Name */}
+                                                                                <div style={{
+                                                                                    position: 'absolute',
+                                                                                    bottom: 0,
+                                                                                    left: 0,
+                                                                                    right: 0,
+                                                                                    background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
+                                                                                    padding: '12px 8px 8px',
+                                                                                    color: 'white',
+                                                                                    fontSize: '12px',
+                                                                                    fontWeight: 600,
+                                                                                    textAlign: 'center'
+                                                                                }}>
+                                                                                    {availableAnimations[selectedAnimationIndex].name}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                        
+                                                                        {/* Animation Dots Indicator */}
+                                                                        {availableAnimations.length > 1 && (
+                                                                            <div style={{
+                                                                                display: 'flex',
+                                                                                gap: '8px',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center'
+                                                                            }}>
+                                                                                {availableAnimations.map((_, idx) => (
+                                                                                    <button
+                                                                                        key={idx}
+                                                                                        type="button"
+                                                                                        onClick={() => setSelectedAnimationIndex(idx)}
+                                                                                        style={{
+                                                                                            width: idx === selectedAnimationIndex ? '24px' : '8px',
+                                                                                            height: '8px',
+                                                                                            borderRadius: '4px',
+                                                                                            border: 'none',
+                                                                                            background: idx === selectedAnimationIndex ? '#1A1A1A' : '#D0D0D0',
+                                                                                            cursor: 'pointer',
+                                                                                            transition: 'all 0.2s ease'
+                                                                                        }}
+                                                                                    />
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                        
+                                                                        {/* Select Button */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const selectedAnim = availableAnimations[selectedAnimationIndex];
+                                                                                setFormData({ ...formData, gif: selectedAnim.id });
+                                                                            }}
+                                                                            style={{
+                                                                                padding: '10px 24px',
+                                                                                background: typeof formData.gif === 'string' && 
+                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id
+                                                                                    ? '#10B981' 
+                                                                                    : '#1A1A1A',
+                                                                                color: 'white',
+                                                                                border: 'none',
+                                                                                borderRadius: '8px',
+                                                                                fontSize: '14px',
+                                                                                fontWeight: 600,
+                                                                                cursor: 'pointer',
+                                                                                transition: 'all 0.2s ease',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '8px'
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                if (!(typeof formData.gif === 'string' && 
+                                                                                      formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                    e.currentTarget.style.background = '#0F0F0F';
+                                                                                }
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                if (!(typeof formData.gif === 'string' && 
+                                                                                      formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                    e.currentTarget.style.background = '#1A1A1A';
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            {typeof formData.gif === 'string' && 
+                                                                             formData.gif === availableAnimations[selectedAnimationIndex].id ? (
+                                                                                <>
+                                                                                    <CheckCircle size={16} />
+                                                                                    Selected
+                                                                                </>
+                                                                            ) : (
+                                                                                'Select This Animation'
+                                                                            )}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </FormGroup>
+                                                        )}
+                                                        
+                                                        {/* Upload new animation */}
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                            <input
+                                                                accept="image/gif"
+                                                                type="file"
+                                                                data-field="gif"
+                                                                onChange={(e) => {
+                                                                    handleVideoFileChange('gif')(e);
+                                                                    // Clear selected animation when uploading new file
+                                                                    if (e.target.files && e.target.files.length > 0) {
+                                                                        setFormData({ ...formData, gif: e.target.files[0] });
+                                                                    }
+                                                                }}
+                                                                required={formData.hasAnimation && !editingTemplate && !formData.gif}
+                                                                style={{ 
+                                                                    flex: 1,
+                                                                    padding: '12px 16px',
+                                                                    borderRadius: '12px',
+                                                                    border: '1px solid #D0D0D0',
+                                                                    fontSize: '14px',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'all 0.2s ease',
+                                                                    background: (formData.gif && typeof formData.gif !== 'string') ? '#F0FDF4' : 'white'
+                                                                }}
+                                                                onFocus={(e) => e.target.style.borderColor = '#1A1A1A'}
+                                                                onBlur={(e) => e.target.style.borderColor = '#D0D0D0'}
+                                                            />
+                                                            {editingTemplate && (formData.gif && typeof formData.gif === 'string') && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveFile('gif')}
                                                                 style={{
                                                                     padding: '8px',
                                                                     background: '#EF4444',
@@ -3019,6 +3484,7 @@ const Templates = () => {
                                                                 <X size={16} />
                                                             </button>
                                                         )}
+                                                        </div>
                                                     </div>
                                                 </FormGroup>
                                             </div>

@@ -9,6 +9,8 @@ const DEFAULT_PREMIUM_SETTINGS = {
         companyName: '',
         email: '',
         phone: '',
+        instagramLink: '',
+        instagramButtonText: 'Visit Our Instagram',
         dateFormat: 'YYYY-MM-DD',
         exportFormat: 'Excel'
     },

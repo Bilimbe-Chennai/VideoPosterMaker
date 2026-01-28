@@ -1395,7 +1395,9 @@ router.post("/client/:temp_name", async (req, res) => {
                   video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
                   video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
                   clientPhotoId: null,
-                  gifId: (hasAnimation && gifId) ? gifId : undefined // Pass gifId only if animation is enabled
+                  gifId: (hasAnimation && gifId) ? gifId : undefined, // Pass gifId only if animation is enabled
+                  textColor: template.overlayTextColor || '#FFFFFF',
+                  fontFamily: template.overlayFontFamily || 'Arial'
                 });
 
                 // GIF animation is now applied during merge (only to middle video), so we don't need separate animation step

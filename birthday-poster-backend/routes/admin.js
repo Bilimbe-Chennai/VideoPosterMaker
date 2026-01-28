@@ -3,6 +3,7 @@ const { getConnection } = require("../InitDB");
 const { Readable } = require("stream");
 const AdminSettings = require("../models/AdminSettings.js");
 const TemplateGuide = require("../models/TemplateGuide.js");
+const Animation = require("../models/Animation.js");
 const { mergeThreeVideos } = require("../utils/videoMerge.js");
 const router = express.Router();
 async function uploadToGridFS(filename, buffer, contentType) {
@@ -589,7 +590,8 @@ router.post("/settings/videovideovideo", async (req, res) => {
       const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1); // remove first/last boundary markers
 
       let name, date, type, faceSwap, videosMergeOption, clientname, brandname,
-        congratsOption, video1TextOption, video2TextOption, video3TextOption, approved;
+        congratsOption, video1TextOption, video2TextOption, video3TextOption, approved,
+        overlayTextColor, overlayFontFamily;
       let video1Buffer, video2Buffer, video3Buffer, audioBuffer;
 
       // NEW: Check if this is an edit
@@ -626,6 +628,10 @@ router.post("/settings/videovideovideo", async (req, res) => {
           video2TextOption = body.toString().trim();
         } else if (headersText.includes('name="video3TextOption"')) {
           video3TextOption = body.toString().trim();
+        } else if (headersText.includes('name="overlayTextColor"')) {
+          overlayTextColor = body.toString().trim();
+        } else if (headersText.includes('name="overlayFontFamily"')) {
+          overlayFontFamily = body.toString().trim();
         } else if (headersText.includes('name="videosMergeOption"')) {
           videosMergeOption = body.toString().trim();
         } else if (headersText.includes('name="approved"')) {
@@ -728,6 +734,12 @@ router.post("/settings/videovideovideo", async (req, res) => {
         }
       }
 
+      // Get template for overlay text settings
+      let template = null;
+      if (editId) {
+        template = await AdminSettings.findById(editId);
+      }
+      
       // Generate merged video
       posterVideoId = await mergeThreeVideos({
         name: name,
@@ -740,7 +752,9 @@ router.post("/settings/videovideovideo", async (req, res) => {
         clientname,
         brandname,
         congratsOption,
-        video1TextOption, video2TextOption, video3TextOption
+        video1TextOption, video2TextOption, video3TextOption,
+        textColor: template?.overlayTextColor || 'white',
+        fontFamily: template?.overlayFontFamily || 'Arial'
       });
 
       let media;
@@ -764,6 +778,8 @@ router.post("/settings/videovideovideo", async (req, res) => {
             brandname,
             congratsOption,
             video1TextOption, video2TextOption, video3TextOption,
+            overlayTextColor: overlayTextColor || 'white',
+            overlayFontFamily: overlayFontFamily || 'Arial',
             approved,
             updatedAt: new Date()
           },
@@ -786,6 +802,8 @@ router.post("/settings/videovideovideo", async (req, res) => {
           faceSwap,
           videosMergeOption,
           mergedVideoId: posterVideoId,
+          overlayTextColor: overlayTextColor || 'white',
+          overlayFontFamily: overlayFontFamily || 'Arial',
           clientname,
           brandname,
           congratsOption,
@@ -1030,6 +1048,121 @@ router.get("/template-guide", async (req, res) => {
     res.json({ success: true, guides });
   } catch (err) {
     console.error("Get all template guides error:", err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ========== ANIMATION GIF ROUTES ==========
+
+// Upload animation GIF
+router.post("/animation/upload", async (req, res) => {
+  try {
+    const contentType = req.headers["content-type"];
+    if (!contentType || !contentType.includes("multipart/form-data")) {
+      return res.status(400).json({ error: "Invalid content type" });
+    }
+
+    const boundary = "--" + contentType.split("boundary=")[1];
+    let chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", async () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        const boundaryBuffer = Buffer.from(boundary);
+        const parts = splitBuffer(buffer, boundaryBuffer).slice(1, -1);
+
+        let name, adminid;
+        let gifBuffer;
+
+        parts.forEach((part) => {
+          const [rawHeaders, rawBody] = splitBuffer(part, Buffer.from("\r\n\r\n"));
+          const headersText = rawHeaders.toString();
+          
+          if (headersText.includes('name="name"')) {
+            const body = rawBody.slice(0, rawBody.length - 2);
+            name = body.toString().trim();
+          } else if (headersText.includes('name="adminid"')) {
+            const body = rawBody.slice(0, rawBody.length - 2);
+            adminid = body.toString().trim();
+          } else if (headersText.includes('name="gif"') || headersText.includes('name="file"')) {
+            const isFileField = headersText.includes('filename=');
+            if (isFileField) {
+              const endIndex = rawBody.length - 2;
+              gifBuffer = rawBody.slice(0, endIndex > 0 ? endIndex : rawBody.length);
+            }
+          }
+        });
+
+        if (!name || !name.trim()) {
+          return res.status(400).json({ error: "Animation name is required" });
+        }
+
+        if (!gifBuffer || gifBuffer.length === 0) {
+          return res.status(400).json({ error: "GIF file is required" });
+        }
+
+        // Upload GIF to GridFS
+        const filename = `animation-${name.replace(/\s+/g, '-')}-${Date.now()}.gif`;
+        const gifId = await uploadToGridFS(filename, gifBuffer, "image/gif");
+
+        // Save animation record
+        const animation = new Animation({
+          name: name.trim(),
+          gifId,
+          filename,
+          uploadedBy: adminid || '',
+          updatedAt: new Date()
+        });
+
+        await animation.save();
+
+        res.json({
+          success: true,
+          message: "Animation GIF uploaded successfully",
+          animation: {
+            id: animation._id,
+            name: animation.name,
+            gifId: animation.gifId,
+            filename: animation.filename,
+            createdAt: animation.createdAt
+          }
+        });
+      } catch (err) {
+        console.error("Animation upload error:", err);
+        res.status(500).json({ error: "Failed to upload animation GIF", message: err.message });
+      }
+    });
+  } catch (err) {
+    console.error("Animation upload error:", err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Get all animations
+router.get("/animation", async (req, res) => {
+  try {
+    const animations = await Animation.find().sort({ createdAt: -1 });
+    res.json({ success: true, animations });
+  } catch (err) {
+    console.error("Get all animations error:", err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Delete animation
+router.delete("/animation/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const animation = await Animation.findById(id);
+    if (!animation) {
+      return res.status(404).json({ error: "Animation not found" });
+    }
+
+    // Optionally delete from GridFS (you may want to keep it for existing templates)
+    await Animation.findByIdAndDelete(id);
+    res.json({ success: true, message: "Animation deleted successfully" });
+  } catch (err) {
+    console.error("Delete animation error:", err);
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
