@@ -205,10 +205,6 @@ router.post("/settings", async (req, res) => {
         } else {
           console.error("? video2Buffer missing or empty");
         }
-      } else {
-        console.log(
-          "Skipping video2Buffer upload because videosMergeOption is false"
-        );
       }
       let audioId;
       if (isVideosMergeOption) {

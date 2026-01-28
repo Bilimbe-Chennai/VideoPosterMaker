@@ -1654,25 +1654,31 @@ const Photos = () => {
         const isVideo = isVideoType(item, templateAccessTypeMap, { enableFallback: true });
 
         // Determine the correct media URL based on type
+        // Backend storage: Videos use mergedVideoId (primary) or posterVideoId (fallback)
+        //                  Photos use photoId (photomerge) or posterVideoId (fallback for older data)
         let mediaUrl = 'https://via.placeholder.com/300';
         if (isVideo) {
-          // For video merge: use mergedVideoId, fallback to posterVideoId
-          const videoId = item.mergedVideoId || item.posterVideoId || item.videoId;
+          // For videos: use mergedVideoId (primary), fallback to posterVideoId
+          const videoId = item.mergedVideoId || item.posterVideoId;
           if (videoId) {
             mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`;
           }
         } else {
-          // For photos: check for full URL first, then fallback to photoId
-          if (item.url && item.url.startsWith('http')) {
-            mediaUrl = item.url;
-          } else if (item.photoId) {
-            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.photoId}`;
-          } else if (item.posterVideoId) { // Fallback used in ViewAllPoster.js
-            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.posterVideoId}`;
-          } else if (item.fileId) { // Fallback for some API responses
-            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item.fileId}`;
-          } else if (item._id) { // Final fallback to document ID
-            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${item._id}`;
+          // For photos: use photoId (photomerge) or posterVideoId (fallback for older data)
+          // Check photoId first (for new photomerge data), then posterVideoId (for older data)
+          const photoId = item.photoId || item.posterVideoId;
+          if (photoId) {
+            mediaUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
+          } else {
+            // Debug: log when no photo ID is found
+            console.warn('No photo ID found for item:', {
+              id: item._id,
+              source: item.source,
+              template_name: item.template_name,
+              photoId: item.photoId,
+              posterVideoId: item.posterVideoId,
+              isVideo: isVideo
+            });
           }
         }
 
@@ -1680,14 +1686,14 @@ const Photos = () => {
           id: item._id || index,
           url: mediaUrl,
           isVideo: isVideo,
-          videoId: isVideo ? (item.mergedVideoId || item.posterVideoId || item.videoId) : null,
+          videoId: isVideo ? (item.mergedVideoId || item.posterVideoId) : null,
           category: item.template_name || item.templatename || item.type,
           template_name: item.template_name || item.templatename || item.type,
           branch: item.source || 'Head Office',
           customer: item.name || 'Anonymous',
           phone: phone, // Added phone field
-          date: formatDate(item.date || item.createdAt, getStoredDateFormat()),
-          timestamp: new Date(item.date || item.createdAt).getTime(),
+          date: formatDate(item.createdAt, getStoredDateFormat()),
+          timestamp: new Date(item.createdAt).getTime(),
           views: customerCounts[key] || 0,
           shares: (item.whatsappsharecount || 0) +
             (item.facebooksharecount || 0) +

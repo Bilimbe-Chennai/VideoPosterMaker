@@ -76,7 +76,7 @@ async function logActivity({
 //whatsapp share function
 router.post("/share", async (req, res) => {
   try {
-    const toNumber = req.body.mobile;
+    const toNumber = req.body.mobile ? req.body.mobile.replace('+', '') : '';
     const _id = req.body._id;
     const linksend = req.body.link;
     const token = process.env.CHATMYBOT_TOKEN;
@@ -171,7 +171,7 @@ router.post("/share", async (req, res) => {
 // New route for custom messages
 router.post("/custom-share", async (req, res) => {
   try {
-    const toNumber = req.body.mobile;
+    const toNumber = req.body.mobile ? req.body.mobile.replace('+', '') : '';
     const _id = req.body._id;
     const userName = req.body.userName;
     const message = req.body.message;
@@ -221,8 +221,6 @@ router.post("/custom-share", async (req, res) => {
         },
       }
     );
-
-    console.log("ChatMyBot Response:", JSON.stringify(response.data, null, 2));
 
     if (response.status !== 200 || (response.data && response.data.status === "error")) {
       return res.status(response.status || 500).json({
@@ -396,7 +394,6 @@ const saveTempFile = async (buffer, extension) => {
       console.error("Error saving file:", err);
       return;
     }
-    console.log("File saved successfully!");
   });
 
   return tempFilePath;
@@ -586,8 +583,6 @@ router.get("/all", async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    console.log('Fetching media items with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
-
     // Get total count for pagination
     const total = await Media.countDocuments(query);
 
@@ -597,8 +592,6 @@ router.get("/all", async (req, res) => {
       .skip(skip)
       .limit(limitNum)
       .lean();
-
-    console.log(`Found ${mediaItems.length} media items (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
 
     // Return paginated response
     res.json({
@@ -700,7 +693,7 @@ router.get("/dashboard-metrics", async (req, res) => {
     if (adminid) {
       query.adminid = adminid;
     }
-    query.source = "Photo Merge App";
+    query.source = "photo merge app";
 
     // Helper function to calculate growth
     // Returns count change as percentage based on 100% scale
@@ -2500,13 +2493,24 @@ router.post("/videovideo", async (req, res) => {
 router.get("/media/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid media ID" });
+
+    // Try to find by _id first (if valid ObjectId)
+    let media = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      media = await Media.findById(id);
     }
 
-    const media = await Media.findById(id);
-    
+    // If not found by _id, try to find by photoId, posterVideoId, or mergedVideoId
+    if (!media) {
+      media = await Media.findOne({
+        $or: [
+          { photoId: id },
+          { posterVideoId: id },
+          { mergedVideoId: id }
+        ]
+      });
+    }
+
     if (!media) {
       return res.status(404).json({ error: "Media not found" });
     }

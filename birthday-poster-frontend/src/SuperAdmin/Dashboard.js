@@ -351,11 +351,11 @@ const Dashboard = () => {
 
       const uploadsToday = uploads.filter(m => {
         const d = new Date(m.date || m.createdAt);
-        return m.source === 'Photo Merge App' && d >= todayStart;
+        return m.source === 'photo merge app' && d >= todayStart;
       }).length;
       const uploadsYesterday = uploads.filter(m => {
         const d = new Date(m.date || m.createdAt);
-        return m.source === 'Photo Merge App' && d >= yesterdayStart && d < todayStart;
+        return m.source === 'photo merge app' && d >= yesterdayStart && d < todayStart;
       }).length;
 
       // Growth for users/admins/templates based on last 30 days vs previous 30 days
@@ -399,7 +399,7 @@ const Dashboard = () => {
       const latestUser = nonAdminUsers.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
       const latestTemplate = templates.slice().sort((a, b) => getTemplateDate(b) - getTemplateDate(a))[0];
       const latestUpload = uploads
-        .filter(m => m.source === 'Photo Merge App')
+        .filter(m => m.source === 'photo merge app')
         .slice()
         .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))[0];
 

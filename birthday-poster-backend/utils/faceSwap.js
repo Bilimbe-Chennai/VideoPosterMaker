@@ -70,8 +70,6 @@ async function imageFileToBase64(imagePath) {
 const client = new Client({
   token: process.env.MAGICOUR_API_KEY, // Magic Hour API key
 });
-console.log("Has client.v1:", !!client.v1);
-console.log("Has faceSwap:", !!client.v1?.faceSwap);
 // Call Segmind FaceSwap
 // async function runFaceSwap(imagePath, video1Id) {
 //   if (!imagePath) {
@@ -175,7 +173,6 @@ async function runFaceSwap(imageBuffer, video1Id) {
   // if (!fs2.existsSync(imagePath)) throw new Error(`Image not found: ${imagePath}`);
   //const safeImagePath = cloneToSafeTemp(imagePath);
   // 🔹 Fetch video from GridFS
-  console.log("Fetching video from GridFS with id:", video1Id);
   const videoBuffer = await getFileFromGridFS(video1Id);
   if (!videoBuffer) {
     throw new Error(`Could not fetch video with id: ${video1Id}`);
@@ -184,13 +181,6 @@ async function runFaceSwap(imageBuffer, video1Id) {
   const tempVideoPath = await saveTempFile(videoBuffer, "mp4");
   // 🔥 GET TOTAL VIDEO DURATION
   const videoDuration = await getVideoDuration(tempVideoPath);
-  console.log({
-  tempVideoPath,
-  tempImagePath,
-  videoDuration,
-  existsVideo: fs2.existsSync(tempVideoPath),
-  existsImage: fs2.existsSync(tempImagePath),
-});
 const safeDuration = Math.max(1, Math.floor(videoDuration - 1));
 
 // const uploadRes = await client.v1.files.uploadUrls.create({
@@ -225,11 +215,8 @@ const safeDuration = Math.max(1, Math.floor(videoDuration - 1));
 //     "Content-Type": "image/jpeg",
 //   },
 // });
-console.log("Waiting for uploaded assets to be ready...");
 // 2️⃣ WAIT until Magic Hour processes the uploaded assets
 //await new Promise(res => setTimeout(res, 50000));
-
-console.log("Assets are ready, running FaceSwap...");
 // console.log("Using assets:", {
 //   video: videoUpload.filePath,
 //   image: imageUpload.filePath,
@@ -280,7 +267,6 @@ console.log("Assets are ready, running FaceSwap...");
     if (!outputFile) {
       throw new Error("FaceSwap completed but no output file found");
     }
-    console.log("FaceSwap output file:", outputFile.download.url);
       const response = await axios.get(outputFile.download.url, {
     responseType: "stream",
     timeout: 0, // important for large videos

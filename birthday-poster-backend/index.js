@@ -8,7 +8,7 @@ const photomergeRoutes = require('./routes/photomerge');
 const userRoutes = require('./routes/user');
 const activityHistoryRoutes = require('./routes/activityHistory');
 const campaignRoutes = require('./routes/campaigns');
-const initDb = require("./InitDB");
+require("./InitDB");
 const path = require('path');
 const os = require("os");
 const bodyParser = require("body-parser");
@@ -32,7 +32,6 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.log(`Blocked by CORS: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -82,9 +81,8 @@ const startSchedulerWhenReady = () => {
     // Connection is ready
     try {
       campaignSchedulerInterval = startCampaignScheduler();
-      console.log('✅ Campaign scheduler started successfully');
     } catch (error) {
-      console.error('❌ Error starting campaign scheduler:', error);
+      // Error starting campaign scheduler
     }
   } else {
     // Wait and check again
@@ -94,7 +92,6 @@ const startSchedulerWhenReady = () => {
 
 // Start checking for DB connection
 mongoose.connection.on('connected', () => {
-  console.log('✅ MongoDB connected - starting campaign scheduler...');
   startSchedulerWhenReady();
 });
 
@@ -109,10 +106,9 @@ setTimeout(() => {
 // Video merge and animation can take several minutes
 app.timeout = 900000; // 15 minutes
 
-const server = app.listen(process.env.PORT, () => {
-  console.log('Server running on http://localhost:7000');
-  console.log('Campaign scheduler will start after database connection is established.');
-  console.log('Server timeout set to 15 minutes for video processing.');
+const PORT = process.env.PORT || 7000;
+const server = app.listen(PORT, () => {
+  // Server started
 });
 
 // Set server timeout

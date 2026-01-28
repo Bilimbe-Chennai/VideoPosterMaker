@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./ShareScreen.css";
 import { Phone } from "@mui/icons-material";
+import { isVideoType } from "../utils/accessTypeUtils";
 
 const ShareScreen = () => {
   const { photoId } = useParams();
@@ -23,25 +24,46 @@ const ShareScreen = () => {
       
       try {
         setLoading(true);
+        // The backend endpoint now searches by _id, photoId, posterVideoId, or mergedVideoId
         const response = await axios.get(`https://api.bilimbebrandactivations.com/api/upload/media/${photoId}`);
         const data = response.data;
         setMediaData(data);
         
-        // Determine if it's a video
-        const isVideoType = data.source === 'video merge app' || 
-                           data.mergedVideoId || 
-                           data.posterVideoId || 
-                           data.videoId;
-        setIsVideo(!!isVideoType);
+        // Fetch templates to get accessType mapping
+        let templateAccessTypeMap = {};
+        if (data.adminid) {
+          try {
+            const templatesResponse = await axios.get(`https://api.bilimbebrandactivations.com/api/photomerge/templates?adminid=${data.adminid}`);
+            const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+            templates.forEach(template => {
+              if (template.templatename) {
+                templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
+              }
+            });
+          } catch (templatesError) {
+            console.error("Error fetching templates:", templatesError);
+          }
+        }
         
-        // Set media URL
-        if (isVideoType) {
-          const videoId = data.mergedVideoId || data.posterVideoId || data.videoId;
+        // Determine if it's a video based on accessType
+        const isVideoItem = isVideoType(data, templateAccessTypeMap, { enableFallback: false });
+        setIsVideo(isVideoItem);
+        
+        // Set media URL based on type
+        // For photos (photomerge): use photoId (primary) or posterVideoId (fallback)
+        // For videos (videomerge): use mergedVideoId (primary) or posterVideoId (fallback)
+        if (isVideoItem) {
+          const videoId = data.mergedVideoId || data.posterVideoId;
           if (videoId) {
             setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`);
+          } else {
+            // Fallback: use photoId from URL if no video ID found
+            setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`);
           }
         } else {
-          setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`);
+          // For photos: use photoId (photomerge) or posterVideoId (fallback for older data)
+          const mediaId = data.photoId || data.posterVideoId || photoId;
+          setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${mediaId}`);
         }
         
         // Fetch Instagram link from admin settings based on adminid
@@ -58,7 +80,7 @@ const ShareScreen = () => {
         }
         
         // For images, set loading to false immediately
-        if (!isVideoType) {
+        if (!isVideoItem) {
           setLoading(false);
         }
       } catch (err) {
@@ -219,7 +241,6 @@ const ShareScreen = () => {
           return;
         }
       } catch (error) {
-        console.log('Native file sharing failed, falling back to link sharing:', error);
       }
     }
 

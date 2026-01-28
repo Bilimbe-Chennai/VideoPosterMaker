@@ -12,8 +12,6 @@ const connectDB = async () => {
   useUnifiedTopology: true,
 });
 
-    console.log('✅ Connected to MongoDB');
-
     const db = mongoose.connection.db;
 
     // Initialize GridFSBucket
@@ -26,7 +24,8 @@ const connectDB = async () => {
     gridfs.collection('mediaFiles');
 
   } catch (err) {
-    console.error('❌ MongoDB connection error:', err);
+    // MongoDB connection error
+    process.exit(1);
   }
 };
 

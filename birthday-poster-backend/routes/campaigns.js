@@ -25,8 +25,6 @@ router.get('/', async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    console.log('Fetching campaigns with query:', query, `page: ${pageNum}, limit: ${limitNum}`);
-
     // Get total count for pagination
     const total = await Campaign.countDocuments(query);
 
@@ -36,8 +34,6 @@ router.get('/', async (req, res) => {
       .skip(skip)
       .limit(limitNum)
       .lean();
-
-    console.log(`Found ${campaigns.length} campaigns (page ${pageNum} of ${Math.ceil(total / limitNum)})`);
 
     res.json({
       data: campaigns || [],
@@ -100,7 +96,7 @@ router.post('/', async (req, res) => {
       startDate: startDate ? new Date(startDate) : new Date(),
       endDate: endDate ? new Date(endDate) : new Date(),
       adminid,
-      targetAudience: targetAudience || { source: 'Photo Merge App' },
+      targetAudience: targetAudience || { source: 'photo merge app' },
       message: message || '',
       sent: sent !== undefined ? sent : 0,
       delivered: delivered !== undefined ? delivered : 0,
@@ -173,11 +169,11 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET Photo Merge App customers for targeting
+// GET photo merge app customers for targeting
 router.get('/target/customers', async (req, res) => {
   try {
     const { adminid, template_name } = req.query;
-    const query = { source: 'Photo Merge App' };
+    const query = { source: 'photo merge app' };
 
     if (adminid) {
       query.adminid = adminid;
@@ -223,6 +219,7 @@ router.get('/target/customers', async (req, res) => {
 // Helper function to send WhatsApp message
 const sendWhatsAppMessage = async (toNumber, message, templateId) => {
   try {
+    const cleanToNumber = toNumber ? toNumber.replace('+', '') : '';
     const token = process.env.CHATMYBOT_TOKEN;
     if (!token) {
       throw new Error('ChatMyBot token not configured');
@@ -230,7 +227,7 @@ const sendWhatsAppMessage = async (toNumber, message, templateId) => {
 
     const payload = [
       {
-        to: toNumber,
+        to: cleanToNumber,
         type: "template",
         template: {
           id: templateId || process.env.WHATSAPP_TEMPLATE_ID,
@@ -286,7 +283,7 @@ router.post('/:id/send', async (req, res) => {
     }
 
     // Get target customers
-    const query = { source: campaign.targetAudience.source || 'Photo Merge App' };
+    const query = { source: campaign.targetAudience.source || 'photo merge app' };
     if (campaign.adminid) {
       query.adminid = campaign.adminid;
     }

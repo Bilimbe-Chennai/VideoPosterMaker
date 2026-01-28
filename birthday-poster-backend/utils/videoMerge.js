@@ -265,7 +265,7 @@ async function mergeTwoVideos({
 //   const textXEnd = 60;
 //   const animDuration = 1.0;
 //   const lineSpacing = 90;
-  
+
 //   // Text styling
 //   const textColor = "white";
 //   const shadowColor = "black@0.6";
@@ -291,16 +291,16 @@ async function mergeTwoVideos({
 //     if (!showText) {
 //       return ""; // Return empty string if no text should be shown
 //     }
-    
+
 //     const slideInX = `if(lt(t\\,${animDuration})\\, ${textXStart}+(t/${animDuration})*(${textXEnd}-${textXStart})\\, ${textXEnd})`;
 //     const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
-    
+
 //     // Client name with shadow
 //     let filter = `drawtext=text='${clientName}':fontcolor=${shadowColor}:fontsize=${fontSizeName}:` +
 //       `x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},` +
 //       `drawtext=text='${clientName}':fontcolor=${textColor}:fontsize=${fontSizeName}:` +
 //       `x=${slideInX}:y=${nameY}:${alpha}`;
-    
+
 //     // Brand name with shadow (appears slightly after client name)
 //     filter += `,drawtext=text='${brandName}':fontcolor=${shadowColor}:fontsize=${fontSizeBrand}:` +
 //       `x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:` +
@@ -308,7 +308,7 @@ async function mergeTwoVideos({
 //       `drawtext=text='${brandName}':fontcolor=${textColor}:fontsize=${fontSizeBrand}:` +
 //       `x=${slideInX}:y=${brandY}:` +
 //       `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
-    
+
 //     return filter;
 //   }
 
@@ -316,12 +316,12 @@ async function mergeTwoVideos({
 //   function buildVideoFilter(videoIndex, showText) {
 //     const input = `[${videoIndex}:v]`;
 //     const output = `[v${videoIndex}]`;
-    
+
 //     const baseFilter = `scale=1080:1920:force_original_aspect_ratio=decrease,` +
 //       `pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30`;
-    
+
 //     let filter = input + baseFilter;
-    
+
 //     // Add text filter only if showText is true
 //     if (showText) {
 //       const textFilter = buildTextFilter(showText);
@@ -329,24 +329,24 @@ async function mergeTwoVideos({
 //         filter += `,${textFilter}`;
 //       }
 //     }
-    
+
 //     return filter + output;
 //   }
 
 //   // Build filter array
 //   const filters = [];
-  
+
 //   // FIX: Handle string values like 'true' and 'false'
 //   // Convert string values to proper booleans
 //   const showText1 = video1TextOption === undefined ? true : 
 //                    video1TextOption === true || video1TextOption === 'true';
-  
+
 //   const showText2 = video2TextOption === undefined ? true : 
 //                    video2TextOption === true || video2TextOption === 'true';
-  
+
 //   const showText3 = video3TextOption === undefined ? true : 
 //                    video3TextOption === true || video3TextOption === 'true';
-  
+
 //   console.log("Text Options:", { 
 //     video1TextOption, 
 //     video2TextOption, 
@@ -355,7 +355,7 @@ async function mergeTwoVideos({
 //     showText2, 
 //     showText3 
 //   });
-  
+
 //   filters.push(buildVideoFilter(0, showText1));
 //   filters.push(buildVideoFilter(1, showText2));
 //   filters.push(buildVideoFilter(2, showText3));
@@ -366,31 +366,31 @@ async function mergeTwoVideos({
 //     const line2 = escapeFFmpegText(clientname);
 //     const congratsFontSize1 = 100;
 //     const congratsFontSize2 = 120;
-    
+
 //     // Use simple color names that FFmpeg understands
 //     const congratsBgColor = "darkred";
 //     const congratsGoldColor = "yellow";
 //     const clientNameColor = "white";
-    
+
 //     filters.push(
 //       // Create solid background for congratulations
 //       `color=c=${congratsBgColor}:s=1080x1920:d=${congratsDuration}[congratsbg]`,
-      
+
 //       // Congratulations text - YELLOW/GOLD
 //       `[congratsbg]drawtext=text='${line1}':fontcolor=black:fontsize=${congratsFontSize1}:` +
 //       `x=(w-text_w)/2+3:y=h/2-180+3:enable='between(t,0,${congratsDuration})'[cg1shadow]`,
-      
+
 //       `[cg1shadow]drawtext=text='${line1}':fontcolor=${congratsGoldColor}:fontsize=${congratsFontSize1}:` +
 //       `x=(w-text_w)/2:y=h/2-180:enable='between(t,0,${congratsDuration})'[cg1]`,
-      
+
 //       // Client name - BIG and WHITE
 //       `[cg1]drawtext=text='${line2}':fontcolor=black:fontsize=${congratsFontSize2}:` +
 //       `x=(w-text_w)/2+4:y=h/2+4:enable='between(t,0,${congratsDuration})'[cg2shadow]`,
-      
+
 //       `[cg2shadow]drawtext=text='${line2}':fontcolor=${clientNameColor}:fontsize=${congratsFontSize2}:` +
 //       `x=(w-text_w)/2:y=h/2:enable='between(t,0,${congratsDuration})'[v3]`
 //     );
-    
+
 //     // Concatenate all videos
 //     filters.push(`[v0][v1][v2][v3]concat=n=4:v=1:a=0[v]`);
 //   } else {
@@ -406,10 +406,10 @@ async function mergeTwoVideos({
 //       .input(tempvideo3Path)
 //       .input(tempAudioPath)
 //       .inputOptions(["-stream_loop", "-1"]);
-    
+
 //     // Add complex filter
 //     cmd = cmd.complexFilter(filters);
-    
+
 //     // Add output options with better quality
 //     cmd = cmd.outputOptions([
 //       "-map [v]",
@@ -423,7 +423,7 @@ async function mergeTwoVideos({
 //       "-movflags +faststart",
 //       "-shortest"
 //     ]);
-    
+
 //     cmd = cmd.output(outputPath)
 //       .on("start", (commandLine) => {
 //         console.log("FFmpeg command started");
@@ -498,7 +498,7 @@ async function mergeTwoVideos({
 //   const textXEnd = 60;
 //   const animDuration = 1.0;
 //   const lineSpacing = 90;
-  
+
 //   // Text styling
 //   const textColor = "white";
 //   const shadowColor = "black@0.6";
@@ -524,16 +524,16 @@ async function mergeTwoVideos({
 //     if (!showText) {
 //       return ""; // Return empty string if no text should be shown
 //     }
-    
+
 //     const slideInX = `if(lt(t\\,${animDuration})\\, ${textXStart}+(t/${animDuration})*(${textXEnd}-${textXStart})\\, ${textXEnd})`;
 //     const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
-    
+
 //     // Client name with shadow
 //     let filter = `drawtext=text='${clientName}':fontcolor=${shadowColor}:fontsize=${fontSizeName}:` +
 //       `x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},` +
 //       `drawtext=text='${clientName}':fontcolor=${textColor}:fontsize=${fontSizeName}:` +
 //       `x=${slideInX}:y=${nameY}:${alpha}`;
-    
+
 //     // Brand name with shadow (appears slightly after client name)
 //     filter += `,drawtext=text='${brandName}':fontcolor=${shadowColor}:fontsize=${fontSizeBrand}:` +
 //       `x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:` +
@@ -541,7 +541,7 @@ async function mergeTwoVideos({
 //       `drawtext=text='${brandName}':fontcolor=${textColor}:fontsize=${fontSizeBrand}:` +
 //       `x=${slideInX}:y=${brandY}:` +
 //       `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
-    
+
 //     return filter;
 //   }
 
@@ -549,12 +549,12 @@ async function mergeTwoVideos({
 //   function buildVideoFilter(videoIndex, showText) {
 //     const input = `[${videoIndex}:v]`;
 //     const output = `[v${videoIndex}]`;
-    
+
 //     const baseFilter = `scale=1080:1920:force_original_aspect_ratio=decrease,` +
 //       `pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30`;
-    
+
 //     let filter = input + baseFilter;
-    
+
 //     // Add text filter only if showText is true
 //     if (showText) {
 //       const textFilter = buildTextFilter(showText);
@@ -562,20 +562,20 @@ async function mergeTwoVideos({
 //         filter += `,${textFilter}`;
 //       }
 //     }
-    
+
 //     return filter + output;
 //   }
 
 //   // Build filter array
 //   const filters = [];
-  
+
 //   // Handle string values like 'true' and 'false'
 //   const showText1 = video1TextOption === undefined ? true : 
 //                    video1TextOption === true || video1TextOption === 'true';
-  
+
 //   const showText2 = video2TextOption === undefined ? true : 
 //                    video2TextOption === true || video2TextOption === 'true';
-  
+
 //   const showText3 = video3TextOption === undefined ? true : 
 //                    video3TextOption === true || video3TextOption === 'true';
 
@@ -602,14 +602,14 @@ async function mergeTwoVideos({
 //     const duration1 = await getVideoDuration(tempvideo1Path);
 //     const duration2 = await getVideoDuration(tempvideo2Path);
 //     const duration3 = await getVideoDuration(tempvideo3Path);
-    
+
 //     let totalDuration = duration1 + duration2 + duration3;
 //     if (congratsOption) {
 //       totalDuration += 5; // Add congratulations duration
 //     }
-    
+
 //     //console.log(`Video durations: ${duration1.toFixed(2)}s + ${duration2.toFixed(2)}s + ${duration3.toFixed(2)}s = ${totalDuration.toFixed(2)}s`);
-    
+
 //     // Add congratulations if needed
 //     if (congratsOption) {
 //       const congratsDuration = 5;
@@ -617,46 +617,46 @@ async function mergeTwoVideos({
 //       const line2 = escapeFFmpegText(clientname);
 //       const congratsFontSize1 = 100;
 //       const congratsFontSize2 = 120;
-      
+
 //       // Use simple color names that FFmpeg understands
 //       const congratsBgColor = "darkred";
 //       const congratsGoldColor = "yellow";
 //       const clientNameColor = "white";
-      
+
 //       filters.push(
 //         // Create solid background for congratulations
 //         `color=c=${congratsBgColor}:s=1080x1920:d=${congratsDuration}[congratsbg]`,
-        
+
 //         // Congratulations text - YELLOW/GOLD
 //         `[congratsbg]drawtext=text='${line1}':fontcolor=black:fontsize=${congratsFontSize1}:` +
 //         `x=(w-text_w)/2+3:y=h/2-180+3:enable='between(t,0,${congratsDuration})'[cg1shadow]`,
-        
+
 //         `[cg1shadow]drawtext=text='${line1}':fontcolor=${congratsGoldColor}:fontsize=${congratsFontSize1}:` +
 //         `x=(w-text_w)/2:y=h/2-180:enable='between(t,0,${congratsDuration})'[cg1]`,
-        
+
 //         // Client name - BIG and WHITE
 //         `[cg1]drawtext=text='${line2}':fontcolor=black:fontsize=${congratsFontSize2}:` +
 //         `x=(w-text_w)/2+4:y=h/2+4:enable='between(t,0,${congratsDuration})'[cg2shadow]`,
-        
+
 //         `[cg2shadow]drawtext=text='${line2}':fontcolor=${clientNameColor}:fontsize=${congratsFontSize2}:` +
 //         `x=(w-text_w)/2:y=h/2:enable='between(t,0,${congratsDuration})'[v3]`
 //       );
-      
+
 //       // Concatenate all videos
 //       filters.push(`[v0][v1][v2][v3]concat=n=4:v=1:a=0[vout]`);
 //     } else {
 //       // Concatenate only the three videos
 //       filters.push(`[v0][v1][v2]concat=n=3:v=1:a=0[vout]`);
 //     }
-    
+
 //     // Calculate fade start time (start fading 2 seconds before end)
 //     const fadeStart = Math.max(0, totalDuration - 2);
 //     //console.log(`Will apply audio fade-out starting at ${fadeStart.toFixed(2)}s`);
-    
+
 //     // Now do the merge in a single pass with estimated fade timing
 //     await new Promise((resolve, reject) => {
 //       //console.log("Starting single-pass merge with audio fade-out...");
-      
+
 //       let cmd = ffmpeg()
 //         .input(tempvideo1Path)
 //         .input(tempvideo2Path)
@@ -700,7 +700,7 @@ async function mergeTwoVideos({
 
 //   } catch (durationError) {
 //     console.warn("Could not get video durations, using fallback approach:", durationError.message);
-    
+
 //     // Fallback: Use a simpler approach without precise timing
 //     if (congratsOption) {
 //       const congratsDuration = 4;
@@ -708,11 +708,11 @@ async function mergeTwoVideos({
 //       const line2 = escapeFFmpegText(clientname);
 //       const congratsFontSize1 = 100;
 //       const congratsFontSize2 = 120;
-      
+
 //       const congratsBgColor = "darkred";
 //       const congratsGoldColor = "yellow";
 //       const clientNameColor = "white";
-      
+
 //       filters.push(
 //         `color=c=${congratsBgColor}:s=1080x1920:d=${congratsDuration}[congratsbg]`,
 //         `[congratsbg]drawtext=text='${line1}':fontcolor=black:fontsize=${congratsFontSize1}:` +
@@ -728,11 +728,11 @@ async function mergeTwoVideos({
 //     } else {
 //       filters.push(`[v0][v1][v2]concat=n=3:v=1:a=0[vout]`);
 //     }
-    
+
 //     // Fallback: Use simpler approach without fade timing
 //     await new Promise((resolve, reject) => {
 //       //console.log("Starting fallback merge (no audio fade-out)...");
-      
+
 //       let cmd = ffmpeg()
 //         .input(tempvideo1Path)
 //         .input(tempvideo2Path)
@@ -832,7 +832,7 @@ async function mergeThreeVideos({
   const textXEnd = 60;
   const animDuration = 1.0;
   const lineSpacing = 90;
-  
+
   // Text styling
   const textColor = "white";
   const shadowColor = "black@0.6";
@@ -858,37 +858,37 @@ async function mergeThreeVideos({
     if (!showText) {
       return ""; // Return empty string if no text should be shown
     }
-    
+
     const slideInX = `if(lt(t\\,${animDuration})\\, ${textXStart}+(t/${animDuration})*(${textXEnd}-${textXStart})\\, ${textXEnd})`;
-  const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
-  
-  // Client name with shadow - Using Arial font WITHOUT fontfile parameter
-  let filter = `drawtext=text='${clientName}':fontcolor=${shadowColor}:fontsize=${fontSizeName}:` +
-    `font='Arial':x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},` +
-    `drawtext=text='${clientName}':fontcolor=${textColor}:fontsize=${fontSizeName}:` +
-    `font='Arial':x=${slideInX}:y=${nameY}:${alpha}`;
-  
-  // Brand name with shadow - Using Arial font WITHOUT fontfile parameter
-  filter += `,drawtext=text='${brandName}':fontcolor=${shadowColor}:fontsize=${fontSizeBrand}:` +
-    `font='Arial':x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:` +
-    `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity},` +
-    `drawtext=text='${brandName}':fontcolor=${textColor}:fontsize=${fontSizeBrand}:` +
-    `font='Arial':x=${slideInX}:y=${brandY}:` +
-    `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
-  
-  return filter;
+    const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
+
+    // Client name with shadow - Using Arial font WITHOUT fontfile parameter
+    let filter = `drawtext=text='${clientName}':fontcolor=${shadowColor}:fontsize=${fontSizeName}:` +
+      `font='Arial':x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},` +
+      `drawtext=text='${clientName}':fontcolor=${textColor}:fontsize=${fontSizeName}:` +
+      `font='Arial':x=${slideInX}:y=${nameY}:${alpha}`;
+
+    // Brand name with shadow - Using Arial font WITHOUT fontfile parameter
+    filter += `,drawtext=text='${brandName}':fontcolor=${shadowColor}:fontsize=${fontSizeBrand}:` +
+      `font='Arial':x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:` +
+      `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity},` +
+      `drawtext=text='${brandName}':fontcolor=${textColor}:fontsize=${fontSizeBrand}:` +
+      `font='Arial':x=${slideInX}:y=${brandY}:` +
+      `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
+
+    return filter;
   }
 
   // Helper function to build filter for each video based on text option
   function buildVideoFilter(videoIndex, showText) {
     const input = `[${videoIndex}:v]`;
     const output = `[v${videoIndex}]`;
-    
+
     const baseFilter = `scale=1080:1920:force_original_aspect_ratio=decrease,` +
       `pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30`;
-    
+
     let filter = input + baseFilter;
-    
+
     // Add text filter only if showText is true
     if (showText) {
       const textFilter = buildTextFilter(showText);
@@ -896,26 +896,26 @@ async function mergeThreeVideos({
         filter += `,${textFilter}`;
       }
     }
-    
+
     return filter + output;
   }
 
   // Build filter array
   const filters = [];
-  
-  // Handle string values like 'true' and 'false'
-  const showText1 = video1TextOption === undefined ? true : 
-                   video1TextOption === true || video1TextOption === 'true';
-  
-  const showText2 = video2TextOption === undefined ? true : 
-                   video2TextOption === true || video2TextOption === 'true';
-  
-  const showText3 = video3TextOption === undefined ? true : 
-                   video3TextOption === true || video3TextOption === 'true';
 
-  
+  // Handle string values like 'true' and 'false'
+  const showText1 = video1TextOption === undefined ? true :
+    video1TextOption === true || video1TextOption === 'true';
+
+  const showText2 = video2TextOption === undefined ? true :
+    video2TextOption === true || video2TextOption === 'true';
+
+  const showText3 = video3TextOption === undefined ? true :
+    video3TextOption === true || video3TextOption === 'true';
+
+
   // console.log("Congrats Option:", congratsOption);
-  
+
   filters.push(buildVideoFilter(0, showText1));
   filters.push(buildVideoFilter(1, showText2));
   filters.push(buildVideoFilter(2, showText3));
@@ -938,10 +938,10 @@ async function mergeThreeVideos({
     const duration1 = await getVideoDuration(tempvideo1Path);
     const duration2 = await getVideoDuration(tempvideo2Path);
     const duration3 = await getVideoDuration(tempvideo3Path);
-    
+
     let totalDuration = duration1 + duration2 + duration3;
     const congratsDuration = 4; // Fixed duration for congratulations screen
-    
+
     // Only add congratulations if congratsOption is true
     if (congratsOption === true || congratsOption === 'true') {
       totalDuration += congratsDuration;
@@ -949,31 +949,31 @@ async function mergeThreeVideos({
       const line2 = escapeFFmpegText(clientname);
       const congratsFontSize1 = 100;
       const congratsFontSize2 = 120;
-      
+
       // Use simple color names that FFmpeg understands
       const congratsBgColor = "darkred";
       const congratsGoldColor = "yellow";
       const clientNameColor = "white";
-      
+
       filters.push(
         // Create solid background for congratulations
         `color=c=${congratsBgColor}:s=1080x1920:d=${congratsDuration}[congratsbg]`,
-        
+
         // Congratulations text - YELLOW/GOLD
         `[congratsbg]drawtext=text='${line1}':fontcolor=black:fontsize=${congratsFontSize1}:` +
         `x=(w-text_w)/2+3:y=h/2-180+3:enable='between(t,0,${congratsDuration})'[cg1shadow]`,
-        
+
         `[cg1shadow]drawtext=text='${line1}':fontcolor=${congratsGoldColor}:fontsize=${congratsFontSize1}:` +
         `x=(w-text_w)/2:y=h/2-180:enable='between(t,0,${congratsDuration})'[cg1]`,
-        
+
         // Client name - BIG and WHITE
         `[cg1]drawtext=text='${line2}':fontcolor=black:fontsize=${congratsFontSize2}:` +
         `x=(w-text_w)/2+4:y=h/2+4:enable='between(t,0,${congratsDuration})'[cg2shadow]`,
-        
+
         `[cg2shadow]drawtext=text='${line2}':fontcolor=${clientNameColor}:fontsize=${congratsFontSize2}:` +
         `x=(w-text_w)/2:y=h/2:enable='between(t,0,${congratsDuration})'[v3]`
       );
-      
+
       // Concatenate all 4 videos (3 original + 1 congratulations)
       filters.push(`[v0][v1][v2][v3]concat=n=4:v=1:a=0[vout]`);
     } else {
@@ -981,17 +981,17 @@ async function mergeThreeVideos({
       // Only concatenate the 3 original videos
       filters.push(`[v0][v1][v2]concat=n=3:v=1:a=0[vout]`);
     }
-    
+
     // console.log(`Video durations: ${duration1.toFixed(2)}s + ${duration2.toFixed(2)}s + ${duration3.toFixed(2)}s = ${totalDuration.toFixed(2)}s`);
-    
+
     // Calculate fade start time (start fading 2 seconds before end)
     const fadeStart = Math.max(0, totalDuration - 2);
     // console.log(`Will apply audio fade-out starting at ${fadeStart.toFixed(2)}s`);
-    
+
     // Now do the merge in a single pass with estimated fade timing
     await new Promise((resolve, reject) => {
       // console.log("Starting merge...");
-      
+
       let cmd = ffmpeg()
         .input(tempvideo1Path)
         .input(tempvideo2Path)
@@ -1035,24 +1035,24 @@ async function mergeThreeVideos({
 
   } catch (durationError) {
     console.warn("Could not get video durations, using fallback approach:", durationError.message);
-    
+
     // Fallback approach without duration calculation
     let concatFilter;
-    
+
     // Only add congratulations if congratsOption is true
     if (congratsOption === true || congratsOption === 'true') {
       // console.log("Adding congratulations video (fallback mode)");
-      
+
       const congratsDuration = 4;
       const line1 = escapeFFmpegText("CONGRATULATIONS");
       const line2 = escapeFFmpegText(clientname);
       const congratsFontSize1 = 100;
       const congratsFontSize2 = 120;
-      
+
       const congratsBgColor = "darkred";
       const congratsGoldColor = "yellow";
       const clientNameColor = "white";
-      
+
       filters.push(
         `color=c=${congratsBgColor}:s=1080x1920:d=${congratsDuration}[congratsbg]`,
         `[congratsbg]drawtext=text='${line1}':fontcolor=black:fontsize=${congratsFontSize1}:` +
@@ -1064,19 +1064,19 @@ async function mergeThreeVideos({
         `[cg2shadow]drawtext=text='${line2}':fontcolor=${clientNameColor}:fontsize=${congratsFontSize2}:` +
         `x=(w-text_w)/2:y=h/2:enable='between(t,0,${congratsDuration})'[v3]`
       );
-      
+
       concatFilter = `[v0][v1][v2][v3]concat=n=4:v=1:a=0[vout]`;
     } else {
       // console.log("NOT adding congratulations video (fallback mode)");
       concatFilter = `[v0][v1][v2]concat=n=3:v=1:a=0[vout]`;
     }
-    
+
     filters.push(concatFilter);
-    
+
     // Fallback: Use simpler approach without fade timing
     await new Promise((resolve, reject) => {
       // console.log("Starting fallback merge (no audio fade-out)...");
-      
+
       let cmd = ffmpeg()
         .input(tempvideo1Path)
         .input(tempvideo2Path)

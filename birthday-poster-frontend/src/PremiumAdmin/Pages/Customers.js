@@ -688,7 +688,6 @@ const Customers = () => {
     const fetchCustomers = async () => {
       try {
         setLoading(true);
-        console.log('Fetching customers data for admin:', user._id || user.id);
 
         // Fetch templates to get accessType mapping
         let templateAccessTypeMap = {};
@@ -706,7 +705,6 @@ const Customers = () => {
 
         // Optimized: Fetch with reasonable limit for faster load
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=2000`);
-        console.log('Raw response data:', response.data);
 
         // Handle paginated responses
         const dataArray = Array.isArray(response.data?.data)
@@ -716,8 +714,6 @@ const Customers = () => {
         const rawItems = dataArray.filter(item =>
           item.source === 'photo merge app' || item.source === 'video merge app'
         );
-        console.log('Filtered items (Merge Apps):', rawItems.length);
-
         const customersMap = {};
 
         rawItems.forEach(item => {
@@ -800,7 +796,6 @@ const Customers = () => {
 
         mappedData.sort((a, b) => b.timestamp - a.timestamp);
 
-        console.log('Mapped customers data:', mappedData.length, 'customers');
         setCustomers(mappedData);
       } catch (error) {
         console.error("Error fetching customers:", error);
@@ -943,17 +938,11 @@ const Customers = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        console.log('Fetching metrics for customers page');
         const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
-        console.log('Metrics response:', metricsResponse.data);
         if (metricsResponse.data?.metrics?.customers) {
           setApiMetrics(metricsResponse.data.metrics.customers);
-          console.log('Set API metrics:', metricsResponse.data.metrics.customers);
-        } else {
-          console.warn('No customer metrics found in response');
         }
       } catch (error) {
-        console.error("Error fetching metrics (using defaults):", error);
         // Keep default values (0 growth) if API fails
       }
     };
@@ -962,11 +951,8 @@ const Customers = () => {
 
   // Calculate metrics using local data for values and API for growth
   const calculateMetrics = () => {
-    console.log('Calculating metrics - customers:', customers?.length, 'apiMetrics:', apiMetrics);
-
     // Return default values if customers data is not loaded yet
     if (!customers || customers.length === 0) {
-      console.log('No customers yet, using API metrics or defaults');
       return {
         totalCustomers: apiMetrics.totalCustomers?.value || 0,
         activeToday: apiMetrics.activeToday?.value || 0,

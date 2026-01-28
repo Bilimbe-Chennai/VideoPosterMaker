@@ -586,7 +586,7 @@ const TemplateManager = () => {
 
       const usageCounts = {};
       rawPhotos
-        .filter(item => item.source === 'Photo Merge App')
+        .filter(item => item.source === 'photo merge app')
         .forEach(item => {
           const templateName = item.template_name || item.templatename || item.type;
           if (templateName) {
@@ -623,11 +623,11 @@ const TemplateManager = () => {
 
       const recentPhotos = rawPhotos.filter(item => {
         const date = new Date(item.date || item.createdAt);
-        return item.source === 'Photo Merge App' && date >= last30Days;
+        return item.source === 'photo merge app' && date >= last30Days;
       });
       const previousPhotos = rawPhotos.filter(item => {
         const date = new Date(item.date || item.createdAt);
-        return item.source === 'Photo Merge App' && date >= last60Days && date < last30Days;
+        return item.source === 'photo merge app' && date >= last60Days && date < last30Days;
       });
 
       const recentUsage = recentPhotos.length;

@@ -268,7 +268,6 @@ const TopBar = ({ onMenuClick }) => {
   };
 
   const handleSearchResultClick = (type, item) => {
-    console.log('Search result clicked:', type, item);
     setShowSearchResults(false);
     setSearchQuery('');
 

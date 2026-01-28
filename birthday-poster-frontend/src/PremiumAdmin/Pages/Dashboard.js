@@ -586,9 +586,11 @@ const Dashboard = () => {
     totalPhotos: 0,
     totalVideos: 0,
     totalShares: 0,
+    totalDownloads: 0,
     conversion: '0%',
     customerGrowth: 0,
     photosGrowth: 0,
+    photosTodayGrowth: 0,
     totalVideosGrowth: 0,
     sharesGrowth: 0
   });
@@ -609,16 +611,14 @@ const Dashboard = () => {
               templateAccessTypeMap[template.templatename] = template.accessType || 'photomerge';
             }
           });
-          console.log('Templates fetched:', templates.length, 'AccessType map:', templateAccessTypeMap);
         } catch (templatesError) {
-          console.error("Error fetching templates (will use fallback logic):", templatesError);
+          // Error fetching templates - will use fallback logic
         }
 
         // STEP 2: Fetch DATA first (completely independent of metrics)
         // Optimized: Fetch only last 1000 items for dashboard (faster load)
         // Metrics will fetch full data in background if needed
         const response = await axiosData.get(`upload/all?adminid=${user._id || user.id}&page=1&limit=1000`);
-        console.log('DATA API Response - Total items:', response.data?.data?.length || response.data?.length || 0);
 
         // STEP 3: Fetch METRICS separately (only for growth percentages)
         // Metrics do NOT affect data display
@@ -626,9 +626,8 @@ const Dashboard = () => {
         try {
           const metricsResponse = await axiosData.get(`upload/dashboard-metrics?adminid=${user._id || user.id}`);
           apiMetrics = metricsResponse.data?.metrics?.dashboard || {};
-          console.log('METRICS API Response (growth only):', apiMetrics);
         } catch (metricsError) {
-          console.error("Error fetching metrics (will use defaults for growth):", metricsError);
+          // Error fetching metrics - will use defaults for growth
           // Metrics error should NOT affect data display
         }
 
@@ -642,8 +641,6 @@ const Dashboard = () => {
           (item.source && item.source.toLowerCase() === 'photo merge app') ||
           (item.source && item.source.toLowerCase() === 'video merge app')
         );
-
-        console.log('DATA Processing - Filtered items count:', rawItems.length);
 
         const customersMap = {};
         const dailyTrends = {};
@@ -774,23 +771,10 @@ const Dashboard = () => {
           // If metrics API fails, growth will be 0 but data will still display
           customerGrowth: apiMetrics.totalCustomers?.growth ?? 0,
           photosGrowth: apiMetrics.totalPhotos?.growth ?? 0,
+          photosTodayGrowth: apiMetrics.photosToday?.growth ?? 0,
           totalVideosGrowth: 0, // Split metrics might not be available
           sharesGrowth: apiMetrics.totalShares?.growth ?? 0
         };
-        console.log('DATA Stats (from actual data):', {
-          totalCustomers,
-          totalPhotos: photoCount,
-          totalVideos: videoCount,
-          totalShares,
-          totalDownloads
-        });
-        console.log('METRICS Stats (growth only):', {
-          customerGrowth: finalStats.customerGrowth,
-          photosGrowth: finalStats.photosGrowth,
-          totalVideosGrowth: finalStats.totalVideosGrowth,
-          sharesGrowth: finalStats.sharesGrowth
-        });
-        console.log('Final Stats (data + metrics):', finalStats);
         setStats(finalStats);
 
         // Top Customers Update
@@ -841,17 +825,18 @@ const Dashboard = () => {
         setRecentActivities(constructedActivities);
 
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
         // Set default stats even on error so UI shows something
         setStats({
           totalCustomers: 0,
           totalPhotos: 0,
-          photosToday: 0,
+          totalVideos: 0,
           totalShares: 0,
+          totalDownloads: 0,
           conversion: '0%',
           customerGrowth: 0,
           photosGrowth: 0,
           photosTodayGrowth: 0,
+          totalVideosGrowth: 0,
           sharesGrowth: 0
         });
       }
@@ -860,56 +845,56 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const customerTrend = generateTrendPath(stats.customerGrowth);
-  const photosTrend = generateTrendPath(stats.photosGrowth);
-  const photosTodayTrend = generateTrendPath(stats.photosTodayGrowth);
-  const sharesTrend = generateTrendPath(stats.sharesGrowth);
+  const customerTrend = generateTrendPath(stats.customerGrowth ?? 0);
+  const photosTrend = generateTrendPath(stats.photosGrowth ?? 0);
+  const photosTodayTrend = generateTrendPath(stats.photosTodayGrowth ?? 0);
+  const sharesTrend = generateTrendPath(stats.sharesGrowth ?? 0);
 
   const kpis = [
     {
       label: 'Total Customers',
-      value: stats.totalCustomers.toLocaleString(),
-      change: `${stats.customerGrowth >= 0 ? '+' : ''}${stats.customerGrowth}%`,
+      value: (stats.totalCustomers ?? 0).toLocaleString(),
+      change: `${(stats.customerGrowth ?? 0) >= 0 ? '+' : ''}${stats.customerGrowth ?? 0}%`,
       icon: <Users size={20} />,
       bgColor: '#FEF3C7',
       trendColor: '#F59E0B',
-      positive: stats.customerGrowth >= 0,
+      positive: (stats.customerGrowth ?? 0) >= 0,
       points: customerTrend.points,
       endX: customerTrend.endX,
       endY: customerTrend.endY
     },
     {
       label: 'Total Photos',
-      value: stats.totalPhotos ? stats.totalPhotos.toLocaleString() : '0',
-      change: `${stats.photosGrowth >= 0 ? '+' : ''}${stats.photosGrowth}%`,
+      value: (stats.totalPhotos ?? 0).toLocaleString(),
+      change: `${(stats.photosGrowth ?? 0) >= 0 ? '+' : ''}${stats.photosGrowth ?? 0}%`,
       icon: <Image size={20} />,
       bgColor: '#E8D5FF',
       trendColor: '#8B5CF6',
-      positive: stats.photosGrowth >= 0,
+      positive: (stats.photosGrowth ?? 0) >= 0,
       points: photosTrend.points,
       endX: photosTrend.endX,
       endY: photosTrend.endY
     },
     {
       label: 'Total Videos',
-      value: stats.totalVideos.toLocaleString(),
-      change: `${stats.totalVideosGrowth >= 0 ? '+' : ''}${stats.totalVideosGrowth}%`,
+      value: (stats.totalVideos ?? 0).toLocaleString(),
+      change: `${(stats.totalVideosGrowth ?? 0) >= 0 ? '+' : ''}${stats.totalVideosGrowth ?? 0}%`,
       icon: <Video size={20} />,
       bgColor: '#D1FAE5',
       trendColor: '#10B981',
-      positive: stats.totalVideosGrowth >= 0,
+      positive: (stats.totalVideosGrowth ?? 0) >= 0,
       points: photosTodayTrend.points,
       endX: photosTodayTrend.endX,
       endY: photosTodayTrend.endY
     },
     {
       label: 'Total Shares',
-      value: stats.totalShares.toLocaleString(),
-      change: `${stats.sharesGrowth >= 0 ? '+' : ''}${stats.sharesGrowth}%`,
+      value: (stats.totalShares ?? 0).toLocaleString(),
+      change: `${(stats.sharesGrowth ?? 0) >= 0 ? '+' : ''}${stats.sharesGrowth ?? 0}%`,
       icon: <Share2 size={20} />,
       bgColor: '#FED7AA',
       trendColor: '#F97316',
-      positive: stats.sharesGrowth >= 0,
+      positive: (stats.sharesGrowth ?? 0) >= 0,
       points: sharesTrend.points,
       endX: sharesTrend.endX,
       endY: sharesTrend.endY

@@ -5,13 +5,14 @@ const axios = require('axios');
 // Helper function to send WhatsApp message (same as in campaigns.js)
 const sendWhatsAppMessage = async (toNumber, message, templateId, token) => {
   try {
+    const cleanToNumber = toNumber ? toNumber.replace('+', '') : '';
     if (!token) {
       throw new Error('ChatMyBot token not configured');
     }
 
     const payload = [
       {
-        to: toNumber,
+        to: cleanToNumber,
         type: "template",
         template: {
           id: templateId,
@@ -63,8 +64,6 @@ const { getAdminSettings } = require('./settingsUtils');
 // Function to automatically send a scheduled campaign
 const sendScheduledCampaign = async (campaign) => {
   try {
-    console.log(`[Campaign Scheduler] Processing scheduled campaign: ${campaign.name} (ID: ${campaign._id})`);
-
     // Fetch Admin Settings for Dynamic Integrations
     const adminSettings = await getAdminSettings(campaign.adminid);
     const waToken = adminSettings.integrations?.whatsapp?.apiKey || process.env.CHATMYBOT_TOKEN;
@@ -74,7 +73,7 @@ const sendScheduledCampaign = async (campaign) => {
     const defaultTemplateId = process.env.WHATSAPP_TEMPLATE_ID_APP || process.env.WHATSAPP_TEMPLATE_ID;
 
     // Get target customers
-    const query = { source: campaign.targetAudience?.source || 'Photo Merge App' };
+    const query = { source: campaign.targetAudience?.source || 'photo merge app' };
     if (campaign.adminid) {
       query.adminid = campaign.adminid;
     }
@@ -104,7 +103,6 @@ const sendScheduledCampaign = async (campaign) => {
     const totalCustomers = customers.length;
 
     if (totalCustomers === 0) {
-      console.log(`[Campaign Scheduler] No valid customers found for campaign: ${campaign.name}`);
       campaign.status = 'Failed';
       campaign.updatedAt = new Date();
       await campaign.save();
@@ -172,8 +170,6 @@ const sendScheduledCampaign = async (campaign) => {
     campaign.updatedAt = new Date();
     await campaign.save();
 
-    console.log(`[Campaign Scheduler] Campaign "${campaign.name}" sent: ${deliveredCount} delivered, ${failedCount} failed out of ${totalCustomers} customers`);
-
     return {
       success: sentCount > 0,
       message: `Campaign sent: ${deliveredCount} delivered, ${failedCount} failed out of ${totalCustomers} customers`,
@@ -211,8 +207,6 @@ const checkAndActivateScheduledCampaigns = async () => {
       return; // No campaigns to activate
     }
 
-    console.log(`[Campaign Scheduler] Found ${scheduledCampaigns.length} scheduled campaign(s) to activate`);
-
     // Process each scheduled campaign
     for (const campaign of scheduledCampaigns) {
       try {
@@ -228,8 +222,6 @@ const checkAndActivateScheduledCampaigns = async () => {
 
 // Start the scheduler
 const startCampaignScheduler = () => {
-  console.log('[Campaign Scheduler] Starting campaign scheduler...');
-
   // Check immediately on startup
   checkAndActivateScheduledCampaigns();
 
@@ -237,8 +229,6 @@ const startCampaignScheduler = () => {
   const interval = setInterval(() => {
     checkAndActivateScheduledCampaigns();
   }, 60000); // Check every 1 minute
-
-  console.log('[Campaign Scheduler] Campaign scheduler started. Checking every 1 minute for scheduled campaigns.');
 
   return interval;
 };

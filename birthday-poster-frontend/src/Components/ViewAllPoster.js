@@ -550,7 +550,7 @@ export default function ViewAllPoster() {
         bgColor: "rgba(255, 61, 61, 0.1)",
         description: "3 video composition",
       },
-      "Photo Merge App": {
+     "photo merge app": {
         display: "Photo + Template",
         icon: <Image />,
         color: "#4caf50", // Vibrant red
@@ -693,7 +693,7 @@ export default function ViewAllPoster() {
               <MenuItem value="photogif">Photo + GIF</MenuItem>
               <MenuItem value="videophoto">Video + Photo</MenuItem>
                <MenuItem value="videovideovideo">Video + Video + Video</MenuItem>
-                <MenuItem value="Photo Merge App">Photo Merge App</MenuItem>
+                <MenuItem value="photo merge app">photo merge app</MenuItem>
             </Select>
           </FormControl>
         </Box> */}
