@@ -110,11 +110,19 @@ const UserForm = () => {
                 delete payload.password; // Don't update password if empty in edit mode
             }
 
+            let response;
             if (isEditMode) {
-                await axiosData.put(`/users/${id}`, payload);
+                response = await axiosData.put(`/users/${id}`, payload);
                 setSuccess('User updated successfully!');
+                
+                // Dispatch event to notify logged-in users of the update
+                if (response.data?.success && response.data?.data) {
+                    window.dispatchEvent(new CustomEvent('userUpdated', { 
+                        detail: { userId: id, user: response.data.data } 
+                    }));
+                }
             } else {
-                await axiosData.post('/users', payload);
+                response = await axiosData.post('/users', payload);
                 setSuccess('User created successfully!');
             }
 

@@ -10,6 +10,8 @@ const AdminSettingsSchema = new mongoose.Schema({
   video1TextOption: { type: Boolean, default: false },
   video2TextOption: { type: Boolean, default: false },
   video3TextOption: { type: Boolean, default: false },
+  overlayTextColor: { type: String, default: 'white' },
+  overlayFontFamily: { type: String, default: 'Arial' },
   approved: { type: Boolean, default: false },
   photoId: mongoose.Schema.Types.ObjectId,
   videoId: mongoose.Schema.Types.ObjectId,

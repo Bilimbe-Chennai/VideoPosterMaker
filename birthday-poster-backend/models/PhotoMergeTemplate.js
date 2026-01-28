@@ -23,6 +23,8 @@ const PhotoMergeTemplateSchema = new mongoose.Schema({
     video1TextOption: { type: String },
     video2TextOption: { type: String },
     video3TextOption: { type: String },
+    overlayTextColor: { type: String, default: '#FFFFFF' },
+    overlayFontFamily: { type: String, default: 'Arial' },
     approved: { type: String },
     updatedDate: { type: Date, default: Date.now },
     type: { type: String, default: 'template' },

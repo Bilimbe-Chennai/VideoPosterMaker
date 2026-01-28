@@ -292,6 +292,7 @@ const DEFAULT_SETTINGS = {
         email: '',
         phone: '',
         instagramLink: '',
+        instagramButtonText: 'Visit Our Instagram',
         dateFormat: 'YYYY-MM-DD',
         exportFormat: 'Excel'
     },
@@ -594,6 +595,32 @@ const SettingsPage = () => {
                                                 value={settings.general.instagramLink || ''}
                                                 onChange={e => updateSetting('general', 'instagramLink', e.target.value)}
                                             />
+                                        </FormGroup>
+                                        <FormGroup>
+                                            <Label>Instagram Button Text</Label>
+                                            <Input
+                                                type="text"
+                                                placeholder="Visit Our Instagram"
+                                                value={settings.general.instagramButtonText || 'Visit Our Instagram'}
+                                                onChange={e => updateSetting('general', 'instagramButtonText', e.target.value)}
+                                                maxLength={30}
+                                            />
+                                            <div style={{ 
+                                                fontSize: '12px', 
+                                                color: '#888', 
+                                                marginTop: '4px',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center'
+                                            }}>
+                                                <span>Maximum 30 characters for better alignment</span>
+                                                <span style={{ 
+                                                    fontWeight: 600,
+                                                    color: (settings.general.instagramButtonText || 'Visit Our Instagram').length > 25 ? '#F59E0B' : '#666'
+                                                }}>
+                                                    {(settings.general.instagramButtonText || 'Visit Our Instagram').length}/30
+                                                </span>
+                                            </div>
                                         </FormGroup>
                                         <FormGroup>
                                             <Label>Date Format</Label>

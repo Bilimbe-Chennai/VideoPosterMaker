@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createGlobalStyle } from 'styled-components';
 import { theme } from './theme';
@@ -17,6 +17,8 @@ import Settings from './Pages/Settings';
 import Notifications from './Pages/Notifications';
 import Placeholder from './Components/Placeholder';
 import PrivateRoute from '../Components/PrivateRoute';
+import useAxios from '../useAxios';
+import { setupUserRefreshListener, startUserDataPolling } from '../utils/userRefresh';
 
 const GlobalStyle = createGlobalStyle`
   * {
@@ -71,6 +73,28 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 function PremiumAdminApp() {
+  const axiosData = useAxios();
+
+  useEffect(() => {
+    // Set up user refresh listener for real-time updates
+    const cleanupListener = setupUserRefreshListener(axiosData, (updatedUser) => {
+      console.log('User data refreshed:', updatedUser);
+      // Optionally show a notification to the user
+      if (window.showGlobalAlert) {
+        window.showGlobalAlert('Your account information has been updated.', 'info');
+      }
+    });
+
+    // Start polling as a fallback (checks every 30 seconds)
+    const stopPolling = startUserDataPolling(axiosData, 30000);
+
+    // Cleanup on unmount
+    return () => {
+      cleanupListener();
+      stopPolling();
+    };
+  }, [axiosData]);
+
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyle />

@@ -14,7 +14,8 @@ const ShareScreen = () => {
   const [isVideo, setIsVideo] = useState(false);
   const [mediaUrl, setMediaUrl] = useState('');
   const [videoLoading, setVideoLoading] = useState(false);
-  const [instagramLink, setInstagramLink] = useState('https://www.instagram.com/kanchivmlsilks/?hl=en');
+  const [instagramLink, setInstagramLink] = useState('');
+  const [instagramButtonText, setInstagramButtonText] = useState('Visit Our Instagram');
   const videoRef = useRef(null);
 
   // Fetch media data and determine if it's a video, and get Instagram link
@@ -55,9 +56,12 @@ const ShareScreen = () => {
         if (isVideoItem) {
           const videoId = data.mergedVideoId || data.posterVideoId;
           if (videoId) {
-            setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`);
+            const videoUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`;
+            console.log('Setting video URL:', videoUrl, 'Video ID:', videoId);
+            setMediaUrl(videoUrl);
           } else {
             // Fallback: use photoId from URL if no video ID found
+            console.warn('No video ID found, using photoId as fallback');
             setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`);
           }
         } else {
@@ -66,22 +70,35 @@ const ShareScreen = () => {
           setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${mediaId}`);
         }
         
-        // Fetch Instagram link from admin settings based on adminid
+        // Fetch Instagram link and button text from admin settings based on adminid
         if (data.adminid) {
           try {
             const settingsResponse = await axios.get(`https://api.bilimbebrandactivations.com/api/users/premium-settings?adminid=${data.adminid}`);
-            if (settingsResponse.data?.success && settingsResponse.data?.settings?.general?.instagramLink) {
-              setInstagramLink(settingsResponse.data.settings.general.instagramLink);
+            if (settingsResponse.data?.success && settingsResponse.data?.settings?.general) {
+              if (settingsResponse.data.settings.general.instagramLink) {
+                setInstagramLink(settingsResponse.data.settings.general.instagramLink);
+              }
+              if (settingsResponse.data.settings.general.instagramButtonText) {
+                setInstagramButtonText(settingsResponse.data.settings.general.instagramButtonText);
+              }
             }
           } catch (settingsErr) {
-            console.error("Error fetching Instagram link:", settingsErr);
-            // Keep default Instagram link if fetch fails
+            console.error("Error fetching Instagram settings:", settingsErr);
+            // Keep default values if fetch fails
           }
         }
         
-        // For images, set loading to false immediately
-        if (!isVideoItem) {
-          setLoading(false);
+        // Set loading to false so the component can render (both images and videos)
+        setLoading(false);
+        
+        // For videos, show loading indicator initially
+        if (isVideoItem) {
+          setVideoLoading(true);
+          
+          // Fallback: If video events don't fire, hide loading after 3 seconds
+          setTimeout(() => {
+            setVideoLoading(false);
+          }, 3000);
         }
       } catch (err) {
         console.error("Error fetching media data:", err);
@@ -92,6 +109,13 @@ const ShareScreen = () => {
     
     fetchMediaData();
   }, [photoId]);
+
+  // Debug: Log when mediaUrl or isVideo changes
+  useEffect(() => {
+    if (isVideo) {
+      console.log('Video mode - mediaUrl:', mediaUrl, 'isVideo:', isVideo, 'loading:', loading, 'videoLoading:', videoLoading);
+    }
+  }, [mediaUrl, isVideo, loading, videoLoading]);
 
   // Track URL click when ShareScreen is viewed
   useEffect(() => {
@@ -166,8 +190,8 @@ const ShareScreen = () => {
   };
 
   const handleVideoLoadStart = () => {
+    // Only set videoLoading, don't set loading to true (that would hide the video element)
     setVideoLoading(true);
-    setLoading(true);
   };
 
   const handleVideoLoadedMetadata = () => {
@@ -274,17 +298,13 @@ const ShareScreen = () => {
     document.body.removeChild(link);
   };
 
-  const handleBackToHome = () => {
-    navigate("/photomergeapp");
-  };
-
   // Show loading state
   if (loading) {
     return (
       <div className="share-screen">
         <div className="loading-container">
           <div className="spinner"></div>
-          <p className="loading-text">Loading your photo...</p>
+          <p className="loading-text">{isVideo ? 'Loading your video...' : 'Loading your photo...'}</p>
         </div>
       </div>
     );
@@ -292,32 +312,61 @@ const ShareScreen = () => {
 
   // Show error state
   if (imageError) {
+    const isPhotoError = !isVideo;
     return (
-      <div className="share-screen error-state">
+      <div className={`share-screen error-state ${isPhotoError ? 'photo-error' : 'video-error'}`}>
         <div className="error-container">
-          <h2>Photo Not Found</h2>
-          <p>The photo you're looking for doesn't exist or has been removed.</p>
-          <button className="back-button" onClick={handleBackToHome}>
-            Go Back to Home
-          </button>
+          <div className="error-icon-wrapper">
+            <div className="error-icon-pulse"></div>
+            {isPhotoError ? (
+              <svg className="error-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
+                <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
+                <path d="M21 15L16 10L5 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              <svg className="error-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
+                <path d="M10 8L14 12L10 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
+          <h2 className="error-title">{isPhotoError ? 'Photo Not Found' : 'Video Not Found'}</h2>
+          <p className="error-message">
+            {isPhotoError 
+              ? "The photo you're looking for doesn't exist or has been removed."
+              : "The video you're looking for doesn't exist or has been removed."
+            }
+          </p>
+          <div className="error-dots">
+            <span className="error-dot"></span>
+            <span className="error-dot"></span>
+            <span className="error-dot"></span>
+          </div>
         </div>
       </div>
     );
   }
+
+  // Truncate Instagram button text for better alignment (max 30 characters)
+  const truncateText = (text, maxLength = 30) => {
+    if (!text || text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + '...';
+  };
 
   const InstagramLink = () => (
     <a
       href={instagramLink}
       target="_blank"
       rel="noopener noreferrer"
-      className="instagram-link-row"
+      className="instagram-button"
     >
-      <span className="insta-icon-small">
+      <span className="insta-icon-button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
         </svg>
       </span>
-      <span className="insta-text"><span className="link-highlight">Click here</span> to visit our Instagram page</span>
+      <span className="insta-button-text" title={instagramButtonText}>{truncateText(instagramButtonText)}</span>
     </a>
   );
 
@@ -368,33 +417,51 @@ const ShareScreen = () => {
                   <span style={{ color: '#667eea', fontSize: '14px', fontWeight: 600 }}>Loading video...</span>
                 </div>
               )}
-              <video
-                ref={videoRef}
-                src={mediaUrl}
-                controls
-                autoPlay
-                loop
-                preload="metadata"
-                className="merged-image"
-                style={{
-                  width: '100%',
-                  maxWidth: '100%',
-                  maxHeight: '70vh',
-                  height: 'auto',
-                  objectFit: 'contain',
-                  borderRadius: '12px',
-                  opacity: videoLoading ? 0 : 1,
-                  transition: 'opacity 0.3s ease',
-                  visibility: videoLoading ? 'hidden' : 'visible',
-                  display: videoLoading ? 'none' : 'block'
-                }}
-                onLoadStart={handleVideoLoadStart}
-                onLoadedMetadata={handleVideoLoadedMetadata}
-                onLoadedData={handleVideoLoadedData}
-                onCanPlay={handleVideoCanPlay}
-                onCanPlayThrough={handleVideoCanPlayThrough}
-                onError={handleVideoError}
-              />
+              {mediaUrl ? (
+                <video
+                  ref={videoRef}
+                  src={mediaUrl}
+                  controls
+                  autoPlay
+                  loop
+                  playsInline
+                  muted={false}
+                  preload="auto"
+                  className="merged-image"
+                  style={{
+                    width: '100%',
+                    maxWidth: '100%',
+                    maxHeight: '70vh',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    borderRadius: '12px',
+                    opacity: videoLoading ? 0.6 : 1,
+                    transition: 'opacity 0.3s ease',
+                    display: 'block',
+                    visibility: 'visible',
+                    zIndex: 1
+                  }}
+                  onLoadStart={handleVideoLoadStart}
+                  onLoadedMetadata={handleVideoLoadedMetadata}
+                  onLoadedData={handleVideoLoadedData}
+                  onCanPlay={handleVideoCanPlay}
+                  onCanPlayThrough={handleVideoCanPlayThrough}
+                  onPlaying={() => {
+                    setVideoLoading(false);
+                  }}
+                  onWaiting={() => {
+                    setVideoLoading(true);
+                  }}
+                  onError={(e) => {
+                    console.error('Video error:', e, 'URL:', mediaUrl);
+                    handleVideoError();
+                  }}
+                />
+              ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                  <p>Video URL not available</p>
+                </div>
+              )}
             </div>
           ) : (
             <img

@@ -81,6 +81,7 @@ router.post('/template-upload', async (req, res) => {
 
                 // Video merge fields (for accessType: 'videomerge')
                 let name, date, faceSwap, videosMergeOption, clientname, brandname,
+                    overlayTextColor, overlayFontFamily,
                     congratsOption, video1TextOption, video2TextOption, video3TextOption, approved;
                 let video1Buffer, video2Buffer, video3Buffer, audioBuffer;
                 // Animation fields
@@ -137,6 +138,10 @@ router.post('/template-upload', async (req, res) => {
                             video2TextOption = body.toString().trim();
                         } else if (headersText.includes('name="video3TextOption"')) {
                             video3TextOption = body.toString().trim();
+                        } else if (headersText.includes('name="overlayTextColor"')) {
+                            overlayTextColor = body.toString().trim();
+                        } else if (headersText.includes('name="overlayFontFamily"')) {
+                            overlayFontFamily = body.toString().trim();
                         } else if (headersText.includes('name="videosMergeOption"')) {
                             videosMergeOption = body.toString().trim();
                         } else if (headersText.includes('name="approved"')) {
@@ -173,11 +178,6 @@ router.post('/template-upload', async (req, res) => {
                         return res.status(400).json({ error: 'Template name is required' });
                     }
                     
-                    // Require audio
-                    if (!audioBuffer) {
-                        return res.status(400).json({ error: 'Audio is required' });
-                    }
-                    
                     // If animation is enabled, require gif
                     if (hasAnimation) {
                         if (!gifBuffer) {
@@ -206,12 +206,29 @@ router.post('/template-upload', async (req, res) => {
                             "video/mp4"
                         );
                     }
-                    // audio is required
-                    audioId = await uploadToGridFS(
-                        `audio-${Date.now()}.mp3`,
-                        audioBuffer,
-                        "audio/mp3"
-                    );
+                    // audio is optional - can be audio or video file
+                    if (audioBuffer) {
+                        // Check if it's a video file and extract audio if needed
+                        const filename = audioBuffer.filename || '';
+                        const contentType = audioBuffer.contentType || '';
+                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) || 
+                                       contentType.startsWith('video/');
+                        
+                        let finalAudioBuffer = audioBuffer.buffer;
+                        
+                        if (isVideo) {
+                            // Extract audio from video
+                            const { extractAudioFromVideo } = require('../utils/videoMerge');
+                            const extension = filename.split('.').pop() || 'mp4';
+                            finalAudioBuffer = await extractAudioFromVideo(finalAudioBuffer, extension);
+                        }
+                        
+                        audioId = await uploadToGridFS(
+                            `audio-${Date.now()}.mp3`,
+                            finalAudioBuffer,
+                            "audio/mp3"
+                        );
+                    }
                     // Upload animation file if enabled
                     if (hasAnimation && gifBuffer) {
                         gifId = await uploadToGridFS(
@@ -249,6 +266,8 @@ router.post('/template-upload', async (req, res) => {
                         video1TextOption,
                         video2TextOption,
                         video3TextOption,
+                        overlayTextColor: overlayTextColor || '#FFFFFF',
+                        overlayFontFamily: overlayFontFamily || 'Arial',
                         approved,
                         // Animation fields
                         hasAnimation,
@@ -335,7 +354,7 @@ router.put('/templates/:id', async (req, res) => {
                 let photoOrder = null;
 
                 // Video merge fields - initialize as null to distinguish between "not sent" and "sent as empty"
-                let name = null, date = null, clientname = null, brandname = null, congratsOption = null, video1TextOption = null, video2TextOption = null, video3TextOption = null, hasAnimation = null;
+                let name = null, date = null, clientname = null, brandname = null, congratsOption = null, video1TextOption = null, video2TextOption = null, video3TextOption = null, hasAnimation = null, overlayTextColor = null, overlayFontFamily = null;
                 let video1Buffer, video3Buffer, audioBuffer, gifBuffer;
                 let removeVideo1 = false, removeVideo3 = false, removeAudio = false, removeGif = false;
                 let accessType = null;
@@ -411,6 +430,14 @@ router.put('/templates/:id', async (req, res) => {
                         } else if (headersText.includes('name="video3TextOption"')) {
                             video3TextOption = body.toString().trim();
                             fieldsReceived.video3TextOption = true;
+                        } else if (headersText.includes('name="overlayTextColor"')) {
+                            overlayTextColor = body.toString().trim();
+                            fieldsReceived.overlayTextColor = true;
+                            console.log('Received overlayTextColor:', overlayTextColor);
+                        } else if (headersText.includes('name="overlayFontFamily"')) {
+                            overlayFontFamily = body.toString().trim();
+                            fieldsReceived.overlayFontFamily = true;
+                            console.log('Received overlayFontFamily:', overlayFontFamily);
                         } else if (headersText.includes('name="hasAnimation"')) {
                             hasAnimation = body.toString().trim() === 'true';
                             fieldsReceived.hasAnimation = true;
@@ -419,7 +446,15 @@ router.put('/templates/:id', async (req, res) => {
                         } else if (headersText.includes('name="video3"')) {
                             video3Buffer = body.length > 0 ? body : null;
                         } else if (headersText.includes('name="audio"')) {
-                            audioBuffer = body.length > 0 ? body : null;
+                            if (body.length > 0) {
+                                audioBuffer = {
+                                    buffer: body,
+                                    filename: headersText.match(/filename="(.+?)"/)?.[1] || `audio-${Date.now()}.mp3`,
+                                    contentType: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'audio/mpeg'
+                                };
+                            } else {
+                                audioBuffer = null;
+                            }
                         } else if (headersText.includes('name="gif"')) {
                             gifBuffer = body.length > 0 ? body : null;
                         } else if (headersText.includes('name="removeVideo1"')) {
@@ -485,6 +520,30 @@ router.put('/templates/:id', async (req, res) => {
                             updateData.brandname = brandname;
                         }
                     }
+                    if (fieldsReceived.overlayTextColor) {
+                        // Accept both hex (#RRGGBB) and color names, normalize to hex
+                        let colorValue = overlayTextColor || '#FFFFFF';
+                        if (!colorValue.startsWith('#')) {
+                            // It's a color name, convert to hex
+                            const colorMap = {
+                                'white': '#FFFFFF', 'black': '#000000', 'red': '#FF0000',
+                                'green': '#00FF00', 'blue': '#0000FF', 'yellow': '#FFFF00',
+                                'cyan': '#00FFFF', 'magenta': '#FF00FF', 'gray': '#808080',
+                                'grey': '#808080', 'orange': '#FFA500', 'purple': '#800080',
+                                'pink': '#FFC0CB', 'brown': '#A52A2A', 'silver': '#C0C0C0',
+                                'gold': '#FFD700', 'navy': '#000080', 'maroon': '#800000',
+                                'lime': '#00FF00', 'aqua': '#00FFFF', 'teal': '#008080',
+                                'olive': '#808000'
+                            };
+                            colorValue = colorMap[colorValue.toLowerCase()] || '#FFFFFF';
+                        }
+                        updateData.overlayTextColor = colorValue.toUpperCase();
+                        console.log('Setting updateData.overlayTextColor to:', updateData.overlayTextColor);
+                    }
+                    if (fieldsReceived.overlayFontFamily) {
+                        updateData.overlayFontFamily = overlayFontFamily || 'Arial';
+                        console.log('Setting updateData.overlayFontFamily to:', updateData.overlayFontFamily);
+                    }
                     if (fieldsReceived.congratsOption) updateData.congratsOption = congratsOption;
                     if (fieldsReceived.video1TextOption) updateData.video1TextOption = video1TextOption;
                     if (fieldsReceived.video2TextOption) updateData.video2TextOption = video2TextOption;
@@ -511,8 +570,23 @@ router.put('/templates/:id', async (req, res) => {
                     }
 
                     if (audioBuffer) {
-                        // New audio uploaded
-                        const audioId = await uploadToGridFS(`audio-${Date.now()}.mp3`, audioBuffer, "audio/mp3");
+                        // New audio uploaded - can be audio or video file
+                        // Check if it's a video file and extract audio if needed
+                        const filename = audioBuffer.filename || '';
+                        const contentType = audioBuffer.contentType || '';
+                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) || 
+                                       contentType.startsWith('video/');
+                        
+                        let finalAudioBuffer = audioBuffer.buffer;
+                        
+                        if (isVideo) {
+                            // Extract audio from video
+                            const { extractAudioFromVideo } = require('../utils/videoMerge');
+                            const extension = filename.split('.').pop() || 'mp4';
+                            finalAudioBuffer = await extractAudioFromVideo(finalAudioBuffer, extension);
+                        }
+                        
+                        const audioId = await uploadToGridFS(`audio-${Date.now()}.mp3`, finalAudioBuffer, "audio/mp3");
                         updateData.audioId = audioId;
                     } else if (removeAudio) {
                         // Remove audio
@@ -829,7 +903,9 @@ router.post('/templates/:id/generate', async (req, res) => {
                     video1TextOption: template.video1TextOption === 'true' || template.video1TextOption === true || template.video1TextOption === '1',
                     video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
                     video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
-                    clientPhotoId: null
+                    clientPhotoId: null,
+                    textColor: template.overlayTextColor || 'white',
+                    fontFamily: template.overlayFontFamily || 'Arial'
                 });
 
                 let finalVideoId = mergedVideoId;
@@ -866,9 +942,21 @@ router.post('/templates/:id/generate', async (req, res) => {
                     const tempGifPath = await saveTempFile(gifBufferFromGridFS, "gif");
                     const outputPath = path.join(os.tmpdir(), `animated-${Date.now()}.mp4`);
 
+                    // Check if merged video has audio
+                    const getStreamInfo = (filePath) => {
+                        return new Promise((resolve, reject) => {
+                            ffmpeg.ffprobe(filePath, (err, metadata) => {
+                                if (err) return reject(err);
+                                const hasAudio = metadata.streams.some((s) => s.codec_type === "audio");
+                                resolve(hasAudio);
+                            });
+                        });
+                    };
+                    const hasAudio = await getStreamInfo(tempMergedVideoPath).catch(() => false);
+
                     // Apply GIF animation overlay (similar to photogif API)
                     await new Promise((resolve, reject) => {
-                        ffmpeg()
+                        const ffmpegCmd = ffmpeg()
                             .input(tempMergedVideoPath) // 0:v - merged video (keep original orientation/size)
                             .input(tempGifPath) // 1:v - gif
                             .inputOptions(["-stream_loop", "-1"]) // loop gif
@@ -881,9 +969,8 @@ router.post('/templates/:id/generate', async (req, res) => {
                             ])
                             .outputOptions([
                                 "-map [v]",
-                                "-map 0:a", // Use audio from merged video
+                                ...(hasAudio ? ["-map 0:a", "-c:a aac"] : ["-an"]), // Use audio from merged video if available
                                 "-c:v libx264",
-                                "-c:a aac",
                                 "-pix_fmt yuv420p",
                                 "-shortest"
                             ])

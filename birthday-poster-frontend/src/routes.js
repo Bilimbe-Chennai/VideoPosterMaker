@@ -13,7 +13,7 @@ const ViewAllPoster = lazy(() => import('./Components/ViewAllPoster'));
 const Dashboard = lazy(() => import('./SuperAdmin/Dashboard'));
 const AdminList = lazy(() => import('./SuperAdmin/AdminList'));
 const CreateAdmin = lazy(() => import('./SuperAdmin/CreateAdmin'));
-const Settings = lazy(() => import('./Components/Settings'));
+const Settings = lazy(() => import('./SuperAdmin/Settings'));
 const TemplateManager = lazy(() => import('./SuperAdmin/TemplateManager'));
 const CreateTemplate = lazy(() => import('./Components/CreateTemplate'));
 const UserManager = lazy(() => import('./SuperAdmin/UserManager'));
@@ -37,8 +37,13 @@ const routes = [
   //     exact: true
   //   },
   {
-    path: '/',
+    path: '/eventlogin',
     element: <EventLoginPage />,
+    exact: true
+  },
+  {
+    path: '/',
+    element: <Login />,
     exact: true
   },
   {

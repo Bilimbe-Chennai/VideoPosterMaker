@@ -338,10 +338,17 @@ const AdminList = () => {
   const handleToggleStatus = async (adminId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await axiosData.patch(`/users/${adminId}/status`, {
+      const response = await axiosData.patch(`/users/${adminId}/status`, {
         status: newStatus
       });
       fetchAdmins();
+      
+      // Dispatch event to notify logged-in users of the update
+      if (response.data?.success && response.data?.data) {
+        window.dispatchEvent(new CustomEvent('userUpdated', { 
+          detail: { userId: adminId, user: response.data.data } 
+        }));
+      }
     } catch (error) {
       console.error('Error toggling admin status:', error);
     }
@@ -359,13 +366,20 @@ const AdminList = () => {
 
   const handleUpdateAdmin = async () => {
     try {
-      await axiosData.put(`/users/${selectedAdmin._id}`, {
+      const response = await axiosData.put(`/users/${selectedAdmin._id}`, {
         ...selectedAdmin,
         ...formData,
         accessType: formData.accessType.split(',').map(opt => opt.trim())
       });
       setEditDialog(false);
       fetchAdmins();
+      
+      // Dispatch event to notify logged-in users of the update
+      if (response.data?.success && response.data?.data) {
+        window.dispatchEvent(new CustomEvent('userUpdated', { 
+          detail: { userId: selectedAdmin._id, user: response.data.data } 
+        }));
+      }
     } catch (error) {
       console.error('Error updating admin:', error);
     }

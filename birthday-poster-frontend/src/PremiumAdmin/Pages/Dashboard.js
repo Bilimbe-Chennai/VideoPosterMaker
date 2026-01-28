@@ -521,6 +521,12 @@ const DropdownItem = styled.div`
     background: #E5E5E5;
     color: #0F0F0F;
   }
+  
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
 `;
 
 const Dashboard = () => {
@@ -540,6 +546,42 @@ const Dashboard = () => {
   const [trendsVideos, setTrendsVideos] = useState({});
   const [recentActivities, setRecentActivities] = useState([]);
   const navigate = useNavigate();
+
+  // Calculate date range for period filters
+  const getDateRange = (period) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (period === 'This week') {
+      // Get Monday of current week
+      const dayOfWeek = today.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days, else go to Monday
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() + diff);
+      
+      // Get Sunday of current week
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+      
+      return { startDate, endDate };
+    } else if (period === 'Last week') {
+      // Get Monday of last week
+      const dayOfWeek = today.getDay();
+      const diff = dayOfWeek === 0 ? -13 : -6 - dayOfWeek; // Go back to Monday of last week
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() + diff);
+      
+      // Get Sunday of last week
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+      
+      return { startDate, endDate };
+    }
+    
+    return { startDate: today, endDate: today };
+  };
 
   const formatRelativeTime = (date) => {
     const now = new Date();
@@ -953,21 +995,40 @@ const Dashboard = () => {
             </ChartTabs>
             <DropdownContainer>
               <DropdownButton onClick={() => setShowDropdown(!showDropdown)}>
-                {activePeriod} <ChevronDown size={14} style={{ transform: showDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                  <span>{activePeriod}</span>
+                  {(() => {
+                    const { startDate, endDate } = getDateRange(activePeriod);
+                    return (
+                      <span style={{ fontSize: '10px', opacity: 0.7, fontWeight: 400 }}>
+                        {formatDate(startDate, getStoredDateFormat())} - {formatDate(endDate, getStoredDateFormat())}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <ChevronDown size={14} style={{ transform: showDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </DropdownButton>
               <DropdownMenu $show={showDropdown}>
-                {['Last week', 'This week'].map(p => (
-                  <DropdownItem
-                    key={p}
-                    $active={activePeriod === p}
-                    onClick={() => {
-                      setActivePeriod(p);
-                      setShowDropdown(false);
-                    }}
-                  >
-                    {p}
-                  </DropdownItem>
-                ))}
+                {['Last week', 'This week'].map(p => {
+                  const { startDate, endDate } = getDateRange(p);
+                  return (
+                    <DropdownItem
+                      key={p}
+                      $active={activePeriod === p}
+                      onClick={() => {
+                        setActivePeriod(p);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span>{p}</span>
+                        <span style={{ fontSize: '11px', opacity: 0.7, fontWeight: 400 }}>
+                          {formatDate(startDate, getStoredDateFormat())} - {formatDate(endDate, getStoredDateFormat())}
+                        </span>
+                      </div>
+                    </DropdownItem>
+                  );
+                })}
               </DropdownMenu>
             </DropdownContainer>
           </ChartHeader>
