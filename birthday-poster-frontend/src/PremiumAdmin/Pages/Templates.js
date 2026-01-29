@@ -35,6 +35,14 @@ import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
 const PageContainer = styled.div`
   padding: 0;
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 `;
 
 const Header = styled.div`
@@ -755,15 +763,15 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
 
     // Determine if this is a video template
     const isVideoTemplate = !!(video1Id || video3Id || mergedVideoId);
-    
+
     // For video templates, collect all available videos (video1, video3, mergedVideoId)
     // Priority: mergedVideoId, video3Id, video1Id
     const videoItemsWithLabels = [];
     if (mergedVideoId) videoItemsWithLabels.push({ id: mergedVideoId, label: 'Merged Video' });
     if (video1Id) videoItemsWithLabels.push({ id: video1Id, label: 'Start Video (Video 1)' });
     if (video3Id) videoItemsWithLabels.push({ id: video3Id, label: 'End Video (Video 3)' });
-    
-    
+
+
     const items = isVideoTemplate ? videoItemsWithLabels.map(v => v.id) : (photos || []);
     const hasMultipleItems = items.length > 1;
 
@@ -829,7 +837,7 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
     // For video templates
     if (isVideoTemplate) {
         const currentVideoId = items[currentIndex];
-        
+
         // If no valid video ID, show placeholder
         if (!currentVideoId) {
             return (
@@ -838,12 +846,12 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
                 </div>
             );
         }
-        
+
         const videoUrl = `${baseURL}upload/file/${currentVideoId}`;
         const videoLabel = videoItemsWithLabels.find(v => v.id === currentVideoId)?.label || 'Video';
-        
+
         return (
-            <div 
+            <div
                 style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', cursor: 'pointer' }}
                 onClick={handleVideoClick}
             >
@@ -889,7 +897,7 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
                 >
                     {isPlaying ? <Pause size={20} /> : <Play size={20} />}
                 </button>
-                
+
                 {/* Navigation buttons for multiple videos */}
                 {hasMultipleItems && (
                     <>
@@ -1019,12 +1027,12 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
 // Helper function to convert color names to hex
 const convertColorToHex = (color) => {
     if (!color) return '#FFFFFF';
-    
+
     // If already hex, return as is
     if (color.startsWith('#')) {
         return color.toUpperCase();
     }
-    
+
     // Color name to hex mapping
     const colorMap = {
         'white': '#FFFFFF',
@@ -1050,7 +1058,7 @@ const convertColorToHex = (color) => {
         'teal': '#008080',
         'olive': '#808000'
     };
-    
+
     const lowerColor = color.toLowerCase().trim();
     return colorMap[lowerColor] || '#FFFFFF';
 };
@@ -1059,13 +1067,13 @@ const convertColorToHex = (color) => {
 // Backend now accepts hex colors directly, so we can save hex format
 const convertHexToColorName = (hex) => {
     if (!hex) return '#FFFFFF';
-    
+
     // If it's already a color name (not starting with #), return as hex
     if (!hex.startsWith('#')) {
         // It's a color name, convert to hex first
         return convertColorToHex(hex);
     }
-    
+
     // Return hex as is (backend will handle conversion to FFmpeg format)
     return hex.toUpperCase();
 };
@@ -1097,6 +1105,7 @@ const Templates = () => {
     const categoryRef = useRef(null);
     const sourceRef = useRef(null);
     const statusRef = useRef(null);
+    const gifInputRef = useRef(null);
 
     // Modal States
     const [showModal, setShowModal] = useState(false);
@@ -1107,6 +1116,9 @@ const Templates = () => {
     const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
     const [availableAnimations, setAvailableAnimations] = useState([]); // Store available GIF animations
     const [selectedAnimationIndex, setSelectedAnimationIndex] = useState(0); // For slider navigation
+    const [previewGif, setPreviewGif] = useState(null); // For local GIF preview
+    const [sessionUploadedFile, setSessionUploadedFile] = useState(null); // For persistent session upload
+    const [initialCustomGifId, setInitialCustomGifId] = useState(null); // For persistent custom animation in edit mode
 
     // Alert & Confirmation Modal States
     const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
@@ -1330,6 +1342,16 @@ const Templates = () => {
             return;
         }
 
+        if (fieldName === 'gif') {
+            // Clean up old preview URL
+            if (previewGif) {
+                URL.revokeObjectURL(previewGif);
+            }
+            const previewUrl = URL.createObjectURL(file);
+            setPreviewGif(previewUrl);
+            setSessionUploadedFile(file);
+        }
+
         setFormData({
             ...formData,
             [fieldName]: file
@@ -1366,12 +1388,12 @@ const Templates = () => {
                 ? templatesResponse.data.data
                 : (Array.isArray(templatesResponse.data) ? templatesResponse.data : []);
             const rawTemplates = rawTemplatesArray.filter(t => t.adminid === user.id || t.adminid === user._id);
-            
+
             const rawPhotosArray = Array.isArray(photosResponse.data?.data)
                 ? photosResponse.data.data
                 : (Array.isArray(photosResponse.data) ? photosResponse.data : []);
             const rawPhotos = rawPhotosArray;
-            
+
             // Update pagination if available
             if (templatesResponse.data?.pagination) {
                 setPagination(prev => ({
@@ -1384,14 +1406,14 @@ const Templates = () => {
             // Calculate usage counts from photo creations and track sources
             const usageCounts = {};
             const templateSources = {}; // Track which source uses each template
-            
+
             rawPhotos
                 .filter(item => item.source === 'photo merge app' || item.source === 'video merge app')
                 .forEach(item => {
                     const templateName = item.template_name || item.templatename || item.type;
                     if (templateName) {
                         usageCounts[templateName] = (usageCounts[templateName] || 0) + 1;
-                        
+
                         // Track sources for each template
                         if (!templateSources[templateName]) {
                             templateSources[templateName] = new Set();
@@ -1408,7 +1430,7 @@ const Templates = () => {
                 // If no usage, determine source from accessType
                 const defaultSource = t.accessType === 'videomerge' ? 'video merge app' : 'photo merge app';
                 const templateSource = sources.length > 0 ? sources[0] : defaultSource;
-                
+
                 return {
                     id: t._id,
                     name: name,
@@ -1458,23 +1480,24 @@ const Templates = () => {
                         id: anim.gifId,
                         name: anim.name || 'Animation'
                     }));
-                    
+
                     // Also collect GIF IDs from existing templates
-                    const templateGifIds = rawTemplates
-                        .filter(t => t.gifId)
-                        .map(t => ({ id: t.gifId, name: t.templatename || 'Animation' }));
-                    
+                    // const templateGifIds = rawTemplates
+                    //     .filter(t => t.gifId)
+                    //     .map(t => ({ id: t.gifId, name: t.templatename || 'Animation' }));
+
                     // Combine both sources and remove duplicates
-                    const allAnimations = [...adminAnimations, ...templateGifIds];
+                    // const allAnimations = [...adminAnimations,...templateGifIds];
+                    const allAnimations = [...adminAnimations.reverse()];
                     const seenIds = new Set();
                     const uniqueAnimations = allAnimations.filter(anim => {
                         if (seenIds.has(anim.id.toString())) return false;
                         seenIds.add(anim.id.toString());
                         return true;
                     });
-                    
+
                     setAvailableAnimations(uniqueAnimations);
-                    
+
                     // Reset slider index when animations are loaded
                     if (uniqueAnimations.length > 0) {
                         setSelectedAnimationIndex(0);
@@ -1603,7 +1626,7 @@ const Templates = () => {
                     const guideExists = response.data.guides.some(
                         guide => guide.accessType === formData.accessType
                     );
-                    
+
                     if (guideExists) {
                         // Only set the URL if the guide exists
                         const baseURL = axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/';
@@ -1673,6 +1696,13 @@ const Templates = () => {
 
     const handleCloseModal = () => {
         setShowModal(false);
+        // Clean up animation preview states
+        if (previewGif) {
+            URL.revokeObjectURL(previewGif);
+            setPreviewGif(null);
+        }
+        setSessionUploadedFile(null);
+        setInitialCustomGifId(null);
         setEditingTemplate(null);
         setOriginalTemplateData(null);
     };
@@ -1730,6 +1760,14 @@ const Templates = () => {
             hasAnimation: tmpl.hasAnimation === true || tmpl.hasAnimation === 'true' || tmpl.hasAnimation === '1',
             gif: tmpl.gifId || null
         };
+
+        // Detect if the existing animation is custom (not in availableAnimations)
+        if (tmpl.gifId && !availableAnimations.find(a => a.id === tmpl.gifId)) {
+            setInitialCustomGifId(tmpl.gifId);
+        } else {
+            setInitialCustomGifId(null);
+        }
+
         setFormData(initialFormData);
         // Store original data for comparison
         setOriginalTemplateData({
@@ -1836,20 +1874,20 @@ const Templates = () => {
                     // Backend now accepts hex colors directly
                     const currentTextColor = (formData.overlayTextColor || '#FFFFFF').toUpperCase();
                     const currentFontFamily = formData.overlayFontFamily || 'Arial';
-                    
+
                     // Original is already in hex format (converted when loading)
                     const originalTextColor = (original.overlayTextColor || '#FFFFFF').toUpperCase();
                     const originalFontFamily = original.overlayFontFamily || 'Arial';
-                    
+
                     // Send hex color directly (backend will handle it)
                     const colorToSave = currentTextColor;
-                    
+
                     // Always send these fields to ensure they're saved (especially for old templates)
                     // Check if changed or missing in original
                     const colorChanged = currentTextColor !== originalTextColor;
                     const fontChanged = currentFontFamily !== originalFontFamily;
                     const missingInOriginal = !original.overlayTextColor || !original.overlayFontFamily;
-                    
+
                     // Always send to ensure they're saved in database
                     uploadData.append('overlayTextColor', colorToSave);
                     uploadData.append('overlayFontFamily', currentFontFamily);
@@ -1909,11 +1947,18 @@ const Templates = () => {
                         uploadData.append('removeAudio', 'true');
                         hasChanges = true;
                     }
-                    
+
                     // Handle animation GIF
-                    if (formData.hasAnimation && formData.gif && formData.gif instanceof File) {
-                        uploadData.append('gif', formData.gif);
-                        hasChanges = true;
+                    if (formData.hasAnimation && formData.gif) {
+                        if (formData.gif instanceof File) {
+                            // New file uploaded
+                            uploadData.append('gif', formData.gif);
+                            hasChanges = true;
+                        } else if (typeof formData.gif === 'string' && formData.gif !== original.originalGif) {
+                            // Existing animation ID selected and changed
+                            uploadData.append('gifId', formData.gif);
+                            hasChanges = true;
+                        }
                     } else if (!formData.hasAnimation && original.hasAnimation && original.originalGif) {
                         // Animation was disabled - send removal signal for GIF
                         uploadData.append('removeGif', 'true');
@@ -1928,9 +1973,9 @@ const Templates = () => {
                     const hasPhotoChanges = formData.photos.some((photo, index) => {
                         const originalPhoto = original.originalPhotos[index];
                         // Changed if: new file uploaded, or photo was removed, or order changed
-                        return (photo instanceof File) || 
-                               (photo !== originalPhoto) ||
-                               (photo && typeof photo === 'string' && originalPhoto && photo !== originalPhoto);
+                        return (photo instanceof File) ||
+                            (photo !== originalPhoto) ||
+                            (photo && typeof photo === 'string' && originalPhoto && photo !== originalPhoto);
                     });
 
                     if (hasPhotoChanges) {
@@ -1999,10 +2044,14 @@ const Templates = () => {
                     if (formData.video1) uploadData.append('video1', formData.video1);
                     if (formData.video3) uploadData.append('video3', formData.video3);
                     if (formData.audio) uploadData.append('audio', formData.audio);
-                    
+
                     // Append animation file if animation is enabled
                     if (formData.hasAnimation && formData.gif) {
-                        uploadData.append('gif', formData.gif);
+                        if (formData.gif instanceof File) {
+                            uploadData.append('gif', formData.gif);
+                        } else {
+                            uploadData.append('gifId', formData.gif);
+                        }
                     }
                 } else {
                     // Append photos for photomerge
@@ -2050,7 +2099,7 @@ const Templates = () => {
         const matchesCategory = selectedCategory === 'All Templates' || tmpl.name === selectedCategory;
         const matchesStatus = selectedStatus === 'All Status' || tmpl.status.toLowerCase() === selectedStatus.toLowerCase();
         // Filter by media type: check if template's sources include the selected media type
-        const matchesSource = selectedSource === 'All Media Types' || 
+        const matchesSource = selectedSource === 'All Media Types' ||
             (tmpl.sources && tmpl.sources.includes(selectedSource)) ||
             (tmpl.source === selectedSource);
         return matchesSearch && matchesCategory && matchesStatus && matchesSource;
@@ -2170,7 +2219,7 @@ const Templates = () => {
                 </SearchBox>
 
                 <FilterGroup>
-                <Dropdown ref={sourceRef}>
+                    <Dropdown ref={sourceRef}>
                         <DropdownBtn onClick={() => setShowSourceDropdown(!showSourceDropdown)}>
                             <Filter size={16} />
                             {selectedSource}
@@ -2317,9 +2366,9 @@ const Templates = () => {
                         $highlighted={tmpl.id === highlightedId}
                     >
                         <TemplatePreview $active={tmpl.status === 'active'}>
-                            <TemplateCarousel 
-                                photos={tmpl.photos} 
-                                name={tmpl.name} 
+                            <TemplateCarousel
+                                photos={tmpl.photos}
+                                name={tmpl.name}
                                 onImageClick={handleImageClick}
                                 onVideoClick={handleVideoClick}
                                 video1Id={tmpl.video1Id}
@@ -2372,7 +2421,7 @@ const Templates = () => {
                     </TemplateCard>
                 ))}
             </TemplateGrid>
-            
+
             {pagination.total > 0 && pagination.totalPages > 1 && (
                 <Pagination
                     currentPage={pagination.page}
@@ -2426,8 +2475,8 @@ const Templates = () => {
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                                         readOnly={!!editingTemplate}
-                                        style={editingTemplate ? { 
-                                            cursor: 'not-allowed', 
+                                        style={editingTemplate ? {
+                                            cursor: 'not-allowed',
                                             backgroundColor: '#F5F5F5',
                                             opacity: 0.7
                                         } : {}}
@@ -2483,11 +2532,11 @@ const Templates = () => {
                                                 color: '#1A1A1A',
                                                 fontWeight: 600
                                             }}>
-                                                {formData.accessType === 'photomerge' 
-                                                    ? 'Photo Merge' 
-                                                    : formData.accessType === 'videomerge' 
-                                                    ? 'Video Merge' 
-                                                    : 'Template'} Template Guide
+                                                {formData.accessType === 'photomerge'
+                                                    ? 'Photo Merge'
+                                                    : formData.accessType === 'videomerge'
+                                                        ? 'Video Merge'
+                                                        : 'Template'} Template Guide
                                             </span>
                                         </div>
                                         <a
@@ -2508,8 +2557,8 @@ const Templates = () => {
                                                 border: '1px solid #0F0F0F',
                                                 transition: 'all 0.2s ease',
                                                 whiteSpace: 'nowrap',
-                                                ...(pdfGuideUrl ? {} : { 
-                                                    pointerEvents: 'none', 
+                                                ...(pdfGuideUrl ? {} : {
+                                                    pointerEvents: 'none',
                                                     opacity: 0.5,
                                                     cursor: 'not-allowed'
                                                 })
@@ -2532,21 +2581,21 @@ const Templates = () => {
                                 {formData.accessType === 'videomerge' ? (
                                     <>
                                         {/* Video Options Section */}
-                                        <div style={{ 
+                                        <div style={{
                                             marginBottom: '28px',
                                             paddingBottom: '24px',
                                             borderBottom: '1px solid #E5E5E5'
                                         }}>
-                                            <h3 style={{ 
-                                                fontSize: '15px', 
-                                                fontWeight: 600, 
-                                                color: '#1A1A1A', 
+                                            <h3 style={{
+                                                fontSize: '15px',
+                                                fontWeight: 600,
+                                                color: '#1A1A1A',
                                                 marginBottom: '16px',
                                                 letterSpacing: '0.3px'
                                             }}>
                                                 Video Options
                                             </h3>
-                                            <div style={{ 
+                                            <div style={{
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 gap: '14px',
@@ -2677,9 +2726,9 @@ const Templates = () => {
                                                         type="checkbox"
                                                         checked={formData.video2TextOption || false}
                                                         onChange={e => setFormData({ ...formData, video2TextOption: e.target.checked })}
-                                                        style={{ 
-                                                            height: '22px', 
-                                                            width: '22px', 
+                                                        style={{
+                                                            height: '22px',
+                                                            width: '22px',
                                                             cursor: 'pointer',
                                                             accentColor: '#1A1A1A',
                                                             flexShrink: 0
@@ -2736,15 +2785,15 @@ const Templates = () => {
 
                                         {/* Basic Information Section - only when overlay for video 2 is enabled */}
                                         {formData.video2TextOption && (
-                                            <div style={{ 
+                                            <div style={{
                                                 marginBottom: '28px',
                                                 paddingBottom: '24px',
                                                 borderBottom: '1px solid #E5E5E5'
                                             }}>
-                                                <h3 style={{ 
-                                                    fontSize: '15px', 
-                                                    fontWeight: 600, 
-                                                    color: '#1A1A1A', 
+                                                <h3 style={{
+                                                    fontSize: '15px',
+                                                    fontWeight: 600,
+                                                    color: '#1A1A1A',
                                                     marginBottom: '20px',
                                                     letterSpacing: '0.3px'
                                                 }}>
@@ -2810,28 +2859,28 @@ const Templates = () => {
 
                                         {/* Video Files Section */}
                                         <div style={{ marginBottom: '28px' }}>
-                                            <h3 style={{ 
-                                                fontSize: '15px', 
-                                                fontWeight: 600, 
-                                                color: '#1A1A1A', 
+                                            <h3 style={{
+                                                fontSize: '15px',
+                                                fontWeight: 600,
+                                                color: '#1A1A1A',
                                                 marginBottom: '16px',
                                                 letterSpacing: '0.3px'
                                             }}>
                                                 Video Files
                                             </h3>
-                                            <div style={{ 
-                                                display: 'grid', 
-                                                gap: '16px', 
-                                                gridTemplateColumns: '1fr 1fr' 
+                                            <div style={{
+                                                display: 'grid',
+                                                gap: '16px',
+                                                gridTemplateColumns: '1fr 1fr'
                                             }}>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>Start Video (Video 1)</span>
@@ -2839,9 +2888,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.video1 && typeof formData.video1 !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -2858,7 +2907,7 @@ const Templates = () => {
                                                             type="file"
                                                             data-field="video1"
                                                             onChange={handleVideoFileChange('video1')}
-                                                            style={{ 
+                                                            style={{
                                                                 flex: 1,
                                                                 padding: '12px 16px',
                                                                 borderRadius: '12px',
@@ -2897,13 +2946,13 @@ const Templates = () => {
                                                     </div>
                                                 </FormGroup>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>End Video (Video 3)</span>
@@ -2911,9 +2960,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.video3 && typeof formData.video3 !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -2930,7 +2979,7 @@ const Templates = () => {
                                                             type="file"
                                                             data-field="video3"
                                                             onChange={handleVideoFileChange('video3')}
-                                                            style={{ 
+                                                            style={{
                                                                 flex: 1,
                                                                 padding: '12px 16px',
                                                                 borderRadius: '12px',
@@ -2969,13 +3018,13 @@ const Templates = () => {
                                                     </div>
                                                 </FormGroup>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>Audio</span>
@@ -2983,9 +3032,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.audio && typeof formData.audio !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -3002,7 +3051,7 @@ const Templates = () => {
                                                             type="file"
                                                             data-field="audio"
                                                             onChange={handleVideoFileChange('audio')}
-                                                            style={{ 
+                                                            style={{
                                                                 flex: 1,
                                                                 padding: '12px 16px',
                                                                 borderRadius: '12px',
@@ -3044,7 +3093,7 @@ const Templates = () => {
                                         </div>
 
                                         {/* Animation Option */}
-                                        <div style={{ 
+                                        <div style={{
                                             marginBottom: '28px',
                                             paddingBottom: '24px',
                                             borderBottom: '1px solid #E5E5E5'
@@ -3086,9 +3135,9 @@ const Templates = () => {
                                                         checked={formData.hasAnimation || false}
                                                         onChange={e => setFormData({ ...formData, hasAnimation: e.target.checked })}
                                                         disabled={!!editingTemplate}
-                                                        style={{ 
-                                                            height: '22px', 
-                                                            width: '22px', 
+                                                        style={{
+                                                            height: '22px',
+                                                            width: '22px',
                                                             cursor: editingTemplate ? 'not-allowed' : 'pointer',
                                                             accentColor: '#1A1A1A',
                                                             flexShrink: 0,
@@ -3103,23 +3152,23 @@ const Templates = () => {
                                         {/* Animation Files Section - Only show when animation is enabled */}
                                         {formData.hasAnimation && (
                                             <div style={{ marginBottom: '24px' }}>
-                                                <h3 style={{ 
-                                                    fontSize: '15px', 
-                                                    fontWeight: 600, 
-                                                    color: '#1A1A1A', 
+                                                <h3 style={{
+                                                    fontSize: '15px',
+                                                    fontWeight: 600,
+                                                    color: '#1A1A1A',
                                                     marginBottom: '16px',
                                                     letterSpacing: '0.3px'
                                                 }}>
                                                     Animation Files
                                                 </h3>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>Animation (GIF) *</span>
@@ -3127,9 +3176,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.gif && typeof formData.gif !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -3140,9 +3189,9 @@ const Templates = () => {
                                                             </span>
                                                         )}
                                                     </label>
-                                                    <div style={{ 
-                                                        fontSize: '12px', 
-                                                        color: '#666', 
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: '#666',
                                                         marginBottom: '8px',
                                                         padding: '8px 12px',
                                                         background: '#F3F4F6',
@@ -3159,296 +3208,436 @@ const Templates = () => {
                                                         {/* Animation Slider - Select from existing animations */}
                                                         {availableAnimations.length > 0 && (
                                                             <FormGroup style={{ marginBottom: 0 }}>
-                                                                <label style={{ 
-                                                                    fontSize: '13px', 
-                                                                    fontWeight: 600, 
-                                                                    color: '#444', 
+                                                                <label style={{
+                                                                    fontSize: '13px',
+                                                                    fontWeight: 600,
+                                                                    color: '#444',
                                                                     marginBottom: '12px',
                                                                     display: 'block'
                                                                 }}>
                                                                     Select Existing Animation ({availableAnimations.length} available)
                                                                 </label>
-                                                                
-                                                                {/* Animation Slider Container */}
+
+                                                                {/* Animation Slider Container with Arrows */}
                                                                 <div style={{
                                                                     position: 'relative',
                                                                     width: '100%',
-                                                                    padding: '16px',
+                                                                    padding: '16px 40px', // Extra padding for arrows
                                                                     background: '#F9FAFB',
                                                                     borderRadius: '12px',
-                                                                    border: '1px solid #E5E7EB'
+                                                                    border: '1px solid #E5E7EB',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
                                                                 }}>
-                                                                    {/* Navigation Arrows */}
-                                                                    {availableAnimations.length > 1 && (
-                                                                        <>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setSelectedAnimationIndex((prev) => 
-                                                                                        prev === 0 ? availableAnimations.length - 1 : prev - 1
-                                                                                    );
-                                                                                }}
-                                                                                style={{
-                                                                                    position: 'absolute',
-                                                                                    left: '8px',
-                                                                                    top: '50%',
-                                                                                    transform: 'translateY(-50%)',
-                                                                                    background: 'white',
-                                                                                    border: '1px solid #D0D0D0',
-                                                                                    borderRadius: '50%',
-                                                                                    width: '36px',
-                                                                                    height: '36px',
-                                                                                    display: 'flex',
-                                                                                    alignItems: 'center',
-                                                                                    justifyContent: 'center',
-                                                                                    cursor: 'pointer',
-                                                                                    zIndex: 10,
-                                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                                                    transition: 'all 0.2s ease'
-                                                                                }}
-                                                                                onMouseEnter={(e) => {
-                                                                                    e.currentTarget.style.background = '#1A1A1A';
-                                                                                    e.currentTarget.style.color = 'white';
-                                                                                    e.currentTarget.style.borderColor = '#1A1A1A';
-                                                                                }}
-                                                                                onMouseLeave={(e) => {
-                                                                                    e.currentTarget.style.background = 'white';
-                                                                                    e.currentTarget.style.color = '#1A1A1A';
-                                                                                    e.currentTarget.style.borderColor = '#D0D0D0';
-                                                                                }}
-                                                                            >
-                                                                                <ChevronLeft size={20} />
-                                                                            </button>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setSelectedAnimationIndex((prev) => 
-                                                                                        prev === availableAnimations.length - 1 ? 0 : prev + 1
-                                                                                    );
-                                                                                }}
-                                                                                style={{
-                                                                                    position: 'absolute',
-                                                                                    right: '8px',
-                                                                                    top: '50%',
-                                                                                    transform: 'translateY(-50%)',
-                                                                                    background: 'white',
-                                                                                    border: '1px solid #D0D0D0',
-                                                                                    borderRadius: '50%',
-                                                                                    width: '36px',
-                                                                                    height: '36px',
-                                                                                    display: 'flex',
-                                                                                    alignItems: 'center',
-                                                                                    justifyContent: 'center',
-                                                                                    cursor: 'pointer',
-                                                                                    zIndex: 10,
-                                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                                                    transition: 'all 0.2s ease'
-                                                                                }}
-                                                                                onMouseEnter={(e) => {
-                                                                                    e.currentTarget.style.background = '#1A1A1A';
-                                                                                    e.currentTarget.style.color = 'white';
-                                                                                    e.currentTarget.style.borderColor = '#1A1A1A';
-                                                                                }}
-                                                                                onMouseLeave={(e) => {
-                                                                                    e.currentTarget.style.background = 'white';
-                                                                                    e.currentTarget.style.color = '#1A1A1A';
-                                                                                    e.currentTarget.style.borderColor = '#D0D0D0';
-                                                                                }}
-                                                                            >
-                                                                                <ChevronRight size={20} />
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                    
-                                                                    {/* Animation Display Area */}
+                                                                    {/* Left Arrow */}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            const list = e.currentTarget.nextSibling;
+                                                                            list.scrollBy({ left: -300, behavior: 'smooth' });
+                                                                        }}
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            left: '8px',
+                                                                            background: 'white',
+                                                                            border: '1px solid #DDD',
+                                                                            borderRadius: '50%',
+                                                                            width: '28px',
+                                                                            height: '28px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            cursor: 'pointer',
+                                                                            zIndex: 10,
+                                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                                                        }}
+                                                                    >
+                                                                        <ChevronLeft size={16} />
+                                                                    </button>
+
+                                                                    {/* Animation List (Flex Row) */}
                                                                     <div style={{
                                                                         display: 'flex',
-                                                                        flexDirection: 'column',
-                                                                        alignItems: 'center',
                                                                         gap: '12px',
-                                                                        padding: availableAnimations.length > 1 ? '0 50px' : '0'
-                                                                    }}>
-                                                                        {/* Current Animation Preview */}
-                                                                        {availableAnimations[selectedAnimationIndex] && (
+                                                                        overflowX: 'auto',
+                                                                        padding: '4px 0',
+                                                                        scrollbarWidth: 'none', // Hide default scrollbar
+                                                                        msOverflowStyle: 'none',
+                                                                        scrollBehavior: 'smooth',
+                                                                        flex: 1
+                                                                    }}
+                                                                        className="hide-scrollbar"
+                                                                    >
+                                                                        {/* Prepend local preview for new file uploads - PERSISTENT during session */}
+                                                                        {sessionUploadedFile && previewGif && (
                                                                             <div
                                                                                 onClick={() => {
-                                                                                    const selectedAnim = availableAnimations[selectedAnimationIndex];
-                                                                                    setFormData({ ...formData, gif: selectedAnim.id });
+                                                                                    setFormData({ ...formData, gif: sessionUploadedFile });
                                                                                 }}
                                                                                 style={{
-                                                                                    width: '100%',
-                                                                                    maxWidth: '300px',
-                                                                                    height: '200px',
-                                                                                    border: typeof formData.gif === 'string' && 
-                                                                                            formData.gif === availableAnimations[selectedAnimationIndex].id
-                                                                                        ? '3px solid #10B981' 
+                                                                                    minWidth: '72px',
+                                                                                    width: '72px',
+                                                                                    aspectRatio: '2/3',
+                                                                                    border: formData.gif === sessionUploadedFile
+                                                                                        ? '3px solid #10B981'
                                                                                         : '2px solid #D0D0D0',
-                                                                                    borderRadius: '12px',
+                                                                                    borderRadius: '8px',
                                                                                     overflow: 'hidden',
                                                                                     cursor: 'pointer',
                                                                                     transition: 'all 0.2s ease',
                                                                                     background: 'white',
                                                                                     position: 'relative',
-                                                                                    boxShadow: typeof formData.gif === 'string' && 
-                                                                                            formData.gif === availableAnimations[selectedAnimationIndex].id
-                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)' 
-                                                                                        : '0 2px 4px rgba(0,0,0,0.1)'
+                                                                                    boxShadow: formData.gif === sessionUploadedFile
+                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+                                                                                        : '0 2px 4px rgba(0,0,0,0.1)',
+                                                                                    display: 'flex',
+                                                                                    flexDirection: 'column',
+                                                                                    flexShrink: 0
                                                                                 }}
                                                                                 onMouseEnter={(e) => {
-                                                                                    if (!(typeof formData.gif === 'string' && 
-                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                    if (formData.gif !== sessionUploadedFile) {
                                                                                         e.currentTarget.style.borderColor = '#1A1A1A';
-                                                                                        e.currentTarget.style.transform = 'scale(1.02)';
+                                                                                        e.currentTarget.style.transform = 'translateY(-2px)';
                                                                                     }
                                                                                 }}
                                                                                 onMouseLeave={(e) => {
-                                                                                    if (!(typeof formData.gif === 'string' && 
-                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                    if (formData.gif !== sessionUploadedFile) {
                                                                                         e.currentTarget.style.borderColor = '#D0D0D0';
-                                                                                        e.currentTarget.style.transform = 'scale(1)';
+                                                                                        e.currentTarget.style.transform = 'translateY(0)';
                                                                                     }
                                                                                 }}
                                                                             >
-                                                                                <img
-                                                                                    src={`${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${availableAnimations[selectedAnimationIndex].id}`}
-                                                                                    alt={availableAnimations[selectedAnimationIndex].name}
-                                                                                    style={{
-                                                                                        width: '100%',
-                                                                                        height: '100%',
-                                                                                        objectFit: 'contain'
-                                                                                    }}
-                                                                                />
+                                                                                <div style={{
+                                                                                    flex: 1,
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    overflow: 'hidden',
+                                                                                    background: 'black'
+                                                                                }}>
+                                                                                    <img
+                                                                                        src={previewGif}
+                                                                                        alt="Preview"
+                                                                                        style={{
+                                                                                            width: '100%',
+                                                                                            height: '100%',
+                                                                                            objectFit: 'contain',
+                                                                                            padding: '4px'
+                                                                                        }}
+                                                                                    />
+                                                                                </div>
                                                                                 {/* Selection Indicator */}
-                                                                                {typeof formData.gif === 'string' && 
-                                                                                 formData.gif === availableAnimations[selectedAnimationIndex].id && (
+                                                                                {formData.gif === sessionUploadedFile && (
                                                                                     <div style={{
                                                                                         position: 'absolute',
-                                                                                        top: '8px',
-                                                                                        right: '8px',
+                                                                                        top: '6px',
+                                                                                        right: '6px',
                                                                                         background: '#10B981',
                                                                                         borderRadius: '50%',
-                                                                                        width: '28px',
-                                                                                        height: '28px',
+                                                                                        width: '20px',
+                                                                                        height: '20px',
                                                                                         display: 'flex',
                                                                                         alignItems: 'center',
                                                                                         justifyContent: 'center',
-                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                                                        zIndex: 2
                                                                                     }}>
-                                                                                        <CheckCircle size={18} color="white" fill="white" />
+                                                                                        <CheckCircle size={12} color="white" fill="white" />
                                                                                     </div>
                                                                                 )}
-                                                                                {/* Animation Name */}
-                                                                                <div style={{
-                                                                                    position: 'absolute',
-                                                                                    bottom: 0,
-                                                                                    left: 0,
-                                                                                    right: 0,
-                                                                                    background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
-                                                                                    padding: '12px 8px 8px',
-                                                                                    color: 'white',
-                                                                                    fontSize: '12px',
-                                                                                    fontWeight: 600,
-                                                                                    textAlign: 'center'
-                                                                                }}>
-                                                                                    {availableAnimations[selectedAnimationIndex].name}
-                                                                                </div>
                                                                             </div>
                                                                         )}
-                                                                        
-                                                                        {/* Animation Dots Indicator */}
-                                                                        {availableAnimations.length > 1 && (
-                                                                            <div style={{
-                                                                                display: 'flex',
-                                                                                gap: '8px',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center'
-                                                                            }}>
-                                                                                {availableAnimations.map((_, idx) => (
-                                                                                    <button
-                                                                                        key={idx}
-                                                                                        type="button"
-                                                                                        onClick={() => setSelectedAnimationIndex(idx)}
+
+                                                                        {/* Prepend existing custom animation if it was detected as custom on load - PERSISTENT */}
+                                                                        {initialCustomGifId && (
+                                                                            <div
+                                                                                onClick={() => {
+                                                                                    setFormData({ ...formData, gif: initialCustomGifId });
+                                                                                }}
+                                                                                style={{
+                                                                                    minWidth: '72px',
+                                                                                    width: '72px',
+                                                                                    aspectRatio: '2/3',
+                                                                                    border: formData.gif === initialCustomGifId
+                                                                                        ? '3px solid #10B981'
+                                                                                        : '2px solid #D0D0D0',
+                                                                                    borderRadius: '8px',
+                                                                                    overflow: 'hidden',
+                                                                                    cursor: 'pointer',
+                                                                                    transition: 'all 0.2s ease',
+                                                                                    background: 'white',
+                                                                                    position: 'relative',
+                                                                                    boxShadow: formData.gif === initialCustomGifId
+                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+                                                                                        : '0 2px 4px rgba(0,0,0,0.1)',
+                                                                                    display: 'flex',
+                                                                                    flexDirection: 'column',
+                                                                                    flexShrink: 0
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    if (formData.gif !== initialCustomGifId) {
+                                                                                        e.currentTarget.style.borderColor = '#1A1A1A';
+                                                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                                                    }
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    if (formData.gif !== initialCustomGifId) {
+                                                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <div style={{
+                                                                                    flex: 1,
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    overflow: 'hidden',
+                                                                                    background: 'black'
+                                                                                }}>
+                                                                                    <img
+                                                                                        src={`${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${initialCustomGifId}`}
+                                                                                        alt="Selected Animation"
                                                                                         style={{
-                                                                                            width: idx === selectedAnimationIndex ? '24px' : '8px',
-                                                                                            height: '8px',
-                                                                                            borderRadius: '4px',
-                                                                                            border: 'none',
-                                                                                            background: idx === selectedAnimationIndex ? '#1A1A1A' : '#D0D0D0',
-                                                                                            cursor: 'pointer',
-                                                                                            transition: 'all 0.2s ease'
+                                                                                            width: '100%',
+                                                                                            height: '100%',
+                                                                                            objectFit: 'contain',
+                                                                                            padding: '4px'
                                                                                         }}
                                                                                     />
-                                                                                ))}
+                                                                                </div>
+                                                                                {/* Selection Indicator */}
+                                                                                {formData.gif === initialCustomGifId && (
+                                                                                    <div style={{
+                                                                                        position: 'absolute',
+                                                                                        top: '6px',
+                                                                                        right: '6px',
+                                                                                        background: '#10B981',
+                                                                                        borderRadius: '50%',
+                                                                                        width: '20px',
+                                                                                        height: '20px',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                                                        zIndex: 2
+                                                                                    }}>
+                                                                                        <CheckCircle size={12} color="white" fill="white" />
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         )}
-                                                                        
-                                                                        {/* Select Button */}
+
+                                                                        {availableAnimations.map((animation) => (
+                                                                            <div
+                                                                                key={animation.id}
+                                                                                onClick={() => {
+                                                                                    setFormData({ ...formData, gif: animation.id });
+                                                                                    // Clear file upload preview if an existing animation is selected
+                                                                                    // setSessionUploadedFile(null); // Keep it persistent but change selection
+                                                                                }}
+                                                                                style={{
+                                                                                    minWidth: '72px',
+                                                                                    width: '72px',
+                                                                                    aspectRatio: '2/3',
+                                                                                    border: String(formData.gif) === String(animation.id)
+                                                                                        ? '3px solid #10B981'
+                                                                                        : '2px solid #D0D0D0',
+                                                                                    borderRadius: '8px',
+                                                                                    overflow: 'hidden',
+                                                                                    cursor: 'pointer',
+                                                                                    transition: 'all 0.2s ease',
+                                                                                    background: 'white',
+                                                                                    position: 'relative',
+                                                                                    boxShadow: String(formData.gif) === String(animation.id)
+                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+                                                                                        : '0 2px 4px rgba(0,0,0,0.1)',
+                                                                                    display: 'flex',
+                                                                                    flexDirection: 'column',
+                                                                                    flexShrink: 0
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    if (String(formData.gif) !== String(animation.id)) {
+                                                                                        e.currentTarget.style.borderColor = '#1A1A1A';
+                                                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                                                    }
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    if (String(formData.gif) !== String(animation.id)) {
+                                                                                        e.currentTarget.style.borderColor = '#D0D0D0';
+                                                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                {/* Animation Preview */}
+                                                                                <div style={{
+                                                                                    flex: 1,
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    overflow: 'hidden',
+                                                                                    background: 'black'
+                                                                                }}>
+                                                                                    <img
+                                                                                        src={`${axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/'}upload/file/${animation.id}`}
+                                                                                        alt={animation.name}
+                                                                                        style={{
+                                                                                            width: '100%',
+                                                                                            height: '100%',
+                                                                                            objectFit: 'contain',
+                                                                                            padding: '4px'
+                                                                                        }}
+                                                                                    />
+                                                                                </div>
+
+                                                                                {/* Selection Indicator */}
+                                                                                {String(formData.gif) === String(animation.id) && (
+                                                                                    <div style={{
+                                                                                        position: 'absolute',
+                                                                                        top: '6px',
+                                                                                        right: '6px',
+                                                                                        background: '#10B981',
+                                                                                        borderRadius: '50%',
+                                                                                        width: '20px',
+                                                                                        height: '20px',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                                                        zIndex: 2
+                                                                                    }}>
+                                                                                        <CheckCircle size={12} color="white" fill="white" />
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Animation Name */}
+                                                                                {/* <div style={{
+                                padding: '8px 6px',
+                                background: 'white',
+                                borderTop: '1px solid #f0f0f0',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: '#333',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                }}>
+                                    {animation.name}
+                                </div>
+                                <div style={{
+                                    fontSize: '10px',
+                                    color: '#666',
+                                    marginTop: '2px'
+                                }}>
+                                    {animation.createdAt ? new Date(animation.createdAt).toLocaleDateString() : 'Unknown date'}
+                                </div>
+                            </div> */}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+
+                                                                    {/* Right Arrow */}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            const list = e.currentTarget.previousSibling;
+                                                                            list.scrollBy({ left: 300, behavior: 'smooth' });
+                                                                        }}
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            right: '8px',
+                                                                            background: 'white',
+                                                                            border: '1px solid #DDD',
+                                                                            borderRadius: '50%',
+                                                                            width: '28px',
+                                                                            height: '28px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            cursor: 'pointer',
+                                                                            zIndex: 10,
+                                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                                                        }}
+                                                                    >
+                                                                        <ChevronRight size={16} />
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Selected Animation Info (if any) */}
+                                                                {formData.gif && (
+                                                                    <div style={{
+                                                                        marginTop: '12px',
+                                                                        padding: '12px',
+                                                                        background: '#F0FDF4',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #D1FAE5',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'space-between'
+                                                                    }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                            <CheckCircle size={16} color="#10B981" />
+                                                                            <span style={{ fontSize: '13px', color: '#065F46', fontWeight: 500 }}>
+                                                                                Animation selected: {formData.gif instanceof File || formData.gif === initialCustomGifId ? 'Your uploaded animation' : (availableAnimations.find(a => a.id === formData.gif)?.name || 'Your uploaded animation')}
+                                                                            </span>
+                                                                        </div>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
-                                                                                const selectedAnim = availableAnimations[selectedAnimationIndex];
-                                                                                setFormData({ ...formData, gif: selectedAnim.id });
+                                                                                setFormData({ ...formData, gif: null });
+                                                                                // Also clear persistent session upload if explicitly cleared
+                                                                                if (previewGif) {
+                                                                                    setPreviewGif(null);
+                                                                                    setSessionUploadedFile(null);
+                                                                                }
+                                                                                if (gifInputRef.current) {
+                                                                                    gifInputRef.current.value = '';
+                                                                                }
                                                                             }}
                                                                             style={{
-                                                                                padding: '10px 24px',
-                                                                                background: typeof formData.gif === 'string' && 
-                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id
-                                                                                    ? '#10B981' 
-                                                                                    : '#1A1A1A',
-                                                                                color: 'white',
-                                                                                border: 'none',
-                                                                                borderRadius: '8px',
-                                                                                fontSize: '14px',
-                                                                                fontWeight: 600,
+                                                                                padding: '4px 8px',
+                                                                                background: 'transparent',
+                                                                                color: '#DC2626',
+                                                                                border: '1px solid #FECACA',
+                                                                                borderRadius: '4px',
+                                                                                fontSize: '11px',
+                                                                                fontWeight: 500,
                                                                                 cursor: 'pointer',
-                                                                                transition: 'all 0.2s ease',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                gap: '8px'
+                                                                                transition: 'all 0.2s'
                                                                             }}
                                                                             onMouseEnter={(e) => {
-                                                                                if (!(typeof formData.gif === 'string' && 
-                                                                                      formData.gif === availableAnimations[selectedAnimationIndex].id)) {
-                                                                                    e.currentTarget.style.background = '#0F0F0F';
-                                                                                }
+                                                                                e.currentTarget.style.background = '#FEE2E2';
                                                                             }}
                                                                             onMouseLeave={(e) => {
-                                                                                if (!(typeof formData.gif === 'string' && 
-                                                                                      formData.gif === availableAnimations[selectedAnimationIndex].id)) {
-                                                                                    e.currentTarget.style.background = '#1A1A1A';
-                                                                                }
+                                                                                e.currentTarget.style.background = 'transparent';
                                                                             }}
                                                                         >
-                                                                            {typeof formData.gif === 'string' && 
-                                                                             formData.gif === availableAnimations[selectedAnimationIndex].id ? (
-                                                                                <>
-                                                                                    <CheckCircle size={16} />
-                                                                                    Selected
-                                                                                </>
-                                                                            ) : (
-                                                                                'Select This Animation'
-                                                                            )}
+                                                                            Clear selection
                                                                         </button>
                                                                     </div>
-                                                                </div>
+                                                                )}
                                                             </FormGroup>
                                                         )}
-                                                        
+
                                                         {/* Upload new animation */}
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                             <input
                                                                 accept="image/gif"
                                                                 type="file"
                                                                 data-field="gif"
+                                                                ref={gifInputRef}
                                                                 onChange={(e) => {
                                                                     handleVideoFileChange('gif')(e);
                                                                     // Clear selected animation when uploading new file
-                                                                    if (e.target.files && e.target.files.length > 0) {
-                                                                        setFormData({ ...formData, gif: e.target.files[0] });
-                                                                    }
+                                                                    // if (e.target.files && e.target.files.length > 0) {
+                                                                    //     setFormData({ ...formData, gif: e.target.files[0] });
+                                                                    // }
                                                                 }}
                                                                 required={formData.hasAnimation && !editingTemplate && !formData.gif}
-                                                                style={{ 
+                                                                style={{
                                                                     flex: 1,
                                                                     padding: '12px 16px',
                                                                     borderRadius: '12px',
@@ -3465,25 +3654,25 @@ const Templates = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleRemoveFile('gif')}
-                                                                style={{
-                                                                    padding: '8px',
-                                                                    background: '#EF4444',
-                                                                    color: 'white',
-                                                                    border: 'none',
-                                                                    borderRadius: '8px',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    transition: 'all 0.2s'
-                                                                }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
-                                                                title="Remove GIF"
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        )}
+                                                                    style={{
+                                                                        padding: '8px',
+                                                                        background: '#EF4444',
+                                                                        color: 'white',
+                                                                        border: 'none',
+                                                                        borderRadius: '8px',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        transition: 'all 0.2s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
+                                                                    title="Remove GIF"
+                                                                >
+                                                                    <X size={16} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </FormGroup>
@@ -3520,17 +3709,17 @@ const Templates = () => {
 
 
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                                    <Button 
-                                        type="button" 
-                                        onClick={handleCloseModal} 
+                                    <Button
+                                        type="button"
+                                        onClick={handleCloseModal}
                                         style={{ flex: 1 }}
                                         disabled={isSubmitting}
                                     >
                                         Cancel
                                     </Button>
-                                    <Button 
-                                        type="submit" 
-                                        $variant="primary" 
+                                    <Button
+                                        type="submit"
+                                        $variant="primary"
                                         style={{ flex: 1, position: 'relative' }}
                                         disabled={isSubmitting}
                                     >
@@ -3617,7 +3806,7 @@ const Templates = () => {
                         {(() => {
                             const items = imageModal.isVideo ? imageModal.videos : imageModal.photos;
                             const hasMultiple = items.length > 1;
-                            
+
                             return (
                                 <>
                                     {hasMultiple && (
