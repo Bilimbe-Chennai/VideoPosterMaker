@@ -52,16 +52,16 @@ const saveTempFile = async (buffer, extension) => {
 const extractAudioFromVideo = async (buffer, originalExtension) => {
   // Check if it's a video file
   const isVideo = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(originalExtension.toLowerCase());
-  
+
   if (!isVideo) {
     // It's already an audio file, return as-is
     return buffer;
   }
-  
+
   // Save video to temp file
   const tempVideoPath = await saveTempFile(buffer, originalExtension);
   const tempAudioPath = path.join(os.tmpdir(), `extracted-audio-${Date.now()}.mp3`);
-  
+
   try {
     // Extract audio using ffmpeg
     await new Promise((resolve, reject) => {
@@ -78,19 +78,19 @@ const extractAudioFromVideo = async (buffer, originalExtension) => {
         .on('error', reject)
         .run();
     });
-    
+
     // Read extracted audio
     const audioBuffer = await fs.readFile(tempAudioPath);
-    
+
     // Cleanup temp files
-    await fs.unlink(tempVideoPath).catch(() => {});
-    await fs.unlink(tempAudioPath).catch(() => {});
-    
+    await fs.unlink(tempVideoPath).catch(() => { });
+    await fs.unlink(tempAudioPath).catch(() => { });
+
     return audioBuffer;
   } catch (error) {
     // Cleanup on error
-    await fs.unlink(tempVideoPath).catch(() => {});
-    await fs.unlink(tempAudioPath).catch(() => {});
+    await fs.unlink(tempVideoPath).catch(() => { });
+    await fs.unlink(tempAudioPath).catch(() => { });
     throw new Error(`Failed to extract audio from video: ${error.message}`);
   }
 };
@@ -115,14 +115,14 @@ async function mergeTwoVideos({
   const tempvideo1Path = await saveTempFile(video1Buffer, "mp4");
   const tempvideo2Path = await saveTempFile(video2Buffer, "mp4");
   //const tempClientPhotoPath = await saveTempFile(clientPhotoBuffer, "jpg");
-  
+
   // Handle optional audio
   let tempAudioPath = null;
   if (audioId) {
     const audioBuffer = await getFileFromGridFS(audioId);
     tempAudioPath = await saveTempFile(audioBuffer, "mp3");
   }
-  
+
   // Output path
   const outputPath = path.join(os.tmpdir(), `merged-${Date.now()}.mp4`);
 
@@ -131,12 +131,12 @@ async function mergeTwoVideos({
     const ffmpegCmd = ffmpeg()
       .input(tempvideo1Path)
       .input(tempvideo2Path);
-    
+
     // Add audio input if available
     if (tempAudioPath) {
       ffmpegCmd.input(tempAudioPath).inputOptions(["-stream_loop -1"]); // loop audio
     }
-    
+
     ffmpegCmd
       .complexFilter([
         "[0:v]scale=1080:1920,fps=30,setsar=1[v0]",
@@ -894,7 +894,7 @@ async function mergeThreeVideos({
   const tempvideo1Path = await saveTempFile(video1Buffer, "mp4");
   const tempvideo2Path = await saveTempFile(video2Buffer, "mp4");
   const tempvideo3Path = await saveTempFile(video3Buffer, "mp4");
-  
+
   // Handle optional audio
   let tempAudioPath = null;
   if (audioId) {
@@ -918,7 +918,7 @@ async function mergeThreeVideos({
   const textXEnd = 60;
   const animDuration = 1.0;
   const lineSpacing = 90;
-  
+
   // Text styling - use provided values or defaults
   // Convert hex color to FFmpeg format (0xRRGGBB) or use color name
   let overlayTextColor = textColor || "white";
@@ -927,6 +927,34 @@ async function mergeThreeVideos({
     overlayTextColor = '0x' + overlayTextColor.substring(1).toUpperCase();
   }
   const overlayFontFamily = fontFamily || "Arial";
+  // Font Mapping
+  const FONT_MAP = {
+    "Anton": "Anton-Regular.ttf",
+    "Arvo": "Arvo-Regular.ttf",
+    "Audiowide": "Audiowide-Regular.ttf",
+    "Bangers": "Bangers-Regular.ttf",
+    "Courgette": "Courgette-Regular.ttf",
+    "Fjalla One": "FjallaOne-Regular.ttf",
+    "Hind": "Hind-Regular.ttf",
+    "Indie Flower": "IndieFlower-Regular.ttf",
+    "Lato": "Lato-Regular.ttf",
+    "Lobster": "Lobster-Regular.ttf",
+    "Mukta": "Mukta-Regular.ttf",
+    "Pacifico": "Pacifico-Regular.ttf",
+    "Poppins": "Poppins-Regular.ttf",
+    "Righteous": "Righteous-Regular.ttf"
+  };
+
+  // Resolve font path or name
+  let fontFilterOption = `font='Arial'`; // Default
+  if (FONT_MAP[fontFamily]) {
+    const fontPath = path.join(__dirname, '../assets/fonts', FONT_MAP[fontFamily]).replace(/\\/g, '/').replace(/:/g, '\\\\:');
+    fontFilterOption = `fontfile='${fontPath}'`;
+  } else {
+    // Fallback to system font if not in map (e.g. Arial)
+    fontFilterOption = `font='${fontFamily}'`;
+  }
+
   const shadowColor = "black@0.6";
   const shadowX = 3;
   const shadowY = 3;
@@ -954,16 +982,16 @@ async function mergeThreeVideos({
     const slideInX = `if(lt(t\\,${animDuration})\\, ${textXStart}+(t/${animDuration})*(${textXEnd}-${textXStart})\\, ${textXEnd})`;
     const alpha = `alpha=if(lt(t\\,${animDuration})\\, t/${animDuration}\\, 1)*${textOpacity}`;
     const brandAlpha = `alpha=if(lt(t\\,${animDuration}-0.2)\\, max(0\\, (t-0.2)/${animDuration})\\, 1)*${textOpacity}`;
-    
+
     // Create glow effect with multiple shadow layers
     // Layer 1: Outer glow (largest, most transparent)
     // Layer 2: Middle glow
     // Layer 3: Inner shadow
     // Layer 4: Main text
-    
+
     // Client name with glow effect - Using configurable font
     let filter = '';
-    
+
     // Outer glow layers for client name (creates soft glow)
     const glowOffsets = [
       { x: 0, y: 0, opacity: 0.3 },
@@ -976,37 +1004,37 @@ async function mergeThreeVideos({
       { x: 0, y: 4, opacity: 0.2 },
       { x: 0, y: -4, opacity: 0.2 }
     ];
-    
+
     // Draw glow layers for client name
     glowOffsets.forEach((offset, idx) => {
       filter += `drawtext=text='${clientName}':fontcolor=black@${offset.opacity}:fontsize=${fontSizeName}:` +
-        `font='${overlayFontFamily}':x=${slideInX}+${offset.x}:y=${nameY}+${offset.y}:${alpha}`;
+        `${fontFilterOption}:x=${slideInX}+${offset.x}:y=${nameY}+${offset.y}:${alpha}`;
       if (idx < glowOffsets.length - 1 || true) filter += ',';
     });
-    
+
     // Main shadow for client name
     filter += `drawtext=text='${clientName}':fontcolor=black@0.7:fontsize=${fontSizeName}:` +
-      `font='${overlayFontFamily}':x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},`;
-    
+      `${fontFilterOption}:x=${slideInX}+${shadowX}:y=${nameY}+${shadowY}:${alpha},`;
+
     // Main text for client name
     filter += `drawtext=text='${clientName}':fontcolor=${overlayTextColor}:fontsize=${fontSizeName}:` +
-      `font='${overlayFontFamily}':x=${slideInX}:y=${nameY}:${alpha}`;
-    
+      `${fontFilterOption}:x=${slideInX}:y=${nameY}:${alpha}`;
+
     // Brand name with glow effect
     // Draw glow layers for brand name
     glowOffsets.forEach((offset, idx) => {
       filter += `,drawtext=text='${brandName}':fontcolor=black@${offset.opacity}:fontsize=${fontSizeBrand}:` +
-        `font='${overlayFontFamily}':x=${slideInX}+${offset.x}:y=${brandY}+${offset.y}:${brandAlpha}`;
+        `${fontFilterOption}:x=${slideInX}+${offset.x}:y=${brandY}+${offset.y}:${brandAlpha}`;
     });
-    
+
     // Main shadow for brand name
     filter += `,drawtext=text='${brandName}':fontcolor=black@0.7:fontsize=${fontSizeBrand}:` +
-      `font='${overlayFontFamily}':x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:${brandAlpha},`;
-    
+      `${fontFilterOption}:x=${slideInX}+${shadowX}:y=${brandY}+${shadowY}:${brandAlpha},`;
+
     // Main text for brand name
     filter += `drawtext=text='${brandName}':fontcolor=${overlayTextColor}:fontsize=${fontSizeBrand}:` +
-      `font='${overlayFontFamily}':x=${slideInX}:y=${brandY}:${brandAlpha}`;
-    
+      `${fontFilterOption}:x=${slideInX}:y=${brandY}:${brandAlpha}`;
+
     return filter;
   }
 
@@ -1046,10 +1074,10 @@ async function mergeThreeVideos({
 
 
   // console.log("Congrats Option:", congratsOption);
-  
+
   // Video 1 - no animation
   filters.push(buildVideoFilter(0, showText1));
-  
+
   // Video 2 (middle video) - apply GIF animation if available
   if (tempGifPath) {
     // First apply text to video2
@@ -1060,7 +1088,7 @@ async function mergeThreeVideos({
   } else {
     filters.push(buildVideoFilter(1, showText2));
   }
-  
+
   // Video 3 - no animation
   filters.push(buildVideoFilter(2, showText3));
 
@@ -1140,17 +1168,17 @@ async function mergeThreeVideos({
         .input(tempvideo1Path)
         .input(tempvideo2Path)
         .input(tempvideo3Path);
-      
+
       // Add GIF input if available (for middle video animation) - this will be input index 3
       if (tempGifPath) {
         cmd.input(tempGifPath).inputOptions(["-stream_loop", "-1"]);
       }
-      
+
       // Add audio input if available - this will be input index 3 (if no GIF) or 4 (if GIF exists)
       if (tempAudioPath) {
         cmd.input(tempAudioPath).inputOptions(["-stream_loop", "-1"]);
       }
-      
+
       cmd.complexFilter(filters)
         .outputOptions([
           "-map [vout]",
@@ -1162,12 +1190,12 @@ async function mergeThreeVideos({
           "-movflags +faststart",
           "-shortest"
         ]);
-      
+
       // Add audio fade filter only if audio is available
       if (tempAudioPath) {
         cmd.audioFilters(`afade=t=out:st=${fadeStart}:d=2`);
       }
-      
+
       cmd.output(outputPath)
         .on("start", (commandLine) => {
           // console.log("FFmpeg command started");
@@ -1237,17 +1265,17 @@ async function mergeThreeVideos({
         .input(tempvideo1Path)
         .input(tempvideo2Path)
         .input(tempvideo3Path);
-      
+
       // Add GIF input if available (for middle video animation) - this will be input index 3
       if (tempGifPath) {
         cmd.input(tempGifPath).inputOptions(["-stream_loop", "-1"]);
       }
-      
+
       // Add audio input if available - this will be input index 3 (if no GIF) or 4 (if GIF exists)
       if (tempAudioPath) {
         cmd.input(tempAudioPath).inputOptions(["-stream_loop", "-1"]);
       }
-      
+
       cmd.complexFilter(filters)
         .outputOptions([
           "-map [vout]",

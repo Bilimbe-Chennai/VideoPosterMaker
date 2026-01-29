@@ -2069,7 +2069,7 @@ const Photos = () => {
       </HeaderSection>
 
       {/* DEBUG SECTION - FIXED OVERLAY */}
-      {debugData && (
+      {/* {debugData && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -2091,7 +2091,7 @@ const Photos = () => {
           <p><strong>Please provide a screenshot of this data:</strong></p>
           <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(debugData, null, 2)}</pre>
         </div>
-      )}
+      )} */}
 
       <KPIBox>
         {(() => {

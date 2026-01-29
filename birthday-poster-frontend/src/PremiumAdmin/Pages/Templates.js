@@ -31,6 +31,20 @@ import Pagination from '../Components/Pagination';
 import useAxios from '../../useAxios';
 import { formatDate, getStoredDateFormat } from '../../utils/dateUtils';
 
+// --- Constants ---
+const GOOGLE_FONTS = [
+    'Anton',
+    'Arvo',
+    'Fjalla One',
+    'Hind',
+    'Indie Flower',
+    'Lato',
+    'Lobster',
+    'Mukta',
+    'Pacifico',
+    'Poppins'
+];
+
 // --- Styled Components ---
 
 const PageContainer = styled.div`
@@ -755,15 +769,15 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
 
     // Determine if this is a video template
     const isVideoTemplate = !!(video1Id || video3Id || mergedVideoId);
-    
+
     // For video templates, collect all available videos (video1, video3, mergedVideoId)
     // Priority: mergedVideoId, video3Id, video1Id
     const videoItemsWithLabels = [];
     if (mergedVideoId) videoItemsWithLabels.push({ id: mergedVideoId, label: 'Merged Video' });
     if (video1Id) videoItemsWithLabels.push({ id: video1Id, label: 'Start Video (Video 1)' });
     if (video3Id) videoItemsWithLabels.push({ id: video3Id, label: 'End Video (Video 3)' });
-    
-    
+
+
     const items = isVideoTemplate ? videoItemsWithLabels.map(v => v.id) : (photos || []);
     const hasMultipleItems = items.length > 1;
 
@@ -829,7 +843,7 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
     // For video templates
     if (isVideoTemplate) {
         const currentVideoId = items[currentIndex];
-        
+
         // If no valid video ID, show placeholder
         if (!currentVideoId) {
             return (
@@ -838,12 +852,12 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
                 </div>
             );
         }
-        
+
         const videoUrl = `${baseURL}upload/file/${currentVideoId}`;
         const videoLabel = videoItemsWithLabels.find(v => v.id === currentVideoId)?.label || 'Video';
-        
+
         return (
-            <div 
+            <div
                 style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', cursor: 'pointer' }}
                 onClick={handleVideoClick}
             >
@@ -889,7 +903,7 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
                 >
                     {isPlaying ? <Pause size={20} /> : <Play size={20} />}
                 </button>
-                
+
                 {/* Navigation buttons for multiple videos */}
                 {hasMultipleItems && (
                     <>
@@ -1019,12 +1033,12 @@ const TemplateCarousel = ({ photos, name, onImageClick, onVideoClick, video1Id, 
 // Helper function to convert color names to hex
 const convertColorToHex = (color) => {
     if (!color) return '#FFFFFF';
-    
+
     // If already hex, return as is
     if (color.startsWith('#')) {
         return color.toUpperCase();
     }
-    
+
     // Color name to hex mapping
     const colorMap = {
         'white': '#FFFFFF',
@@ -1050,7 +1064,7 @@ const convertColorToHex = (color) => {
         'teal': '#008080',
         'olive': '#808000'
     };
-    
+
     const lowerColor = color.toLowerCase().trim();
     return colorMap[lowerColor] || '#FFFFFF';
 };
@@ -1059,13 +1073,13 @@ const convertColorToHex = (color) => {
 // Backend now accepts hex colors directly, so we can save hex format
 const convertHexToColorName = (hex) => {
     if (!hex) return '#FFFFFF';
-    
+
     // If it's already a color name (not starting with #), return as hex
     if (!hex.startsWith('#')) {
         // It's a color name, convert to hex first
         return convertColorToHex(hex);
     }
-    
+
     // Return hex as is (backend will handle conversion to FFmpeg format)
     return hex.toUpperCase();
 };
@@ -1107,6 +1121,36 @@ const Templates = () => {
     const [adminInfo, setAdminInfo] = useState({ id: '', branchid: '' });
     const [availableAnimations, setAvailableAnimations] = useState([]); // Store available GIF animations
     const [selectedAnimationIndex, setSelectedAnimationIndex] = useState(0); // For slider navigation
+
+    // Google Fonts available in backend
+    const GOOGLE_FONTS = [
+        "Anton",
+        "Arvo",
+        "Audiowide",
+        "Bangers",
+        "Courgette",
+        "Fjalla One",
+        "Hind",
+        "Indie Flower",
+        "Lato",
+        "Lobster",
+        "Mukta",
+        "Pacifico",
+        "Poppins",
+        "Righteous"
+    ];
+
+    // Load Google Fonts for preview
+    useEffect(() => {
+        const linkId = 'google-fonts-link';
+        if (!document.getElementById(linkId)) {
+            const link = document.createElement('link');
+            link.id = linkId;
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${GOOGLE_FONTS.map(f => f.replace(/ /g, '+')).join('&family=')}&display=swap`;
+            document.head.appendChild(link);
+        }
+    }, []);
 
     // Alert & Confirmation Modal States
     const [alertModal, setAlertModal] = useState({ show: false, message: '', type: 'info' });
@@ -1192,6 +1236,21 @@ const Templates = () => {
         usageGrowth: 0,
         avgUsageGrowth: 0
     });
+
+    // Load Google Fonts for preview
+    useEffect(() => {
+        const families = GOOGLE_FONTS.map(font => font.replace(/\s+/g, '+') + ':wght@400;700');
+        const href = `https://fonts.googleapis.com/css2?family=${families.join('&family=')}&display=swap`;
+
+        const link = document.createElement('link');
+        link.href = href;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+
+        return () => {
+            document.head.removeChild(link);
+        };
+    }, []);
 
     // Helper function to generate SVG trend path
     const generateTrendPath = (growth) => {
@@ -1366,12 +1425,12 @@ const Templates = () => {
                 ? templatesResponse.data.data
                 : (Array.isArray(templatesResponse.data) ? templatesResponse.data : []);
             const rawTemplates = rawTemplatesArray.filter(t => t.adminid === user.id || t.adminid === user._id);
-            
+
             const rawPhotosArray = Array.isArray(photosResponse.data?.data)
                 ? photosResponse.data.data
                 : (Array.isArray(photosResponse.data) ? photosResponse.data : []);
             const rawPhotos = rawPhotosArray;
-            
+
             // Update pagination if available
             if (templatesResponse.data?.pagination) {
                 setPagination(prev => ({
@@ -1384,14 +1443,14 @@ const Templates = () => {
             // Calculate usage counts from photo creations and track sources
             const usageCounts = {};
             const templateSources = {}; // Track which source uses each template
-            
+
             rawPhotos
                 .filter(item => item.source === 'photo merge app' || item.source === 'video merge app')
                 .forEach(item => {
                     const templateName = item.template_name || item.templatename || item.type;
                     if (templateName) {
                         usageCounts[templateName] = (usageCounts[templateName] || 0) + 1;
-                        
+
                         // Track sources for each template
                         if (!templateSources[templateName]) {
                             templateSources[templateName] = new Set();
@@ -1408,7 +1467,7 @@ const Templates = () => {
                 // If no usage, determine source from accessType
                 const defaultSource = t.accessType === 'videomerge' ? 'video merge app' : 'photo merge app';
                 const templateSource = sources.length > 0 ? sources[0] : defaultSource;
-                
+
                 return {
                     id: t._id,
                     name: name,
@@ -1458,12 +1517,12 @@ const Templates = () => {
                         id: anim.gifId,
                         name: anim.name || 'Animation'
                     }));
-                    
+
                     // Also collect GIF IDs from existing templates
                     const templateGifIds = rawTemplates
                         .filter(t => t.gifId)
                         .map(t => ({ id: t.gifId, name: t.templatename || 'Animation' }));
-                    
+
                     // Combine both sources and remove duplicates
                     const allAnimations = [...adminAnimations, ...templateGifIds];
                     const seenIds = new Set();
@@ -1472,9 +1531,9 @@ const Templates = () => {
                         seenIds.add(anim.id.toString());
                         return true;
                     });
-                    
+
                     setAvailableAnimations(uniqueAnimations);
-                    
+
                     // Reset slider index when animations are loaded
                     if (uniqueAnimations.length > 0) {
                         setSelectedAnimationIndex(0);
@@ -1603,7 +1662,7 @@ const Templates = () => {
                     const guideExists = response.data.guides.some(
                         guide => guide.accessType === formData.accessType
                     );
-                    
+
                     if (guideExists) {
                         // Only set the URL if the guide exists
                         const baseURL = axiosData.defaults.baseURL || 'https://api.bilimbebrandactivations.com/api/';
@@ -1836,20 +1895,20 @@ const Templates = () => {
                     // Backend now accepts hex colors directly
                     const currentTextColor = (formData.overlayTextColor || '#FFFFFF').toUpperCase();
                     const currentFontFamily = formData.overlayFontFamily || 'Arial';
-                    
+
                     // Original is already in hex format (converted when loading)
                     const originalTextColor = (original.overlayTextColor || '#FFFFFF').toUpperCase();
                     const originalFontFamily = original.overlayFontFamily || 'Arial';
-                    
+
                     // Send hex color directly (backend will handle it)
                     const colorToSave = currentTextColor;
-                    
+
                     // Always send these fields to ensure they're saved (especially for old templates)
                     // Check if changed or missing in original
                     const colorChanged = currentTextColor !== originalTextColor;
                     const fontChanged = currentFontFamily !== originalFontFamily;
                     const missingInOriginal = !original.overlayTextColor || !original.overlayFontFamily;
-                    
+
                     // Always send to ensure they're saved in database
                     uploadData.append('overlayTextColor', colorToSave);
                     uploadData.append('overlayFontFamily', currentFontFamily);
@@ -1909,7 +1968,7 @@ const Templates = () => {
                         uploadData.append('removeAudio', 'true');
                         hasChanges = true;
                     }
-                    
+
                     // Handle animation GIF
                     if (formData.hasAnimation && formData.gif && formData.gif instanceof File) {
                         uploadData.append('gif', formData.gif);
@@ -1928,9 +1987,9 @@ const Templates = () => {
                     const hasPhotoChanges = formData.photos.some((photo, index) => {
                         const originalPhoto = original.originalPhotos[index];
                         // Changed if: new file uploaded, or photo was removed, or order changed
-                        return (photo instanceof File) || 
-                               (photo !== originalPhoto) ||
-                               (photo && typeof photo === 'string' && originalPhoto && photo !== originalPhoto);
+                        return (photo instanceof File) ||
+                            (photo !== originalPhoto) ||
+                            (photo && typeof photo === 'string' && originalPhoto && photo !== originalPhoto);
                     });
 
                     if (hasPhotoChanges) {
@@ -1999,7 +2058,7 @@ const Templates = () => {
                     if (formData.video1) uploadData.append('video1', formData.video1);
                     if (formData.video3) uploadData.append('video3', formData.video3);
                     if (formData.audio) uploadData.append('audio', formData.audio);
-                    
+
                     // Append animation file if animation is enabled
                     if (formData.hasAnimation && formData.gif) {
                         uploadData.append('gif', formData.gif);
@@ -2050,7 +2109,7 @@ const Templates = () => {
         const matchesCategory = selectedCategory === 'All Templates' || tmpl.name === selectedCategory;
         const matchesStatus = selectedStatus === 'All Status' || tmpl.status.toLowerCase() === selectedStatus.toLowerCase();
         // Filter by media type: check if template's sources include the selected media type
-        const matchesSource = selectedSource === 'All Media Types' || 
+        const matchesSource = selectedSource === 'All Media Types' ||
             (tmpl.sources && tmpl.sources.includes(selectedSource)) ||
             (tmpl.source === selectedSource);
         return matchesSearch && matchesCategory && matchesStatus && matchesSource;
@@ -2170,7 +2229,7 @@ const Templates = () => {
                 </SearchBox>
 
                 <FilterGroup>
-                <Dropdown ref={sourceRef}>
+                    <Dropdown ref={sourceRef}>
                         <DropdownBtn onClick={() => setShowSourceDropdown(!showSourceDropdown)}>
                             <Filter size={16} />
                             {selectedSource}
@@ -2317,9 +2376,9 @@ const Templates = () => {
                         $highlighted={tmpl.id === highlightedId}
                     >
                         <TemplatePreview $active={tmpl.status === 'active'}>
-                            <TemplateCarousel 
-                                photos={tmpl.photos} 
-                                name={tmpl.name} 
+                            <TemplateCarousel
+                                photos={tmpl.photos}
+                                name={tmpl.name}
                                 onImageClick={handleImageClick}
                                 onVideoClick={handleVideoClick}
                                 video1Id={tmpl.video1Id}
@@ -2372,7 +2431,7 @@ const Templates = () => {
                     </TemplateCard>
                 ))}
             </TemplateGrid>
-            
+
             {pagination.total > 0 && pagination.totalPages > 1 && (
                 <Pagination
                     currentPage={pagination.page}
@@ -2426,8 +2485,8 @@ const Templates = () => {
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                                         readOnly={!!editingTemplate}
-                                        style={editingTemplate ? { 
-                                            cursor: 'not-allowed', 
+                                        style={editingTemplate ? {
+                                            cursor: 'not-allowed',
                                             backgroundColor: '#F5F5F5',
                                             opacity: 0.7
                                         } : {}}
@@ -2483,11 +2542,11 @@ const Templates = () => {
                                                 color: '#1A1A1A',
                                                 fontWeight: 600
                                             }}>
-                                                {formData.accessType === 'photomerge' 
-                                                    ? 'Photo Merge' 
-                                                    : formData.accessType === 'videomerge' 
-                                                    ? 'Video Merge' 
-                                                    : 'Template'} Template Guide
+                                                {formData.accessType === 'photomerge'
+                                                    ? 'Photo Merge'
+                                                    : formData.accessType === 'videomerge'
+                                                        ? 'Video Merge'
+                                                        : 'Template'} Template Guide
                                             </span>
                                         </div>
                                         <a
@@ -2508,8 +2567,8 @@ const Templates = () => {
                                                 border: '1px solid #0F0F0F',
                                                 transition: 'all 0.2s ease',
                                                 whiteSpace: 'nowrap',
-                                                ...(pdfGuideUrl ? {} : { 
-                                                    pointerEvents: 'none', 
+                                                ...(pdfGuideUrl ? {} : {
+                                                    pointerEvents: 'none',
                                                     opacity: 0.5,
                                                     cursor: 'not-allowed'
                                                 })
@@ -2532,21 +2591,21 @@ const Templates = () => {
                                 {formData.accessType === 'videomerge' ? (
                                     <>
                                         {/* Video Options Section */}
-                                        <div style={{ 
+                                        <div style={{
                                             marginBottom: '28px',
                                             paddingBottom: '24px',
                                             borderBottom: '1px solid #E5E5E5'
                                         }}>
-                                            <h3 style={{ 
-                                                fontSize: '15px', 
-                                                fontWeight: 600, 
-                                                color: '#1A1A1A', 
+                                            <h3 style={{
+                                                fontSize: '15px',
+                                                fontWeight: 600,
+                                                color: '#1A1A1A',
                                                 marginBottom: '16px',
                                                 letterSpacing: '0.3px'
                                             }}>
                                                 Video Options
                                             </h3>
-                                            <div style={{ 
+                                            <div style={{
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 gap: '14px',
@@ -2677,9 +2736,9 @@ const Templates = () => {
                                                         type="checkbox"
                                                         checked={formData.video2TextOption || false}
                                                         onChange={e => setFormData({ ...formData, video2TextOption: e.target.checked })}
-                                                        style={{ 
-                                                            height: '22px', 
-                                                            width: '22px', 
+                                                        style={{
+                                                            height: '22px',
+                                                            width: '22px',
                                                             cursor: 'pointer',
                                                             accentColor: '#1A1A1A',
                                                             flexShrink: 0
@@ -2736,15 +2795,15 @@ const Templates = () => {
 
                                         {/* Basic Information Section - only when overlay for video 2 is enabled */}
                                         {formData.video2TextOption && (
-                                            <div style={{ 
+                                            <div style={{
                                                 marginBottom: '28px',
                                                 paddingBottom: '24px',
                                                 borderBottom: '1px solid #E5E5E5'
                                             }}>
-                                                <h3 style={{ 
-                                                    fontSize: '15px', 
-                                                    fontWeight: 600, 
-                                                    color: '#1A1A1A', 
+                                                <h3 style={{
+                                                    fontSize: '15px',
+                                                    fontWeight: 600,
+                                                    color: '#1A1A1A',
                                                     marginBottom: '20px',
                                                     letterSpacing: '0.3px'
                                                 }}>
@@ -2802,6 +2861,20 @@ const Templates = () => {
                                                             <option value="Comic Sans MS" style={{ fontFamily: 'Comic Sans MS' }}>Comic Sans MS - Sample Text</option>
                                                             <option value="Trebuchet MS" style={{ fontFamily: 'Trebuchet MS' }}>Trebuchet MS - Sample Text</option>
                                                             <option value="Impact" style={{ fontFamily: 'Impact' }}>Impact - Sample Text</option>
+                                                            <option value="Arial Black" style={{ fontFamily: 'Arial Black' }}>Arial Black - Sample Text</option>
+                                                            <option value="Tahoma" style={{ fontFamily: 'Tahoma' }}>Tahoma - Sample Text</option>
+                                                            <option value="Geneva" style={{ fontFamily: 'Geneva' }}>Geneva - Sample Text</option>
+                                                            <option value="Brush Script MT" style={{ fontFamily: 'Brush Script MT' }}>Brush Script MT - Sample Text</option>
+                                                            <option value="Lucida Console" style={{ fontFamily: 'Lucida Console' }}>Lucida Console - Sample Text</option>
+                                                            <option value="Monaco" style={{ fontFamily: 'Monaco' }}>Monaco - Sample Text</option>
+                                                            <option value="Perpetua" style={{ fontFamily: 'Perpetua' }}>Perpetua - Sample Text</option>
+                                                            <option value="Copperplate" style={{ fontFamily: 'Copperplate' }}>Copperplate - Sample Text</option>
+                                                            <option value="Papyrus" style={{ fontFamily: 'Papyrus' }}>Papyrus - Sample Text</option>
+
+                                                            {/* Google Fonts */}
+                                                            {GOOGLE_FONTS.map(font => (
+                                                                <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                                                            ))}
                                                         </select>
                                                     </FormGroup>
                                                 </FormRow>
@@ -2810,28 +2883,28 @@ const Templates = () => {
 
                                         {/* Video Files Section */}
                                         <div style={{ marginBottom: '28px' }}>
-                                            <h3 style={{ 
-                                                fontSize: '15px', 
-                                                fontWeight: 600, 
-                                                color: '#1A1A1A', 
+                                            <h3 style={{
+                                                fontSize: '15px',
+                                                fontWeight: 600,
+                                                color: '#1A1A1A',
                                                 marginBottom: '16px',
                                                 letterSpacing: '0.3px'
                                             }}>
                                                 Video Files
                                             </h3>
-                                            <div style={{ 
-                                                display: 'grid', 
-                                                gap: '16px', 
-                                                gridTemplateColumns: '1fr 1fr' 
+                                            <div style={{
+                                                display: 'grid',
+                                                gap: '16px',
+                                                gridTemplateColumns: '1fr 1fr'
                                             }}>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>Start Video (Video 1)</span>
@@ -2839,9 +2912,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.video1 && typeof formData.video1 !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -2858,7 +2931,7 @@ const Templates = () => {
                                                             type="file"
                                                             data-field="video1"
                                                             onChange={handleVideoFileChange('video1')}
-                                                            style={{ 
+                                                            style={{
                                                                 flex: 1,
                                                                 padding: '12px 16px',
                                                                 borderRadius: '12px',
@@ -2897,13 +2970,13 @@ const Templates = () => {
                                                     </div>
                                                 </FormGroup>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>End Video (Video 3)</span>
@@ -2911,9 +2984,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.video3 && typeof formData.video3 !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -2930,7 +3003,7 @@ const Templates = () => {
                                                             type="file"
                                                             data-field="video3"
                                                             onChange={handleVideoFileChange('video3')}
-                                                            style={{ 
+                                                            style={{
                                                                 flex: 1,
                                                                 padding: '12px 16px',
                                                                 borderRadius: '12px',
@@ -2969,13 +3042,13 @@ const Templates = () => {
                                                     </div>
                                                 </FormGroup>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>Audio</span>
@@ -2983,9 +3056,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.audio && typeof formData.audio !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -3002,7 +3075,7 @@ const Templates = () => {
                                                             type="file"
                                                             data-field="audio"
                                                             onChange={handleVideoFileChange('audio')}
-                                                            style={{ 
+                                                            style={{
                                                                 flex: 1,
                                                                 padding: '12px 16px',
                                                                 borderRadius: '12px',
@@ -3044,7 +3117,7 @@ const Templates = () => {
                                         </div>
 
                                         {/* Animation Option */}
-                                        <div style={{ 
+                                        <div style={{
                                             marginBottom: '28px',
                                             paddingBottom: '24px',
                                             borderBottom: '1px solid #E5E5E5'
@@ -3086,9 +3159,9 @@ const Templates = () => {
                                                         checked={formData.hasAnimation || false}
                                                         onChange={e => setFormData({ ...formData, hasAnimation: e.target.checked })}
                                                         disabled={!!editingTemplate}
-                                                        style={{ 
-                                                            height: '22px', 
-                                                            width: '22px', 
+                                                        style={{
+                                                            height: '22px',
+                                                            width: '22px',
                                                             cursor: editingTemplate ? 'not-allowed' : 'pointer',
                                                             accentColor: '#1A1A1A',
                                                             flexShrink: 0,
@@ -3103,23 +3176,23 @@ const Templates = () => {
                                         {/* Animation Files Section - Only show when animation is enabled */}
                                         {formData.hasAnimation && (
                                             <div style={{ marginBottom: '24px' }}>
-                                                <h3 style={{ 
-                                                    fontSize: '15px', 
-                                                    fontWeight: 600, 
-                                                    color: '#1A1A1A', 
+                                                <h3 style={{
+                                                    fontSize: '15px',
+                                                    fontWeight: 600,
+                                                    color: '#1A1A1A',
                                                     marginBottom: '16px',
                                                     letterSpacing: '0.3px'
                                                 }}>
                                                     Animation Files
                                                 </h3>
                                                 <FormGroup style={{ marginBottom: 0 }}>
-                                                    <label style={{ 
-                                                        fontSize: '13px', 
-                                                        fontWeight: 600, 
-                                                        color: '#444', 
-                                                        marginBottom: '10px', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <label style={{
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        color: '#444',
+                                                        marginBottom: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '8px'
                                                     }}>
                                                         <span>Animation (GIF) *</span>
@@ -3127,9 +3200,9 @@ const Templates = () => {
                                                             <span style={{ color: 'green', marginLeft: '5px' }}>(Existing)</span>
                                                         )}
                                                         {formData.gif && typeof formData.gif !== 'string' && (
-                                                            <span style={{ 
-                                                                color: '#10B981', 
-                                                                fontSize: '14px', 
+                                                            <span style={{
+                                                                color: '#10B981',
+                                                                fontSize: '14px',
                                                                 fontWeight: 600,
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
@@ -3140,9 +3213,9 @@ const Templates = () => {
                                                             </span>
                                                         )}
                                                     </label>
-                                                    <div style={{ 
-                                                        fontSize: '12px', 
-                                                        color: '#666', 
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: '#666',
                                                         marginBottom: '8px',
                                                         padding: '8px 12px',
                                                         background: '#F3F4F6',
@@ -3159,16 +3232,16 @@ const Templates = () => {
                                                         {/* Animation Slider - Select from existing animations */}
                                                         {availableAnimations.length > 0 && (
                                                             <FormGroup style={{ marginBottom: 0 }}>
-                                                                <label style={{ 
-                                                                    fontSize: '13px', 
-                                                                    fontWeight: 600, 
-                                                                    color: '#444', 
+                                                                <label style={{
+                                                                    fontSize: '13px',
+                                                                    fontWeight: 600,
+                                                                    color: '#444',
                                                                     marginBottom: '12px',
                                                                     display: 'block'
                                                                 }}>
                                                                     Select Existing Animation ({availableAnimations.length} available)
                                                                 </label>
-                                                                
+
                                                                 {/* Animation Slider Container */}
                                                                 <div style={{
                                                                     position: 'relative',
@@ -3184,7 +3257,7 @@ const Templates = () => {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    setSelectedAnimationIndex((prev) => 
+                                                                                    setSelectedAnimationIndex((prev) =>
                                                                                         prev === 0 ? availableAnimations.length - 1 : prev - 1
                                                                                     );
                                                                                 }}
@@ -3222,7 +3295,7 @@ const Templates = () => {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    setSelectedAnimationIndex((prev) => 
+                                                                                    setSelectedAnimationIndex((prev) =>
                                                                                         prev === availableAnimations.length - 1 ? 0 : prev + 1
                                                                                     );
                                                                                 }}
@@ -3259,7 +3332,7 @@ const Templates = () => {
                                                                             </button>
                                                                         </>
                                                                     )}
-                                                                    
+
                                                                     {/* Animation Display Area */}
                                                                     <div style={{
                                                                         display: 'flex',
@@ -3279,9 +3352,9 @@ const Templates = () => {
                                                                                     width: '100%',
                                                                                     maxWidth: '300px',
                                                                                     height: '200px',
-                                                                                    border: typeof formData.gif === 'string' && 
-                                                                                            formData.gif === availableAnimations[selectedAnimationIndex].id
-                                                                                        ? '3px solid #10B981' 
+                                                                                    border: typeof formData.gif === 'string' &&
+                                                                                        formData.gif === availableAnimations[selectedAnimationIndex].id
+                                                                                        ? '3px solid #10B981'
                                                                                         : '2px solid #D0D0D0',
                                                                                     borderRadius: '12px',
                                                                                     overflow: 'hidden',
@@ -3289,21 +3362,21 @@ const Templates = () => {
                                                                                     transition: 'all 0.2s ease',
                                                                                     background: 'white',
                                                                                     position: 'relative',
-                                                                                    boxShadow: typeof formData.gif === 'string' && 
-                                                                                            formData.gif === availableAnimations[selectedAnimationIndex].id
-                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)' 
+                                                                                    boxShadow: typeof formData.gif === 'string' &&
+                                                                                        formData.gif === availableAnimations[selectedAnimationIndex].id
+                                                                                        ? '0 4px 12px rgba(16, 185, 129, 0.3)'
                                                                                         : '0 2px 4px rgba(0,0,0,0.1)'
                                                                                 }}
                                                                                 onMouseEnter={(e) => {
-                                                                                    if (!(typeof formData.gif === 'string' && 
-                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                    if (!(typeof formData.gif === 'string' &&
+                                                                                        formData.gif === availableAnimations[selectedAnimationIndex].id)) {
                                                                                         e.currentTarget.style.borderColor = '#1A1A1A';
                                                                                         e.currentTarget.style.transform = 'scale(1.02)';
                                                                                     }
                                                                                 }}
                                                                                 onMouseLeave={(e) => {
-                                                                                    if (!(typeof formData.gif === 'string' && 
-                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                    if (!(typeof formData.gif === 'string' &&
+                                                                                        formData.gif === availableAnimations[selectedAnimationIndex].id)) {
                                                                                         e.currentTarget.style.borderColor = '#D0D0D0';
                                                                                         e.currentTarget.style.transform = 'scale(1)';
                                                                                     }
@@ -3319,24 +3392,24 @@ const Templates = () => {
                                                                                     }}
                                                                                 />
                                                                                 {/* Selection Indicator */}
-                                                                                {typeof formData.gif === 'string' && 
-                                                                                 formData.gif === availableAnimations[selectedAnimationIndex].id && (
-                                                                                    <div style={{
-                                                                                        position: 'absolute',
-                                                                                        top: '8px',
-                                                                                        right: '8px',
-                                                                                        background: '#10B981',
-                                                                                        borderRadius: '50%',
-                                                                                        width: '28px',
-                                                                                        height: '28px',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                                                                                    }}>
-                                                                                        <CheckCircle size={18} color="white" fill="white" />
-                                                                                    </div>
-                                                                                )}
+                                                                                {typeof formData.gif === 'string' &&
+                                                                                    formData.gif === availableAnimations[selectedAnimationIndex].id && (
+                                                                                        <div style={{
+                                                                                            position: 'absolute',
+                                                                                            top: '8px',
+                                                                                            right: '8px',
+                                                                                            background: '#10B981',
+                                                                                            borderRadius: '50%',
+                                                                                            width: '28px',
+                                                                                            height: '28px',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            justifyContent: 'center',
+                                                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                                                                        }}>
+                                                                                            <CheckCircle size={18} color="white" fill="white" />
+                                                                                        </div>
+                                                                                    )}
                                                                                 {/* Animation Name */}
                                                                                 <div style={{
                                                                                     position: 'absolute',
@@ -3354,7 +3427,7 @@ const Templates = () => {
                                                                                 </div>
                                                                             </div>
                                                                         )}
-                                                                        
+
                                                                         {/* Animation Dots Indicator */}
                                                                         {availableAnimations.length > 1 && (
                                                                             <div style={{
@@ -3381,7 +3454,7 @@ const Templates = () => {
                                                                                 ))}
                                                                             </div>
                                                                         )}
-                                                                        
+
                                                                         {/* Select Button */}
                                                                         <button
                                                                             type="button"
@@ -3391,9 +3464,9 @@ const Templates = () => {
                                                                             }}
                                                                             style={{
                                                                                 padding: '10px 24px',
-                                                                                background: typeof formData.gif === 'string' && 
-                                                                                          formData.gif === availableAnimations[selectedAnimationIndex].id
-                                                                                    ? '#10B981' 
+                                                                                background: typeof formData.gif === 'string' &&
+                                                                                    formData.gif === availableAnimations[selectedAnimationIndex].id
+                                                                                    ? '#10B981'
                                                                                     : '#1A1A1A',
                                                                                 color: 'white',
                                                                                 border: 'none',
@@ -3407,20 +3480,20 @@ const Templates = () => {
                                                                                 gap: '8px'
                                                                             }}
                                                                             onMouseEnter={(e) => {
-                                                                                if (!(typeof formData.gif === 'string' && 
-                                                                                      formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                if (!(typeof formData.gif === 'string' &&
+                                                                                    formData.gif === availableAnimations[selectedAnimationIndex].id)) {
                                                                                     e.currentTarget.style.background = '#0F0F0F';
                                                                                 }
                                                                             }}
                                                                             onMouseLeave={(e) => {
-                                                                                if (!(typeof formData.gif === 'string' && 
-                                                                                      formData.gif === availableAnimations[selectedAnimationIndex].id)) {
+                                                                                if (!(typeof formData.gif === 'string' &&
+                                                                                    formData.gif === availableAnimations[selectedAnimationIndex].id)) {
                                                                                     e.currentTarget.style.background = '#1A1A1A';
                                                                                 }
                                                                             }}
                                                                         >
-                                                                            {typeof formData.gif === 'string' && 
-                                                                             formData.gif === availableAnimations[selectedAnimationIndex].id ? (
+                                                                            {typeof formData.gif === 'string' &&
+                                                                                formData.gif === availableAnimations[selectedAnimationIndex].id ? (
                                                                                 <>
                                                                                     <CheckCircle size={16} />
                                                                                     Selected
@@ -3433,7 +3506,7 @@ const Templates = () => {
                                                                 </div>
                                                             </FormGroup>
                                                         )}
-                                                        
+
                                                         {/* Upload new animation */}
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                             <input
@@ -3448,7 +3521,7 @@ const Templates = () => {
                                                                     }
                                                                 }}
                                                                 required={formData.hasAnimation && !editingTemplate && !formData.gif}
-                                                                style={{ 
+                                                                style={{
                                                                     flex: 1,
                                                                     padding: '12px 16px',
                                                                     borderRadius: '12px',
@@ -3465,25 +3538,25 @@ const Templates = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleRemoveFile('gif')}
-                                                                style={{
-                                                                    padding: '8px',
-                                                                    background: '#EF4444',
-                                                                    color: 'white',
-                                                                    border: 'none',
-                                                                    borderRadius: '8px',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    transition: 'all 0.2s'
-                                                                }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
-                                                                title="Remove GIF"
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        )}
+                                                                    style={{
+                                                                        padding: '8px',
+                                                                        background: '#EF4444',
+                                                                        color: 'white',
+                                                                        border: 'none',
+                                                                        borderRadius: '8px',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        transition: 'all 0.2s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
+                                                                    title="Remove GIF"
+                                                                >
+                                                                    <X size={16} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </FormGroup>
@@ -3520,17 +3593,17 @@ const Templates = () => {
 
 
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                                    <Button 
-                                        type="button" 
-                                        onClick={handleCloseModal} 
+                                    <Button
+                                        type="button"
+                                        onClick={handleCloseModal}
                                         style={{ flex: 1 }}
                                         disabled={isSubmitting}
                                     >
                                         Cancel
                                     </Button>
-                                    <Button 
-                                        type="submit" 
-                                        $variant="primary" 
+                                    <Button
+                                        type="submit"
+                                        $variant="primary"
                                         style={{ flex: 1, position: 'relative' }}
                                         disabled={isSubmitting}
                                     >
@@ -3617,7 +3690,7 @@ const Templates = () => {
                         {(() => {
                             const items = imageModal.isVideo ? imageModal.videos : imageModal.photos;
                             const hasMultiple = items.length > 1;
-                            
+
                             return (
                                 <>
                                     {hasMultiple && (
