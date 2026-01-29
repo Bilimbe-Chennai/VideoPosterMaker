@@ -87,6 +87,7 @@ router.post('/template-upload', async (req, res) => {
                 // Animation fields
                 let hasAnimation = false;
                 let gifBuffer;
+                let gifIdField = ''; // For selecting existing animation
 
                 // First pass: parse all fields to determine accessType
                 parts.forEach((part) => {
@@ -158,15 +159,17 @@ router.post('/template-upload', async (req, res) => {
                             audioBuffer = body.length > 0 ? body : null;
                         } else if (headersText.includes('name="gif"')) {
                             gifBuffer = body.length > 0 ? body : null;
+                        } else if (headersText.includes('name="gifId"')) {
+                            gifIdField = body.toString().trim();
                         }
                     } else {
                         // Parse photo merge fields (original logic)
                         if (headersText.includes('name="photos"')) {
-                        photosBuffers.push({
-                            buffer: body,
-                            filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
-                            mimetype: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'image/jpeg'
-                        });
+                            photosBuffers.push({
+                                buffer: body,
+                                filename: headersText.match(/filename="(.+?)"/)?.[1] || `photo-${Date.now()}.jpg`,
+                                mimetype: headersText.match(/Content-Type: (.+?)\r\n/)?.[1] || 'image/jpeg'
+                            });
                         }
                     }
                 });
@@ -177,14 +180,14 @@ router.post('/template-upload', async (req, res) => {
                     if (!templatename) {
                         return res.status(400).json({ error: 'Template name is required' });
                     }
-                    
-                    // If animation is enabled, require gif
+
+                    // If animation is enabled, require gif file or existing gifId
                     if (hasAnimation) {
-                        if (!gifBuffer) {
-                            return res.status(400).json({ error: 'Animation (GIF) is required when animation is enabled' });
+                        if (!gifBuffer && !gifIdField) {
+                            return res.status(400).json({ error: 'Animation (GIF) or Existing Animation ID is required when animation is enabled' });
                         }
                     }
-                    
+
                     // Require at least video1 or video3 (start/end videos)
                     if (!video1Buffer && !video3Buffer) {
                         return res.status(400).json({ error: 'At least one video (Start Video or End Video) is required' });
@@ -211,38 +214,42 @@ router.post('/template-upload', async (req, res) => {
                         // Check if it's a video file and extract audio if needed
                         const filename = audioBuffer.filename || '';
                         const contentType = audioBuffer.contentType || '';
-                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) || 
-                                       contentType.startsWith('video/');
-                        
+                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) ||
+                            contentType.startsWith('video/');
+
                         let finalAudioBuffer = audioBuffer.buffer;
-                        
+
                         if (isVideo) {
                             // Extract audio from video
                             const { extractAudioFromVideo } = require('../utils/videoMerge');
                             const extension = filename.split('.').pop() || 'mp4';
                             finalAudioBuffer = await extractAudioFromVideo(finalAudioBuffer, extension);
                         }
-                        
+
                         audioId = await uploadToGridFS(
                             `audio-${Date.now()}.mp3`,
                             finalAudioBuffer,
                             "audio/mp3"
                         );
                     }
-                    // Upload animation file if enabled
-                    if (hasAnimation && gifBuffer) {
-                        gifId = await uploadToGridFS(
-                            `animation-${Date.now()}.gif`,
-                            gifBuffer,
-                            "image/gif"
-                        );
+                    // Upload animation file if enabled and provided
+                    if (hasAnimation) {
+                        if (gifBuffer) {
+                            gifId = await uploadToGridFS(
+                                `animation-${Date.now()}.gif`,
+                                gifBuffer,
+                                "image/gif"
+                            );
+                        } else if (gifIdField) {
+                            gifId = gifIdField;
+                        }
                     }
 
                     // Set source based on accessType if not provided, normalize to lowercase only (preserve spaces)
                     // Normalize "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
                     const normalizedSource = source ? source.trim().toLowerCase() : null;
                     const templateSource = normalizedSource || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
-                    
+
                     // Only save template data, no video merging or media saving
                     const template = new PhotoMergeTemplate({
                         templatename,
@@ -280,36 +287,36 @@ router.post('/template-upload', async (req, res) => {
                     res.status(201).json({ success: true, template });
                 } else {
                     // Original photo merge logic
-                if (!templatename || photosBuffers.length === 0) {
-                    return res.status(400).json({ error: 'Template name and at least one photo are required' });
-                }
+                    if (!templatename || photosBuffers.length === 0) {
+                        return res.status(400).json({ error: 'Template name and at least one photo are required' });
+                    }
 
-                const templatePhotos = [];
-                for (const p of photosBuffers) {
-                    const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
-                    templatePhotos.push(photoId);
-                }
+                    const templatePhotos = [];
+                    for (const p of photosBuffers) {
+                        const photoId = await uploadToGridFS(p.filename, p.buffer, p.mimetype);
+                        templatePhotos.push(photoId);
+                    }
 
-                // Set source based on accessType if not provided
-                // Normalize source to lowercase only (preserve spaces): "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
-                const normalizedSource = source ? source.trim().toLowerCase() : null;
-                const templateSource = normalizedSource || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
-                
-                const template = new PhotoMergeTemplate({
-                    templatename,
-                    templatePhotos,
-                    createdDate: new Date(),
-                    updatedDate: new Date(),
-                    type,
-                    source: templateSource,
-                    adminid,
-                    branchid,
-                    accessType,
-                    status
-                });
+                    // Set source based on accessType if not provided
+                    // Normalize source to lowercase only (preserve spaces): "Photo Merge App" -> "photo merge app", "Video Merge App" -> "video merge app"
+                    const normalizedSource = source ? source.trim().toLowerCase() : null;
+                    const templateSource = normalizedSource || (accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
 
-                await template.save();
-                res.status(201).json({ success: true, template });
+                    const template = new PhotoMergeTemplate({
+                        templatename,
+                        templatePhotos,
+                        createdDate: new Date(),
+                        updatedDate: new Date(),
+                        type,
+                        source: templateSource,
+                        adminid,
+                        branchid,
+                        accessType,
+                        status
+                    });
+
+                    await template.save();
+                    res.status(201).json({ success: true, template });
                 }
             } catch (err) {
                 console.error('Inner parse error:', err);
@@ -356,6 +363,7 @@ router.put('/templates/:id', async (req, res) => {
                 // Video merge fields - initialize as null to distinguish between "not sent" and "sent as empty"
                 let name = null, date = null, clientname = null, brandname = null, congratsOption = null, video1TextOption = null, video2TextOption = null, video3TextOption = null, hasAnimation = null, overlayTextColor = null, overlayFontFamily = null;
                 let video1Buffer, video3Buffer, audioBuffer, gifBuffer;
+                let gifIdField = null; // For selecting existing animation
                 let removeVideo1 = false, removeVideo3 = false, removeAudio = false, removeGif = false;
                 let accessType = null;
                 let unsetFields = {}; // For fields that need to be unset (cleared)
@@ -465,6 +473,8 @@ router.put('/templates/:id', async (req, res) => {
                             removeAudio = body.toString().trim() === 'true';
                         } else if (headersText.includes('name="removeGif"')) {
                             removeGif = body.toString().trim() === 'true';
+                        } else if (headersText.includes('name="gifId"')) {
+                            gifIdField = body.toString().trim();
                         }
                     } else {
                         // Photo merge fields
@@ -489,7 +499,7 @@ router.put('/templates/:id', async (req, res) => {
                     // Separate $set and $unset operations for proper field clearing
                     // Reset unsetFields for this update
                     unsetFields = {};
-                    
+
                     // Update text fields if provided - empty strings should clear the field
                     // Only process fields that were actually sent in the form data
                     if (fieldsReceived.name) {
@@ -574,18 +584,18 @@ router.put('/templates/:id', async (req, res) => {
                         // Check if it's a video file and extract audio if needed
                         const filename = audioBuffer.filename || '';
                         const contentType = audioBuffer.contentType || '';
-                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) || 
-                                       contentType.startsWith('video/');
-                        
+                        const isVideo = filename.match(/\.(mp4|avi|mov|mkv|webm|flv|wmv|m4v)$/i) ||
+                            contentType.startsWith('video/');
+
                         let finalAudioBuffer = audioBuffer.buffer;
-                        
+
                         if (isVideo) {
                             // Extract audio from video
                             const { extractAudioFromVideo } = require('../utils/videoMerge');
                             const extension = filename.split('.').pop() || 'mp4';
                             finalAudioBuffer = await extractAudioFromVideo(finalAudioBuffer, extension);
                         }
-                        
+
                         const audioId = await uploadToGridFS(`audio-${Date.now()}.mp3`, finalAudioBuffer, "audio/mp3");
                         updateData.audioId = audioId;
                     } else if (removeAudio) {
@@ -598,6 +608,10 @@ router.put('/templates/:id', async (req, res) => {
                         // New GIF uploaded
                         const gifId = await uploadToGridFS(`animation-${Date.now()}.gif`, gifBuffer, "image/gif");
                         updateData.gifId = gifId;
+                    } else if (gifIdField) {
+                        // Existing GIF ID selected
+                        updateData.gifId = gifIdField;
+                        updateData.hasAnimation = true; // Ensure animation is enabled if an ID is selected
                     } else if (removeGif) {
                         // Remove GIF
                         updateData.gifId = null;
@@ -650,10 +664,10 @@ router.put('/templates/:id', async (req, res) => {
                         updateData.source = existingTemplate.accessType === 'videomerge' ? 'video merge app' : 'photo merge app';
                     }
                 }
-                
+
                 // Build update query with both $set and $unset
                 const updateQuery = {};
-                
+
                 // Always include updatedDate in $set
                 if (Object.keys(updateData).length > 0) {
                     updateQuery.$set = updateData;
@@ -661,7 +675,7 @@ router.put('/templates/:id', async (req, res) => {
                     // Even if no other fields, we still need $set for updatedDate
                     updateQuery.$set = { updatedDate: new Date() };
                 }
-                
+
                 // Add $unset if there are fields to unset
                 // MongoDB $unset requires the value to be any truthy value (1, "", true) - it just removes the field
                 if (accessType === 'videomerge' && Object.keys(unsetFields).length > 0) {
@@ -672,7 +686,7 @@ router.put('/templates/:id', async (req, res) => {
                     });
                     updateQuery.$unset = unsetQuery;
                 }
-                
+
                 const updatedTemplate = await PhotoMergeTemplate.findByIdAndUpdate(
                     templateId,
                     updateQuery,
@@ -743,7 +757,7 @@ router.delete('/templates/:id', async (req, res) => {
 
         // Delete files from GridFS
         const { bucket } = getConnection();
-        
+
         if (template.accessType === 'videomerge') {
             // Delete video merge files
             const videoIds = [template.video1Id, template.video2Id, template.video3Id, template.audioId, template.mergedVideoId].filter(Boolean);
@@ -772,12 +786,12 @@ router.delete('/templates/:id', async (req, res) => {
             }
         } else {
             // Delete photo merge files
-        if (template.templatePhotos && template.templatePhotos.length > 0) {
-            for (const photoId of template.templatePhotos) {
-                try {
-                    await bucket.delete(new mongoose.Types.ObjectId(photoId));
-                } catch (e) {
-                    console.error(`Failed to delete template photo ${photoId}:`, e.message);
+            if (template.templatePhotos && template.templatePhotos.length > 0) {
+                for (const photoId of template.templatePhotos) {
+                    try {
+                        await bucket.delete(new mongoose.Types.ObjectId(photoId));
+                    } catch (e) {
+                        console.error(`Failed to delete template photo ${photoId}:`, e.message);
                     }
                 }
             }
