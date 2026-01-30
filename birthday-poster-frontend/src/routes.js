@@ -6,6 +6,7 @@ import EventLoginPage from './Components/EventLoginPage';
 import ClientPage from './Components/ClientPage';
 // import ClientPageUser from './Components/ClientPageUser';
 import ShareScreen from './Components/ShareScreen';
+import BrowserGuard from './utils/BrowserGuard';
 
 const Login = lazy(() => import('./Components/Login'));
 const CreatePosterPage = lazy(() => import('./Components/CreatePosterPage'));
@@ -53,7 +54,11 @@ const routes = [
   },
   {
     path: '/photomergeapp/share/:photoId',
-    element: <ShareScreen />,
+    element:(
+    <BrowserGuard>
+      <ShareScreen />
+    </BrowserGuard>
+    ),
     exact: true
   },
   {

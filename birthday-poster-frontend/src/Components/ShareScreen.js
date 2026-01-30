@@ -1,13 +1,15 @@
-import React, { useEffect,useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./ShareScreen.css";
 import { Phone } from "@mui/icons-material";
 import { isVideoType } from "../utils/accessTypeUtils";
+import useAxios from "../useAxios";
 
 const ShareScreen = () => {
   const { photoId } = useParams();
   const navigate = useNavigate();
+  const axiosData = useAxios();
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [mediaData, setMediaData] = useState(null);
@@ -16,25 +18,36 @@ const ShareScreen = () => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [instagramLink, setInstagramLink] = useState('');
   const [instagramButtonText, setInstagramButtonText] = useState('Visit Our Instagram');
+  const [mediaBlob, setMediaBlob] = useState(null);
+  const [shareFile, setShareFile] = useState(null);
+  const [isPrefetching, setIsPrefetching] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'error', showChromeLink: false });
   const videoRef = useRef(null);
+
+  // Define Alert helper inside the component to access state setters
+  const Alert = (title, message, type = 'error', showChromeLink = false) => {
+    setAlertConfig({ title, message, type, showChromeLink });
+    setShowAlert(true);
+  };
 
   // Fetch media data and determine if it's a video, and get Instagram link
   useEffect(() => {
     const fetchMediaData = async () => {
       if (!photoId) return;
-      
+
       try {
         setLoading(true);
-        // The backend endpoint now searches by _id, photoId, posterVideoId, or mergedVideoId
-        const response = await axios.get(`https://api.bilimbebrandactivations.com/api/upload/media/${photoId}`);
+        // Use relative paths with axiosData hook (which handles dynamic baseURL)
+        const response = await axiosData.get(`upload/media/${photoId}`);
         const data = response.data;
         setMediaData(data);
-        
+
         // Fetch templates to get accessType mapping
         let templateAccessTypeMap = {};
         if (data.adminid) {
           try {
-            const templatesResponse = await axios.get(`https://api.bilimbebrandactivations.com/api/photomerge/templates?adminid=${data.adminid}`);
+            const templatesResponse = await axiosData.get(`photomerge/templates?adminid=${data.adminid}`);
             const templates = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
             templates.forEach(template => {
               if (template.templatename) {
@@ -45,35 +58,32 @@ const ShareScreen = () => {
             console.error("Error fetching templates:", templatesError);
           }
         }
-        
+
         // Determine if it's a video based on accessType
         const isVideoItem = isVideoType(data, templateAccessTypeMap, { enableFallback: false });
         setIsVideo(isVideoItem);
-        
+
         // Set media URL based on type
-        // For photos (photomerge): use photoId (primary) or posterVideoId (fallback)
-        // For videos (videomerge): use mergedVideoId (primary) or posterVideoId (fallback)
         if (isVideoItem) {
           const videoId = data.mergedVideoId || data.posterVideoId;
+          const apiBaseURL = axiosData.defaults.baseURL;
           if (videoId) {
-            const videoUrl = `https://api.bilimbebrandactivations.com/api/upload/file/${videoId}`;
+            const videoUrl = `${apiBaseURL}upload/file/${videoId}`;
             console.log('Setting video URL:', videoUrl, 'Video ID:', videoId);
             setMediaUrl(videoUrl);
           } else {
-            // Fallback: use photoId from URL if no video ID found
-            console.warn('No video ID found, using photoId as fallback');
-            setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`);
+            setMediaUrl(`${apiBaseURL}upload/file/${photoId}`);
           }
         } else {
-          // For photos: use photoId (photomerge) or posterVideoId (fallback for older data)
+          const apiBaseURL = axiosData.defaults.baseURL;
           const mediaId = data.photoId || data.posterVideoId || photoId;
-          setMediaUrl(`https://api.bilimbebrandactivations.com/api/upload/file/${mediaId}`);
+          setMediaUrl(`${apiBaseURL}upload/file/${mediaId}`);
         }
-        
+
         // Fetch Instagram link and button text from admin settings based on adminid
         if (data.adminid) {
           try {
-            const settingsResponse = await axios.get(`https://api.bilimbebrandactivations.com/api/users/premium-settings?adminid=${data.adminid}`);
+            const settingsResponse = await axiosData.get(`users/premium-settings?adminid=${data.adminid}`);
             if (settingsResponse.data?.success && settingsResponse.data?.settings?.general) {
               if (settingsResponse.data.settings.general.instagramLink) {
                 setInstagramLink(settingsResponse.data.settings.general.instagramLink);
@@ -84,18 +94,13 @@ const ShareScreen = () => {
             }
           } catch (settingsErr) {
             console.error("Error fetching Instagram settings:", settingsErr);
-            // Keep default values if fetch fails
           }
         }
-        
-        // Set loading to false so the component can render (both images and videos)
+
         setLoading(false);
-        
-        // For videos, show loading indicator initially
+
         if (isVideoItem) {
           setVideoLoading(true);
-          
-          // Fallback: If video events don't fire, hide loading after 3 seconds
           setTimeout(() => {
             setVideoLoading(false);
           }, 3000);
@@ -106,9 +111,37 @@ const ShareScreen = () => {
         setLoading(false);
       }
     };
-    
+
     fetchMediaData();
   }, [photoId]);
+
+  // Prefetch media blob when mediaUrl is set
+  useEffect(() => {
+    const prefetchBlob = async () => {
+      if (!mediaUrl || shareFile) return;
+
+      try {
+        setIsPrefetching(true);
+        console.log('Starting background file prefetch...');
+        const response = await fetch(mediaUrl);
+        const blob = await response.blob();
+        setMediaBlob(blob);
+
+        const fileName = isVideo ? 'video.mp4' : 'photo.jpg';
+        const fileType = isVideo ? 'video/mp4' : 'image/jpeg';
+        const file = new File([blob], fileName, { type: fileType });
+
+        setShareFile(file);
+        console.log('Background share file ready for instant use');
+      } catch (err) {
+        console.error('Error in background prefetch:', err);
+      } finally {
+        setIsPrefetching(false);
+      }
+    };
+
+    prefetchBlob();
+  }, [mediaUrl, mediaBlob, isVideo]);
 
   // Debug: Log when mediaUrl or isVideo changes
   useEffect(() => {
@@ -120,10 +153,9 @@ const ShareScreen = () => {
   // Track URL click when ShareScreen is viewed
   useEffect(() => {
     if (photoId) {
-      // Track click when ShareScreen page is viewed
       const trackView = async () => {
         try {
-          await axios.post("https://api.bilimbebrandactivations.com/api/upload/update-count", {
+          await axiosData.post("upload/update-count", {
             id: photoId,
             field: "urlclickcount"
           });
@@ -141,7 +173,6 @@ const ShareScreen = () => {
       window.history.pushState(null, "", window.location.pathname);
     };
 
-    // Disable back button
     window.history.pushState(null, "", window.location.pathname);
     window.addEventListener("popstate", preventBackNavigation);
 
@@ -179,49 +210,66 @@ const ShareScreen = () => {
   const handleImageError = () => {
     setLoading(false);
     setImageError(true);
-    Alert("Error", `Failed to load ${isVideo ? 'video' : 'image'}. Please try again.`);
+    Alert("Error", `Failed to load ${isVideo ? 'video' : 'image'}. Please try again.`, 'error', false);
   };
 
   const handleVideoError = () => {
     setLoading(false);
     setVideoLoading(false);
     setImageError(true);
-    Alert("Error", "Failed to load video. Please try again.");
+    Alert("Error", "Failed to load video. Please try again.", 'error', false);
   };
 
   const handleVideoLoadStart = () => {
-    // Only set videoLoading, don't set loading to true (that would hide the video element)
     setVideoLoading(true);
   };
 
   const handleVideoLoadedMetadata = () => {
-    // Metadata loaded - we now know video dimensions, can show it
     setVideoLoading(false);
     setLoading(false);
   };
 
   const handleVideoCanPlay = () => {
-    // Video can start playing - ensure it's visible
     setVideoLoading(false);
     setLoading(false);
   };
 
   const handleVideoCanPlayThrough = () => {
-    // Video has enough data to play through - ensure it's visible
     setVideoLoading(false);
     setLoading(false);
   };
 
   const handleVideoLoadedData = () => {
-    // First frame loaded - show the video
     setVideoLoading(false);
     setLoading(false);
+  };
+
+  const openSharePopup = (url, title = 'Share', w = 600, h = 600) => {
+    const dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+    const dualScreenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+
+    const width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : window.screen.width;
+    const height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : window.screen.height;
+
+    const systemZoom = width / window.screen.availWidth;
+    const left = (width - w) / 2 / systemZoom + dualScreenLeft
+    const top = (height - h) / 2 / systemZoom + dualScreenTop
+    const newWindow = window.open(url, title, `
+      scrollbars=yes,
+      width=${w / systemZoom}, 
+      height=${h / systemZoom}, 
+      top=${top}, 
+      left=${left}
+    `)
+
+    if (window.focus) newWindow.focus();
+    return newWindow;
   };
 
   const handleUpdateCount = async (field) => {
     if (!photoId) return;
     try {
-      await axios.post("https://api.bilimbebrandactivations.com/api/upload/update-count", {
+      await axiosData.post("upload/update-count", {
         id: photoId,
         field: field
       });
@@ -231,12 +279,10 @@ const ShareScreen = () => {
   };
 
   const handleShare = async (platform) => {
-    const shareUrl = mediaUrl || `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
     const text = isVideo ? "Check out my merged video!" : "Check out my merged photo!";
     const currentUrl = window.location.href;
     const platformKey = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
 
-    // Increment share count
     const fieldMap = {
       facebook: "facebooksharecount",
       twitter: "twittersharecount",
@@ -247,37 +293,71 @@ const ShareScreen = () => {
       handleUpdateCount(fieldMap[platformKey]);
     }
 
-    // ON MOBILE: Use Web Share API for ALL platforms to share the actual photo/video file
-    if (navigator.share) {
-      try {
-        const response = await fetch(shareUrl);
-        const blob = await response.blob();
-        const fileName = isVideo ? 'video.mp4' : 'photo.jpg';
-        const fileType = isVideo ? 'video/mp4' : 'image/jpeg';
-        const file = new File([blob], fileName, { type: fileType });
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: isVideo ? 'Merged Video' : 'Merged Photo',
-            text: text,
-          });
-          return;
-        }
-      } catch (error) {
+    if (isMobile) {
+      if (!window.isSecureContext && window.location.protocol !== 'https:') {
+        console.warn('Web Share API requires a Secure Context (HTTPS).');
+      }
+
+      if (!navigator.share) {
+        Alert("Browser Support", "Sharing is not natively supported by this browser. For the best experience, please use Google Chrome.", 'info', true);
+        return;
       }
     }
 
-    // ON DESKTOP or FALLBACK: Direct app/web navigation (Sharing the link)
+    if (navigator.share) {
+      try {
+        let file = shareFile;
+        if (!file && mediaBlob) {
+          const fileName = isVideo ? 'video.mp4' : 'photo.jpg';
+          const fileType = isVideo ? 'video/mp4' : 'image/jpeg';
+          file = new File([mediaBlob], fileName, { type: fileType });
+        }
+
+        if (file) {
+          const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+
+          if (canShareFiles) {
+            console.log('Opening native share sheet with file...');
+            await navigator.share({
+              files: [file],
+              title: isVideo ? 'Merged Video' : 'Merged Photo',
+              text: text,
+            });
+            return;
+          }
+        }
+
+        console.log('File sharing not ready/supported, sharing link instead');
+        await navigator.share({
+          title: isVideo ? 'Merged Video' : 'Merged Photo',
+          text: text,
+          url: window.location.href
+        });
+        return;
+
+      } catch (error) {
+        console.error('Web Share failed:', error);
+        return;
+      }
+    }
+
+    if (isMobile) {
+      Alert("Sharing Unavailable", "Native sharing is not available on this browser. For the best experience, please use Google Chrome on mobile.", 'info', true);
+      return;
+    }
+
     const shareUrls = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`,
       twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(text)}`,
       whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${text} ${currentUrl}`)}`,
-      instagram: "https://www.instagram.com/",
+      instagram: instagramLink || "https://www.instagram.com/",
     };
 
     if (shareUrls[platformKey]) {
-      window.open(shareUrls[platformKey], "_blank", "noopener,noreferrer");
+      console.log(`Fallback share to ${platformKey}: ${shareUrls[platformKey]}`);
+      openSharePopup(shareUrls[platformKey], `Share on ${platform}`);
     }
   };
 
@@ -285,20 +365,18 @@ const ShareScreen = () => {
     if (!photoId) return;
     handleUpdateCount("downloadcount");
 
-    const downloadUrl = mediaUrl || `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`;
+    const apiBaseURL = axiosData.defaults.baseURL;
+    const downloadUrl = mediaUrl || `${apiBaseURL}upload/file/${photoId}`;
 
-    // Create a temporary link element
     const link = document.createElement("a");
     link.href = downloadUrl;
     link.download = isVideo ? `merged-video-${photoId}.mp4` : `merged-photo-${photoId}.jpg`;
 
-    // Append to body, click, and remove
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Show loading state
   if (loading) {
     return (
       <div className="share-screen">
@@ -310,7 +388,6 @@ const ShareScreen = () => {
     );
   }
 
-  // Show error state
   if (imageError) {
     const isPhotoError = !isVideo;
     return (
@@ -320,20 +397,20 @@ const ShareScreen = () => {
             <div className="error-icon-pulse"></div>
             {isPhotoError ? (
               <svg className="error-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
-                <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
-                <path d="M21 15L16 10L5 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" />
+                <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" />
+                <path d="M21 15L16 10L5 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             ) : (
               <svg className="error-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
-                <path d="M10 8L14 12L10 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" />
+                <path d="M10 8L14 12L10 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </div>
           <h2 className="error-title">{isPhotoError ? 'Photo Not Found' : 'Video Not Found'}</h2>
           <p className="error-message">
-            {isPhotoError 
+            {isPhotoError
               ? "The photo you're looking for doesn't exist or has been removed."
               : "The video you're looking for doesn't exist or has been removed."
             }
@@ -348,18 +425,16 @@ const ShareScreen = () => {
     );
   }
 
-  // Truncate Instagram button text for better alignment (max 30 characters)
   const truncateText = (text, maxLength = 30) => {
     if (!text || text.length <= maxLength) return text;
     return text.substring(0, maxLength).trim() + '...';
   };
 
   const InstagramLink = () => (
-    <a
-      href={instagramLink}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      onClick={() => platformAwareInstagramVisit()}
       className="instagram-button"
+      style={{ border: 'none' }}
     >
       <span className="insta-icon-button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -367,8 +442,12 @@ const ShareScreen = () => {
         </svg>
       </span>
       <span className="insta-button-text" title={instagramButtonText}>{truncateText(instagramButtonText)}</span>
-    </a>
+    </button>
   );
+
+  const platformAwareInstagramVisit = () => {
+    openSharePopup(instagramLink || "https://www.instagram.com/", 'Our Instagram');
+  };
 
   return (
     <div className="share-screen">
@@ -426,7 +505,7 @@ const ShareScreen = () => {
                   loop
                   playsInline
                   muted={false}
-                  preload="auto"
+                  preload="metadata"
                   className="merged-image"
                   style={{
                     width: '100%',
@@ -465,7 +544,7 @@ const ShareScreen = () => {
             </div>
           ) : (
             <img
-              src={mediaUrl || `https://api.bilimbebrandactivations.com/api/upload/file/${photoId}`}
+              src={mediaUrl || `${axiosData.defaults.baseURL}upload/file/${photoId}`}
               alt="Merged photo"
               className="merged-image"
               onLoad={handleImageLoad}
@@ -518,6 +597,53 @@ const ShareScreen = () => {
           </div>
         </div>
       </div>
+
+      {/* Custom Alert Modal */}
+      {showAlert && (
+        <div className="custom-alert-overlay" onClick={() => setShowAlert(false)}>
+          <div className="custom-alert-modal" onClick={e => e.stopPropagation()}>
+            <div className="custom-alert-header">
+              <div className="custom-alert-icon">
+                {alertConfig.type === 'error' ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                ) : alertConfig.type === 'warning' ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                )}
+              </div>
+              <h3 className="custom-alert-title">{alertConfig.title}</h3>
+            </div>
+            <div className="custom-alert-body">
+              <p className="custom-alert-message">{alertConfig.message}</p>
+
+              {alertConfig.showChromeLink && (
+                <div className="chrome-suggestion">
+                  <span className="chrome-text">💡 Tip for Mobile Users</span>
+                  <span className="chrome-tip">Try opening this link in <b>Google Chrome</b> app for the best sharing experience.</span>
+                </div>
+              )}
+            </div>
+            <div className="custom-alert-footer">
+              <button className="alert-button alert-button-primary" onClick={() => setShowAlert(false)}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -548,11 +674,6 @@ const getIconComponent = (iconName) => {
   };
 
   return icons[iconName] || <span>{iconName.charAt(0).toUpperCase()}</span>;
-};
-
-// Alert utility function
-const Alert = (title, message) => {
-  alert(`${title}: ${message}`);
 };
 
 export default ShareScreen;
