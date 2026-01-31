@@ -139,8 +139,8 @@ async function mergeTwoVideos({
 
     ffmpegCmd
       .complexFilter([
-        "[0:v]scale=1080:1920,fps=30,setsar=1[v0]",
-        "[1:v]scale=1080:1920,fps=30,setsar=1[v1]",
+        "[0:v]scale=1080:1920,fps=24,setsar=1[v0]",
+        "[1:v]scale=1080:1920,fps=24,setsar=1[v1]",
         "[v0][v1]concat=n=2:v=1:a=0[v]",
       ])
       .outputOptions([
@@ -994,15 +994,10 @@ async function mergeThreeVideos({
 
     // Outer glow layers for client name (creates soft glow)
     const glowOffsets = [
-      { x: 0, y: 0, opacity: 0.3 },
       { x: 2, y: 2, opacity: 0.25 },
       { x: -2, y: 2, opacity: 0.25 },
       { x: 2, y: -2, opacity: 0.25 },
-      { x: -2, y: -2, opacity: 0.25 },
-      { x: 4, y: 0, opacity: 0.2 },
-      { x: -4, y: 0, opacity: 0.2 },
-      { x: 0, y: 4, opacity: 0.2 },
-      { x: 0, y: -4, opacity: 0.2 }
+      { x: -2, y: -2, opacity: 0.25 }
     ];
 
     // Draw glow layers for client name
@@ -1044,7 +1039,7 @@ async function mergeThreeVideos({
     const output = `[v${videoIndex}]`;
 
     const baseFilter = `scale=1080:1920:force_original_aspect_ratio=decrease,` +
-      `pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30`;
+      `pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24`;
 
     let filter = input + baseFilter;
 
@@ -1083,7 +1078,7 @@ async function mergeThreeVideos({
     // First apply text to video2
     filters.push(buildVideoFilter(1, showText2));
     // Then overlay GIF animation on video2 (GIF is input index 3)
-    filters.push(`[3:v]scale=1080:1920:flags=lanczos,format=rgba[gif_scaled]`);
+    filters.push(`[3:v]fps=12,scale=1080:1920:flags=bilinear,format=rgba[gif_scaled]`);
     filters.push(`[v1][gif_scaled]overlay=0:0:shortest=1[v1]`);
   } else {
     filters.push(buildVideoFilter(1, showText2));
@@ -1184,8 +1179,8 @@ async function mergeThreeVideos({
           "-map [vout]",
           ...(tempAudioPath ? [`-map ${tempGifPath ? '4' : '3'}:a`, "-c:a aac", "-b:a 128k"] : ["-an"]), // Add audio if available, otherwise no audio
           "-c:v libx264",
-          "-preset fast",
-          "-crf 24",
+          "-preset ultrafast",
+          "-crf 30",
           "-pix_fmt yuv420p",
           "-movflags +faststart",
           "-shortest"
@@ -1281,8 +1276,8 @@ async function mergeThreeVideos({
           "-map [vout]",
           ...(tempAudioPath ? [`-map ${tempGifPath ? '4' : '3'}:a`, "-c:a aac", "-b:a 128k"] : ["-an"]), // Add audio if available, otherwise no audio
           "-c:v libx264",
-          "-preset fast",
-          "-crf 24",
+          "-preset ultrafast",
+          "-crf 30",
           "-pix_fmt yuv420p",
           "-movflags +faststart",
           "-shortest"

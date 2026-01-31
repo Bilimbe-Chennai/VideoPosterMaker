@@ -620,7 +620,7 @@ function imageShareEmailTemplate({ name, viewUrl, mediaType = 'photo' }) {
   const isVideo = mediaType === 'video';
   const mediaText = isVideo ? 'video' : 'photo';
   const mediaTextCapitalized = isVideo ? 'Video' : 'Photo';
-  
+
   return `
 <!DOCTYPE html>
 <html>
@@ -783,7 +783,7 @@ const shareOuputApp = async (whatsapp, viewUrl, id, name, res) => {
     // Fetch media to get templateId and determine accessType
     const media = await Media.findById(_id);
     let mediaType = 'photo'; // Default to photo
-    
+
     if (media && media.templateId) {
       // Fetch the template to get accessType
       const template = await PhotoMergeTemplate.findById(media.templateId);
@@ -1292,16 +1292,20 @@ router.post("/client/:temp_name", async (req, res) => {
           }
 
           try {
+
+
             // Send keep-alive headers to prevent connection timeout
             res.setHeader('Connection', 'keep-alive');
             res.setHeader('Keep-Alive', 'timeout=900');
 
             // Upload middle video to GridFS
+
             const video2Id = await uploadToGridFS(
               `video2-${Date.now()}.mp4`,
               photoBuffer,
               "video/mp4"
             );
+
 
             // Get template video IDs
             const video1Id = template.video1Id;
@@ -1310,8 +1314,11 @@ router.post("/client/:temp_name", async (req, res) => {
             const gifId = template.gifId;
             const hasAnimation = template.hasAnimation;
 
+
+
             // Validate required template files
             if (!video1Id && !video3Id) {
+
               return res.status(400).json({ error: 'Template must have at least one video (video1 or video3)' });
             }
 
@@ -1319,8 +1326,34 @@ router.post("/client/:temp_name", async (req, res) => {
             const normalizedSource = source ? source.trim().toLowerCase() : null;
             const mediaSource = normalizedSource || (template.accessType === 'videomerge' ? 'video merge app' : 'photo merge app');
 
-            // Create media record immediately with processing status
-            // This allows us to return quickly and avoid gateway timeout
+            // Merge videos using mergeThreeVideos with GIF animation applied only to middle video
+            // Wait for merge to complete before responding
+
+
+            const finalVideoId = await mergeThreeVideos({
+              name: clientName || template.name || template.templatename,
+              date: template.date || new Date().toISOString(),
+              type: template.type || 'template',
+              video1Id: video1Id || video2Id,
+              video2Id: video2Id,
+              video3Id: video3Id || video2Id,
+              audioId: audioId,
+              clientname: clientName || template.clientname || '',
+              brandname: template.brandname || '',
+              congratsOption: template.congratsOption === 'true' || template.congratsOption === true || template.congratsOption === '1',
+              video1TextOption: template.video1TextOption === 'true' || template.video1TextOption === true || template.video1TextOption === '1',
+              video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
+              video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
+              clientPhotoId: null,
+              gifId: (hasAnimation && gifId) ? gifId : undefined, // Pass gifId only if animation is enabled
+              textColor: template.overlayTextColor || '#FFFFFF',
+              fontFamily: template.overlayFontFamily || 'Arial'
+            });
+
+
+
+            // Create media record with completed merged video
+
             const mediaId = new mongoose.Types.ObjectId();
             const media = new Media({
               _id: mediaId,
@@ -1333,108 +1366,76 @@ router.post("/client/:temp_name", async (req, res) => {
               video2Id: video2Id,
               video3Id: video3Id,
               audioId: audioId,
-              mergedVideoId: null, // Will be set after processing
-              posterVideoId: null, // Will be set to final merged video after processing
+              mergedVideoId: finalVideoId,
+              posterVideoId: finalVideoId, // Set final merged video (with animation if enabled) as posterVideoId
               gifId: hasAnimation ? gifId : undefined,
               templateId: template._id,
               source: mediaSource,
               whatsapp,
-              whatsappstatus: "processing", // Processing status
+              whatsappstatus: "pending",
               adminid: adminid || template.adminid || "",
               branchName: branchName || template.branchid || "",
               createdAt: new Date()
             });
             await media.save();
 
-            // Return response immediately to avoid gateway timeout
-            const mediaResponse = {
-              _id: media._id,
-              name: media.name,
-              email: media.email,
-              date: media.date,
-              type: media.type,
-              template_name: media.template_name,
-              video1Id: media.video1Id,
-              video2Id: media.video2Id,
-              video3Id: media.video3Id,
-              audioId: media.audioId,
-              mergedVideoId: null,
-              posterVideoId: null, // Will be updated when processing completes
-              gifId: media.gifId,
-              templateId: media.templateId,
-              source: media.source,
-              whatsapp: media.whatsapp,
-              whatsappstatus: "processing",
-              adminid: media.adminid,
-              branchName: media.branchName,
-              createdAt: media.createdAt
-            };
 
+            // Log activity for video merge creation
+            if (adminid || template.adminid) {
+
+              await logActivity({
+                customerPhone: whatsapp || '',
+                customerName: clientName || 'Unknown',
+                customerEmail: email || '',
+                activityType: 'video_created',
+                activityDescription: `Created video with template ${temp_name || 'N/A'}`,
+                mediaId: mediaId,
+                templateName: temp_name || '',
+                branchName: branchName || '',
+                adminid: adminid || template.adminid
+              });
+            }
+
+
+            // Return response with completed video
             res.status(201).json({
               success: true,
-              media: mediaResponse,
-              processing: true,
-              message: "Video upload received. Processing in progress. Please check back shortly for the final video."
+              media: {
+                _id: media._id,
+                name: media.name,
+                email: media.email,
+                date: media.date,
+                type: media.type,
+                template_name: media.template_name,
+                video1Id: media.video1Id,
+                video2Id: media.video2Id,
+                video3Id: media.video3Id,
+                audioId: media.audioId,
+                mergedVideoId: finalVideoId,
+                posterVideoId: finalVideoId,
+                gifId: media.gifId,
+                templateId: media.templateId,
+                source: media.source,
+                whatsapp: media.whatsapp,
+                whatsappstatus: "pending",
+                adminid: media.adminid,
+                branchName: media.branchName,
+                createdAt: media.createdAt
+              },
+              message: "Video merge completed successfully"
             });
 
-            // Process video merge and animation asynchronously in the background
-            (async () => {
-              try {
-                // Merge videos using mergeThreeVideos with GIF animation applied only to middle video
-                const finalVideoId = await mergeThreeVideos({
-                  name: clientName || template.name || template.templatename,
-                  date: template.date || new Date().toISOString(),
-                  type: template.type || 'template',
-                  video1Id: video1Id || video2Id,
-                  video2Id: video2Id,
-                  video3Id: video3Id || video2Id,
-                  audioId: audioId,
-                  clientname: clientName || template.clientname || '',
-                  brandname: template.brandname || '',
-                  congratsOption: template.congratsOption === 'true' || template.congratsOption === true || template.congratsOption === '1',
-                  video1TextOption: template.video1TextOption === 'true' || template.video1TextOption === true || template.video1TextOption === '1',
-                  video2TextOption: template.video2TextOption === 'true' || template.video2TextOption === true || template.video2TextOption === '1',
-                  video3TextOption: template.video3TextOption === 'true' || template.video3TextOption === true || template.video3TextOption === '1',
-                  clientPhotoId: null,
-                  gifId: (hasAnimation && gifId) ? gifId : undefined, // Pass gifId only if animation is enabled
-                  textColor: template.overlayTextColor || '#FFFFFF',
-                  fontFamily: template.overlayFontFamily || 'Arial'
-                });
-
-                // GIF animation is now applied during merge (only to middle video), so we don't need separate animation step
-
-                // Update media record with final merged video (with animation if enabled) as posterVideoId
-                await Media.findByIdAndUpdate(mediaId, {
-                  mergedVideoId: finalVideoId,
-                  posterVideoId: finalVideoId, // Set final merged video (with animation if enabled) as posterVideoId
-                  whatsappstatus: "pending"
-                });
-
-                // Log activity for video merge creation
-                if (adminid || template.adminid) {
-                  await logActivity({
-                    customerPhone: whatsapp || '',
-                    customerName: clientName || 'Unknown',
-                    customerEmail: email || '',
-                    activityType: 'video_created',
-                    activityDescription: `Created video with template ${temp_name || 'N/A'}`,
-                    mediaId: mediaId,
-                    templateName: temp_name || '',
-                    branchName: branchName || '',
-                    adminid: adminid || template.adminid
-                  });
-                }
-              } catch (err) {
-                console.error(`[Background] Video merge processing error for media ${mediaId}:`, err);
-                // Update media status to failed
-                await Media.findByIdAndUpdate(mediaId, {
-                  whatsappstatus: "failed"
-                });
-              }
-            })();
           } catch (err) {
             console.error("Video merge processing error:", err);
-            res.status(500).json({ error: "Failed to process video merge", message: err.message });
+
+            // Send error response if not already sent
+            if (!res.headersSent) {
+              res.status(500).json({
+                error: "Failed to process video merge",
+                message: err.message,
+                details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+              });
+            }
           }
         } else {
           // Original photo merge logic
@@ -1534,7 +1535,7 @@ router.post("/client/share/:whatsapp", async (req, res) => {
       // Fetch media to get templateId and determine accessType
       const media = await Media.findById(id);
       let mediaType = 'photo'; // Default to photo
-      
+
       if (media && media.templateId) {
         // Fetch the template to get accessType
         const template = await PhotoMergeTemplate.findById(media.templateId);
@@ -1548,7 +1549,7 @@ router.post("/client/share/:whatsapp", async (req, res) => {
 
       const mediaTextCapitalized = mediaType === 'video' ? 'Video' : 'Photo';
       const fromName = mediaType === 'video' ? 'VideoMerge' : 'PhotoMerge';
-      
+
       const mailOptions = {
         from: `"${fromName}" <developmentbilimbedigital@gmail.com>`,
         to: email,
